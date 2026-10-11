@@ -81,14 +81,14 @@ const EGGS = [
     say: '"Nací aquí en 1924 y los gringos juran que soy italiana. Ni modo, toma una lana."' },
   { k: 'xolo', name: 'Un Xolo pelón', near: 'Parque Teniente Guerrero', dx: 40, dy: -50, pay: 150,
     say: '"Sí, estoy pelón. No, no tengo frío. Sí, le voy a los Xolos. Ten tu feria y no me andes sobando."' },
-  { k: 'cobija', name: 'El de las Cobijas de Tigre', near: 'Garita de San Ysidro', dx: -60, dy: 50, pay: 150,
-    say: '"¡Cobija de tigre, güero, calientita! ...Ya, no compras nada. Toma, pero no le digas a mi vieja."' },
+  { k: 'batiz', name: 'Javier Bátiz', near: 'Frontón Jai Alai', dx: -40, dy: 40, pay: 200,
+    say: '"Yo le enseñé a tocar a Santana, ¿y tú qué has hecho? Toma, cómprate una guitarra y ponte a practicar."' },
   { k: 'gringo', name: 'Un Gringo Perdido', near: 'Puente El Chaparral', dx: -50, dy: 60, pay: 250,
     say: '"Bro, where is la Revolución? Llevo tres días caminando. Toma mis dólares, ya no los entiendo."' },
   { k: 'mariachi', name: 'El Mariachi Desvelado', near: 'Plaza Santa Cecilia', dx: -40, dy: -20, pay: 200,
     say: '"Te canto El Rey gratis... no, mentira. Bueno, hoy sí, y hasta te doy pa\'l camión."' },
-  { k: 'elote', name: 'El Elotero', near: 'Mercado Hidalgo', dx: 40, dy: 40, pay: 100,
-    say: '"¿Con todo? Mayonesa, queso, chile y tu dignidad. Invita la casa y de pilón una lana."' },
+  { k: 'mimo', name: 'El Mimo Moy', near: 'Museo de Historia (MUHTI)', dx: 40, dy: 40, pay: 150,
+    say: '(No dice ni una palabra. Saca una cartera invisible, cuenta billetes invisibles... y te da dinero de verdad.)' },
   { k: 'payaso', name: 'El Payaso del Crucero', near: 'Glorieta Cuauhtémoc', dx: 60, dy: -40, pay: 150,
     say: '"Hago malabares con tres limones y dos chambas. Toma, que hoy me fue bien en el semáforo."' },
 ].map(e => { const l = landmarks.find(q => q.name === e.near) || landmarks[0]; return { ...e, x: l.x + e.dx * M, y: l.y + e.dy * M, got: false }; });
@@ -1119,13 +1119,13 @@ function makeEggs(scene) {
       x.beginPath(); x.moveTo(16, 24.5); x.quadraticCurveTo(19, 28, 17, 31); x.stroke();
       ell(x, '#c0392b', 16, 11, 3, 0.9);
     },
-    cobija(x) { // vendedor con un monton de cobijas de tigre
-      shadow(x, 12, 9);
-      for (let i = 0; i < 3; i++) {
-        const y0 = 10 + i * 2.2, x0 = 5 + i * 1.5; x.fillStyle = ['#e67e22', '#2980b9', '#e74c3c'][i]; x.fillRect(x0, y0, 15, 11);
-        x.strokeStyle = '#111'; x.lineWidth = 1; for (let k = 2; k < 15; k += 3) { x.beginPath(); x.moveTo(x0 + k, y0); x.lineTo(x0 + k + 1.5, y0 + 5); x.lineTo(x0 + k, y0 + 11); x.stroke(); }
-      }
-      persona(x, 25, 16, '#7f8c8d', '#a0703c', '#1a1a1a');
+    batiz(x) { // rockero de pelo largo canoso, lentes oscuros y su guitarra electrica
+      shadow(x, 10, 11);
+      ell(x, '#c0392b', 22, 21, 4.4, 5.4, 0.5); ell(x, '#111', 22, 21, 1.4, 1.4);
+      x.strokeStyle = '#3b2a1a'; x.lineWidth = 1.6; x.beginPath(); x.moveTo(19.5, 17.5); x.lineTo(13, 9); x.stroke();
+      ell(x, '#151515', 15, 17, 5.6, 4);
+      ell(x, '#e8e8e8', 15, 14, 4.4, 5.4); ell(x, '#c99a6b', 15, 12.2, 2.2, 2);
+      x.fillStyle = '#111'; x.fillRect(12.8, 11.4, 4.4, 1.2);
     },
     gringo(x) { // turista quemado con sombrero de souvenir, camisa hawaiana y maleta
       shadow(x, 9, 9); x.fillStyle = '#95a5a6'; x.fillRect(20, 18, 6, 8);
@@ -1139,12 +1139,13 @@ function makeEggs(scene) {
       ell(x, '#111', 15, 15, 5.5, 4); ell(x, '#2b2b2b', 15, 14, 9, 9); ell(x, '#d4af37', 15, 14, 9, 9); ell(x, '#2b2b2b', 15, 14, 8, 8);
       ell(x, '#1a1a1a', 15, 14, 3.6, 3.6); x.strokeStyle = '#d4af37'; x.lineWidth = 0.6; x.beginPath(); x.arc(15, 14, 5.6, 0, 7); x.stroke();
     },
-    elote(x) { // carrito de elotes con sombrilla
-      shadow(x, 12, 10); x.fillStyle = '#bdc3c7'; x.fillRect(5, 16, 22, 11);
-      for (let i = 0; i < 5; i++) ell(x, '#f4d03f', 8 + i * 4, 22, 1.5, 3.6);
-      const cs = ['#e74c3c', '#f5f5f5', '#27ae60', '#f5f5f5'];
-      for (let i = 0; i < 8; i++) { x.fillStyle = cs[i % 4]; x.beginPath(); x.moveTo(13, 11); x.arc(13, 11, 9, i * Math.PI / 4, (i + 1) * Math.PI / 4); x.fill(); }
-      persona(x, 27, 9, '#f5f5f5', '#a0703c', '#222');
+    mimo(x) { // mimo: cara blanca, boina negra, playera de rayas y guantes blancos
+      shadow(x, 9, 8);
+      ell(x, '#f5f5f5', 16, 17, 5.4, 4);
+      x.fillStyle = '#111'; for (let i = 0; i < 4; i++) x.fillRect(11 + i * 3, 13.4, 1.4, 7.2);
+      ell(x, '#fff', 8.6, 13, 2, 2); ell(x, '#fff', 23.4, 13, 2, 2);
+      ell(x, '#fff', 16, 15.5, 3, 3); ell(x, '#111', 16, 14.3, 3.3, 2.4); ell(x, '#111', 16, 12, 1, 1);
+      ell(x, '#e74c3c', 16, 17.6, 1, 0.5);
     },
     payaso(x) { // payaso de crucero con peluca de colores y limones en el aire
       shadow(x, 8, 8); ell(x, '#3498db', 16, 17, 5, 3.8);
