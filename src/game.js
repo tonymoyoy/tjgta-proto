@@ -628,6 +628,10 @@ const FRASES_POLI = [
   'Ya se le cayó el sistema, mi joven.',
   '¿Y la placa? ¿Y el seguro? ¿Y la vergüenza?',
 ];
+// cuando se te acaba el aire de tanto correr
+const FRASES_CANSADO = ['¡Te bofeaste!', 'Mucho taco y poco ejercicio.', 'Se te salió un pulmón, compa.', 'Ni que fueras el Chicharito.',
+  'Pa\'l otra, menos caguama.', 'Échate un aguita, campeón.', 'Ya no das ni un paso más, ¿verdad?', 'Te faltó el aire, viejo lobo.'];
+const STAMINA = 5; // segundos que aguantas corriendo
 const FRASES_TOPE = [
   '¡Tope!', '¡Ese tope no venía en el mapa!', '¡Aguas con el tope!', '¡Adiós suspensión!',
   '¡Ese tope lo puso el taller de enfrente!', '¡Se me salió el hígado!', '¡Uy, el escape se quedó atrás!',
@@ -1279,6 +1283,8 @@ class Main extends Phaser.Scene {
       e.x = sx; e.y = sy;
       e.icon = this.add.image(sx, sy, 'egg_' + e.k).setScale(0.9).setRotation(rot).setDepth(7).setVisible(!e.got);
     }
+    this.stamina = STAMINA; this.tired = false;
+    this.staminaBar = this.add.graphics().setDepth(20);
     this.target = this.add.image(0, 0, 'ring').setDepth(4).setTint(0x57d16b).setVisible(false);
 
     // el jugador aparece en una calle al azar, en la banqueta y con un auto estacionado al lado
@@ -1429,15 +1435,33 @@ class Main extends Phaser.Scene {
     let mx = c.x, my = c.y;
     const m = Math.hypot(mx, my);
     if (m > 0.1) {
-      const run = c.run ? 1.8 : 1, sp = 62 * run * Math.min(1, m);
+      // correr gasta aire; si se acaba, solo caminas hasta recuperarlo completo
+      const running = c.run && !this.tired;
+      if (running) {
+        this.stamina -= dt;
+        if (this.stamina <= 0) { this.stamina = 0; this.tired = true; toast('😮‍💨 ' + pick(FRASES_CANSADO), 'Camina un rato para recuperar el aire.', 2.4); }
+      } else this.stamina = Math.min(STAMINA, this.stamina + dt * 0.8);
+      const run = running ? 1.8 : 1, sp = 62 * run * Math.min(1, m);
       mx /= m; my /= m;
       const nx = p.x + mx * sp * dt, ny = p.y + my * sp * dt;
       if (!blocked(nx, p.y)) p.x = nx;
       if (!blocked(p.x, ny)) p.y = ny;
       p.a = Math.atan2(my, mx);
       if (!p.sprite.anims.isPlaying) p.sprite.play('walk' + PLAYER_SHIRT);
-      p.sprite.anims.timeScale = (c.run ? 1.8 : 1) * Math.min(1, m) * 1.2;
-    } else if (p.sprite.anims.isPlaying) { p.sprite.stop(); p.sprite.setFrame(0); }
+      p.sprite.anims.timeScale = run * Math.min(1, m) * 1.2;
+    } else {
+      this.stamina = Math.min(STAMINA, this.stamina + dt * 1.6); // parado se recupera mas rapido
+      if (p.sprite.anims.isPlaying) { p.sprite.stop(); p.sprite.setFrame(0); }
+    }
+    if (this.tired && this.stamina >= STAMINA) this.tired = false;
+    // barrita de aire arriba del jugador, solo cuando no esta llena
+    const sb = this.staminaBar;
+    sb.clear();
+    if (this.stamina < STAMINA) {
+      const w = 26, f = this.stamina / STAMINA, bx = p.x - w / 2, by = p.y - 20;
+      sb.fillStyle(0x000000, 0.55).fillRect(bx - 1, by - 1, w + 2, 5);
+      sb.fillStyle(this.tired ? 0xe74c3c : 0x7fd3ff, 1).fillRect(bx, by, w * f, 3);
+    }
     p.sprite.setPosition(p.x, p.y).setRotation(p.a);
   }
 
@@ -1576,7 +1600,7 @@ class Main extends Phaser.Scene {
       else toast(pick(FRASES_ROBO), best.T.name + (best.dirty ? ' bien madreado' : ' de agencia'), 2.4);
     } else this.parked.splice(this.parked.indexOf(best), 1);
     best.vx = best.vy = 0;
-    this.inCar = best;
+    this.inCar = best; this.staminaBar.clear(); this.stamina = STAMINA; this.tired = false; // manejando descansas
     this.player.sprite.setVisible(false);
     this.cameras.main.startFollow(best.sprite, true, 0.15, 0.15);
     this.setObjective();
