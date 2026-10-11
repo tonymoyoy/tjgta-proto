@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>TJGTA Zona Centro</title>
+<link rel="stylesheet" href="src/style.css">
+</head>
+<body>
+<div id="game"></div>
+
+<div id="stats" class="hud">
+  <div class="money" id="money">$0</div>
+  <div id="counts"></div>
+  <div class="obj" id="obj"></div>
+</div>
+<canvas id="mini" class="hud" width="180" height="180"></canvas>
+<div id="street" class="hud"></div>
+<div id="toast" class="hud"></div>
+<div id="timer" class="hud"></div>
+<div id="arrow" class="hud"></div>
+<div id="credit" class="hud"></div>
+
+<div id="bigmap"><canvas id="bigc"></canvas><p>Toca el mapa para marcar un destino. M o toca fuera para cerrar.</p></div>
+
+<div id="touch">
+  <div id="stick"><div id="knob"></div></div>
+  <div class="tbtn" id="bE">AUTO</div>
+  <div class="tbtn" id="bB">FRENO</div>
+  <div class="tbtn" id="bR">REVERSA</div>
+  <div class="tbtn" id="bT">TAXI</div>
+  <div class="tbtn" id="bM">MAPA</div>
+</div>
+
+<div id="intro"><div class="card">
+  <h1>TJGTA</h1>
+  <h2>ZONA CENTRO · TIJUANA</h2>
+  <table>
+    <tr><td>Flechas / WASD</td><td>Caminar o manejar</td></tr>
+    <tr><td>E</td><td>Robar un auto / bajarte</td></tr>
+    <tr><td>Espacio</td><td>Freno de mano (derrapes)</td></tr>
+    <tr><td>R / Flecha abajo</td><td>Reversa (para desatorarte)</td></tr>
+    <tr><td>Shift</td><td>Correr a pie</td></tr>
+    <tr><td>T</td><td>Trabajar de taxista (en auto)</td></tr>
+    <tr><td>M</td><td>Mapa grande y marcar destino</td></tr>
+  </table>
+  <p style="color:var(--muted);font-size:14px;margin:0 0 18px">Descubre los lugares reales del Centro ★, prueba la ruta del taco 🌮, colecciona los cafés ☕, gana pesos como taxista o róbale la moto a un repartidor 🛵 y entrega su pedido. Cuidado con la comida china 🏮: ahí se te va el dinero.</p>
+  <button class="go" id="go">JUGAR</button>
+  <div><button class="reset" id="reset">Reiniciar partida</button></div>
+  <div class="note">Calles y edificios reales de OpenStreetMap / Overture Maps.</div>
+</div></div>
+
+<script src="src/phaser-3.90.0.min.js"></script>
+<script src="data/centro.js"></script>
+<script src="src/game.js"></script>
+</body>
+</html>
