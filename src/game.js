@@ -634,9 +634,9 @@ const FRASES_CANSADO = ['¡Te bofeaste!', 'Mucho taco y poco ejercicio.', 'Se te
 const STAMINA = 5; // segundos que aguantas corriendo
 // al llegar a un cafe
 const FRASES_CAFE = ['Un americano para el camino.', 'Café de olla bien cargado.', 'Un latte con pan dulce.', 'Un cold brew, que hace calor.',
-  'Un espresso doble, pa\' despertar hasta al compa.', 'Un capuchino con canela y un ratito de wifi.', 'Café de Veracruz, del bueno.',
+  'Un espresso doble, pa\' despertar hasta al compa.', 'Un capuchino con canela y un ratito de wifi.', 'Un matcha bien verde, pa\' sentirte fresa de la Zona Río.',
   'Un frappé de cajeta, ni modo, se antojó.', 'Un mocha con concha de chocolate.', 'Café con leche como el de la abuela.',
-  'Un carajillo, pero nomás uno, eh.', 'Un pour over y un barista explicándote el grano.', 'Un descafeinado... ¿y para qué viniste?'];
+  'Un dirty chai: especias, espresso y cero arrepentimientos.', 'Un pour over y un barista explicándote el grano.', 'Un descafeinado... ¿y para qué viniste?'];
 const FRASES_TOPE = [
   '¡Tope!', '¡Ese tope no venía en el mapa!', '¡Aguas con el tope!', '¡Adiós suspensión!',
   '¡Ese tope lo puso el taller de enfrente!', '¡Se me salió el hígado!', '¡Uy, el escape se quedó atrás!',
