@@ -8,6 +8,7 @@ const S = M / 10;       // pixeles por decimetro (unidad de los datos)
 const WORLD_W = Math.ceil(D.w * M), WORLD_H = Math.ceil(D.h * M);
 // trozos chicos: cada uno se dibuja rapido y no se nota el tiron al irlos creando
 const CHUNK = 256;
+const EXTRA_UP = 44; // lo mas que se eleva un techo (px)
 
 // ---------- geometria ----------
 // clases: 0 autopista, 1 troncal, 2 primaria, 3 secundaria, 4 terciaria, 5 residencial,
@@ -64,7 +65,7 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 const pick = (arr) => arr[(Math.random() * arr.length) | 0];
 
 const roads = D.roads.map(([c, n, f, co], i) => { const p = pts(co); return { i, c, n, f, p, bb: bbox(p, (ROAD_W[c] / 2 + 3) * M), curvy: curviness(p) > 0.0024 }; });
-const blds = D.blds.map(([h, co], i) => { const p = pts(co); const sh = Math.min(h * 0.45, 22) * M / 5 * 1.6; return { h, p, sh, bb: bbox(p, 0), sbb: bbox(p, Math.max(sh, 24) + 2), col: ROOFS[hash(i) % ROOFS.length] }; });
+const blds = D.blds.map(([h, co], i) => { const p = pts(co); const sh = Math.min(h * 0.45, 22) * M / 5 * 1.6; return { h, p, sh, bb: bbox(p, 0), sbb: bbox(p, Math.max(sh, EXTRA_UP) + 2), col: ROOFS[hash(i) % ROOFS.length] }; });
 const areas = D.areas.map(([k, co]) => { const p = pts(co); return { k, p, bb: bbox(p, 0) }; });
 const B = pts(D.border);
 const borderY = (x) => B[1] + (x - B[0]) * (B[3] - B[1]) / (B[2] - B[0]);
@@ -394,21 +395,48 @@ function roadMarks(ctx, k) {
 // banquetas (para que coincida con donde se puede pasar) y se apila varias veces hacia arriba en un
 // tono mas oscuro: eso forma las paredes del frente. Se hace una sola vez por trozo del mapa,
 // asi que no cuesta nada mientras se juega.
-const LIFTS = [[6, 6], [12, 11], [1e9, 18]]; // [altura maxima en m, elevacion del techo en px]
-const bRoof = document.createElement('canvas'), bWall = document.createElement('canvas'), bWall2 = document.createElement('canvas'), bStack = document.createElement('canvas');
-// las capas son 24 px mas altas que el trozo: los techos de abajo se elevan y entran a este trozo
-for (const c of [bRoof, bWall, bWall2, bStack]) { c.width = CHUNK + 2; c.height = CHUNK + 2 + 24; }
+const LIFTS = [[5, 10], [9, 18], [16, 26], [1e9, 42]]; // (elevacion - 2 multiplo de 4: ver la pila de paredes) // [altura maxima en m, elevacion del techo en px]
+const bRoof = document.createElement('canvas'), bWall = document.createElement('canvas'), bWall2 = document.createElement('canvas'), bWin = document.createElement('canvas'), bStack = document.createElement('canvas');
+// las capas son EXTRA_UP px mas altas que el trozo: los techos de abajo se elevan y entran a este trozo
+// y LEAN_PAD px mas anchas a la izquierda: los techos se recargan un poco a la derecha (se ve la pared oeste)
+const LEAN = 0.25, LEAN_PAD = Math.ceil(EXTRA_UP * LEAN) + 2;
+for (const c of [bRoof, bWall, bWall2, bWin, bStack]) { c.width = CHUNK + 2 + LEAN_PAD; c.height = CHUNK + 2 + EXTRA_UP; }
+// cada piso de la pared son 4 capas: linea de entrepiso, dos de ventanas y pared
+const wallLayer = (k) => { const m = k % 4; return m === 0 ? bWall2 : m === 3 ? bWall : bWin; };
 function drawBuildings(ctx, bl, rs, cx, cy) {
   const g = bRoof.getContext('2d');
   let lo = 0;
   for (const [hmax, L] of LIFTS) {
     const group = bl.filter(b => b.h >= lo && b.h < hmax); lo = hmax;
     if (!group.length) continue;
+    // solo se trabaja en el rectangulo que ocupan los edificios del grupo (en pixeles de la capa)
+    let rx0 = 1e9, ry0 = 1e9, rx1 = -1e9, ry1 = -1e9;
+    for (const b of group) { rx0 = Math.min(rx0, b.bb[0]); ry0 = Math.min(ry0, b.bb[1]); rx1 = Math.max(rx1, b.bb[2]); ry1 = Math.max(ry1, b.bb[3]); }
+    rx0 = Math.max(0, Math.floor(rx0 - cx * CHUNK + LEAN_PAD - 3)); rx1 = Math.min(bRoof.width, Math.ceil(rx1 - cx * CHUNK + LEAN_PAD + 4));
+    ry0 = Math.max(0, Math.floor(ry0 - cy * CHUNK - 3)); ry1 = Math.min(bRoof.height, Math.ceil(ry1 - cy * CHUNK + 4));
+    if (rx1 <= rx0 || ry1 <= ry0) continue;
+    const rw = rx1 - rx0, rh = ry1 - ry0;
+    const cp = (dst, src, dx, dy) => dst.drawImage(src, rx0, ry0, rw, rh, rx0 + dx, ry0 + dy, rw, rh);
     g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, bRoof.width, bRoof.height);
-    g.translate(1 - cx * CHUNK, 1 - cy * CHUNK); g.lineJoin = 'round';
+    g.translate(1 + LEAN_PAD - cx * CHUNK, 1 - cy * CHUNK); g.lineJoin = 'round';
     for (const b of group) {
       trace(g, b.p, true); g.fillStyle = b.col; g.fill();
+      // luz desde el noroeste: el techo se aclara arriba a la izquierda y se oscurece abajo a la derecha
+      if (b.bb[2] - b.bb[0] > 16 || b.bb[3] - b.bb[1] > 16) {
+      const lg = g.createLinearGradient(b.bb[0], b.bb[1], b.bb[2], b.bb[3]);
+      lg.addColorStop(0, 'rgba(255,255,255,0.13)'); lg.addColorStop(1, 'rgba(0,0,0,0.13)');
+      g.fillStyle = lg; g.fill();
+      }
       g.lineWidth = 2.5; g.strokeStyle = 'rgba(0,0,0,0.3)'; g.stroke();
+      g.lineWidth = 1; g.strokeStyle = 'rgba(255,255,255,0.16)'; g.stroke(); // pretil
+      // tinacos negros en las azoteas, de rigor
+      const bw = b.bb[2] - b.bb[0], bh = b.bb[3] - b.bb[1], hh = hash(b.p.length * 31 + (b.bb[0] | 0));
+      if (bw > 22 && bh > 22 && hh % 5 < 2) {
+        const tx = b.bb[0] + bw * (0.3 + (hh >> 4) % 40 / 100), ty = b.bb[1] + bh * (0.3 + (hh >> 10) % 40 / 100);
+        g.fillStyle = 'rgba(0,0,0,0.35)'; g.beginPath(); g.arc(tx + 1.5, ty + 1.5, 3.4, 0, 7); g.fill();
+        g.fillStyle = '#1c1c1c'; g.beginPath(); g.arc(tx, ty, 3.4, 0, 7); g.fill();
+        g.fillStyle = '#3a3a3a'; g.beginPath(); g.arc(tx - 0.8, ty - 0.8, 1.6, 0, 7); g.fill();
+      }
       if (b.h >= 7 && b.bb[2] - b.bb[0] > 30 && b.bb[3] - b.bb[1] > 30) {
         const mx = (b.bb[0] + b.bb[2]) / 2, my = (b.bb[1] + b.bb[3]) / 2;
         g.save(); g.translate(mx, my); g.scale(0.8, 0.8); g.translate(-mx, -my);
@@ -425,23 +453,36 @@ function drawBuildings(ctx, bl, rs, cx, cy) {
     }
     g.globalCompositeOperation = 'source-over';
     // versiones oscuras para las paredes (una un poco mas oscura para marcar los pisos)
-    for (const [cv, a] of [[bWall, 0.42], [bWall2, 0.55]]) {
-      const w = cv.getContext('2d'); w.globalCompositeOperation = 'copy'; w.drawImage(bRoof, 0, 0);
-      w.globalCompositeOperation = 'source-atop'; w.fillStyle = 'rgba(0,0,0,' + a + ')'; w.fillRect(0, 0, cv.width, cv.height);
+    for (const [cv, a] of [[bWall, 0.36], [bWall2, 0.16], [bWin, 0.36]]) {
+      const w = cv.getContext('2d'); w.clearRect(rx0, ry0, rw, rh); cp(w, bRoof, 0, 0);
+      w.globalCompositeOperation = 'source-atop'; w.fillStyle = 'rgba(0,0,0,' + a + ')'; w.fillRect(rx0, ry0, rw, rh);
+      if (cv === bWin) { // ventanas: columnas alineadas al mapa, unas con luz
+        const x0 = cx * CHUNK - 1 - LEAN_PAD, ox = (x0 % 8 + 8) % 8;
+        for (let x = rx0 - (rx0 + ox) % 8; x < rx1; x += 8) {
+          const lit = hash(((x0 + x) / 8 | 0) * 13 + cy) % 12 === 0;
+          w.fillStyle = lit ? 'rgba(255,214,120,0.6)' : 'rgba(25,35,50,0.55)'; w.fillRect(x + 2.5, ry0, 3, rh);
+        }
+      }
       w.globalCompositeOperation = 'source-over';
     }
     // apilar la pared L veces: se arman 4 capas y se duplica la pila sobre si misma (4, 8, 16...)
     // en vez de pintar capa por capa; las que sobran se pintan una por una
     const st = bStack.getContext('2d');
-    st.globalCompositeOperation = 'copy'; st.drawImage(bWall, 0, 0); st.globalCompositeOperation = 'source-over';
-    const base = Math.min(L, 4);
-    for (let k = 1; k < base; k++) st.drawImage(L >= 11 && k % 4 === 2 ? bWall2 : bWall, 0, -k);
+    // (el patron se repite cada 4 capas y 4*LEAN es entero, asi que duplicar la pila lo conserva)
+    const lx = (k) => Math.round(k * LEAN);
+    const top = L - 2, base = Math.min(top, 4);
+    st.clearRect(0, Math.max(0, ry0 - L - 1), bStack.width, rh + L + 2); cp(st, bWall2, 0, 0);
+    for (let k = 1; k < base; k++) cp(st, wallLayer(k), lx(k), -k);
+    // al duplicar, la pila ya mide n capas: se copia el rectangulo crecido hacia arriba
+    const cps = (dx, dy, n) => st.drawImage(bStack, rx0, ry0 - n, rw + lx(n), rh + n, rx0 + dx, ry0 - n + dy, rw + lx(n), rh + n);
     let n = base;
-    while (n * 2 <= L) { st.drawImage(bStack, 0, -n); n *= 2; }
-    for (let k = n; k < L; k++) st.drawImage(L >= 11 && k % 4 === 2 ? bWall2 : bWall, 0, -k);
+    while (n * 2 <= top) { cps(lx(n), -n, n); n *= 2; }
+    if (n < top) cps(lx(top - n), n - top, n); // lo que falta: la misma pila corrida (top - n es multiplo de 4)
+    cp(st, bWall, lx(top), -top); cp(st, bWall2, lx(top + 1), -top - 1); // cornisa clara arriba
     ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.drawImage(bStack, 0, 0);
-    ctx.drawImage(bRoof, 0, -L);
+    const sy0 = Math.max(0, ry0 - L - 1), sw = Math.min(bStack.width - rx0, rw + lx(L) + 1);
+    ctx.drawImage(bStack, rx0, sy0, sw, ry1 - sy0, rx0 - LEAN_PAD, sy0, sw, ry1 - sy0);
+    ctx.drawImage(bRoof, rx0, ry0, rw, rh, rx0 + lx(L) - LEAN_PAD, ry0 - L, rw, rh);
     ctx.restore();
   }
 }
@@ -1891,7 +1932,7 @@ function start() {
     scale: { mode: Phaser.Scale.RESIZE, width: window.innerWidth, height: window.innerHeight },
     scene: [Main], fps: { target: 60, smoothStep: false },
   });
-  window.TJGTA = game; game.dbg = { VTYPES, vehicleTexture, state };
+  window.TJGTA = game; game.dbg = { VTYPES, vehicleTexture, state, drawChunk };
 }
 $('go').addEventListener('click', start);
 // reiniciar la partida: borra dinero y lugares, tacos y cafes descubiertos (pide tocar dos veces)
