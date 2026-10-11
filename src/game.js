@@ -632,6 +632,11 @@ const FRASES_POLI = [
 const FRASES_CANSADO = ['¡Te bofeaste!', 'Mucho taco y poco ejercicio.', 'Se te salió un pulmón, compa.', 'Ni que fueras el Chicharito.',
   'Pa\'l otra, menos caguama.', 'Échate un aguita, campeón.', 'Ya no das ni un paso más, ¿verdad?', 'Te faltó el aire, viejo lobo.'];
 const STAMINA = 5; // segundos que aguantas corriendo
+// al llegar a un cafe
+const FRASES_CAFE = ['Un americano para el camino.', 'Café de olla bien cargado.', 'Un latte con pan dulce.', 'Un cold brew, que hace calor.',
+  'Un espresso doble, pa\' despertar hasta al compa.', 'Un capuchino con canela y un ratito de wifi.', 'Café de Veracruz, del bueno.',
+  'Un frappé de cajeta, ni modo, se antojó.', 'Un mocha con concha de chocolate.', 'Café con leche como el de la abuela.',
+  'Un carajillo, pero nomás uno, eh.', 'Un pour over y un barista explicándote el grano.', 'Un descafeinado... ¿y para qué viniste?'];
 const FRASES_TOPE = [
   '¡Tope!', '¡Ese tope no venía en el mapa!', '¡Aguas con el tope!', '¡Adiós suspensión!',
   '¡Ese tope lo puso el taller de enfrente!', '¡Se me salió el hígado!', '¡Uy, el escape se quedó atrás!',
@@ -1703,7 +1708,7 @@ class Main extends Phaser.Scene {
     for (const c of cafes) {
       if (c.drunk || dist(c.x, c.y, f.x, f.y) > 40 || sp > 70) continue;
       c.drunk = true; state.money += 20; save(); updateStats();
-      toast('☕ ' + c.name, pick(['Un americano para el camino.', 'Café de olla bien cargado.', 'Un latte con pan dulce.', 'Un cold brew, que hace calor.']) + '  (+$20)', 3);
+      toast('☕ ' + c.name, pick(FRASES_CAFE) + '  (+$20)', 3);
     }
     for (const e of EGGS) {
       if (e.got || dist(e.x, e.y, f.x, f.y) > 45 || sp > 90) continue;
