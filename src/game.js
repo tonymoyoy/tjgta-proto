@@ -1312,7 +1312,7 @@ class Main extends Phaser.Scene {
     setupBigMap(this);
   }
 
-  baseZoom() { return Math.min(window.innerWidth, window.innerHeight) < 600 ? 1.15 : 1.4; }
+  baseZoom() { return Math.min(window.innerWidth, window.innerHeight) < 600 ? 1.45 : 1.8; } // antes 1.15 y 1.4
 
   walker(x, y, rate) {
     const i = (Math.random() * SHIRTS.length) | 0;
