@@ -684,7 +684,12 @@ const hud = { money: $('money'), counts: $('counts'), obj: $('obj'), street: $('
 $('credit').textContent = D.src;
 let toastT = 0, streetT = 0, lastStreet = '';
 function toast(title, body, secs) { hud.toast.innerHTML = '<b></b><span></span>'; hud.toast.firstChild.textContent = title; hud.toast.lastChild.textContent = body || ''; hud.toast.style.opacity = 1; toastT = secs || 3.5; }
+// sonido de dinero: se compara contra el ultimo saldo mostrado (bigSound = fanfarria en vez de monedas)
+let lastMoney = state.money, bigSound = false;
 function updateStats() {
+  const dm = state.money - lastMoney; lastMoney = state.money;
+  if (window.SND) { if (dm > 0) SND.play(bigSound ? 'fanfare' : 'gain', dm); else if (dm < 0) SND.play('loss'); }
+  bigSound = false;
   hud.money.textContent = '$' + state.money.toLocaleString('es-MX');
   hud.counts.textContent = `★ Lugares ${landmarks.filter(l => l.found).length}/${landmarks.length} · 🌮 Tacos ${tacos.filter(t => t.eaten).length}/${tacos.length} · ☕ Cafés ${cafes.filter(c => c.drunk).length}/${cafes.length}` +
     (EGGS.some(e => e.got) ? ` · 🥚 Secretos ${EGGS.filter(e => e.got).length}/${EGGS.length}` : '');
@@ -1249,7 +1254,7 @@ class Main extends Phaser.Scene {
     this.tmp = {};
     this.cameras.main.setBounds(0, 0, WORLD_W, WORLD_H);
     this.cameras.main.setBackgroundColor('#2a2a2a');
-    this.keys = this.input.keyboard.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,SHIFT,SPACE,E,ENTER,F,T,M,R');
+    this.keys = this.input.keyboard.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,SHIFT,SPACE,E,ENTER,F,T,M,R,N');
     this.input.keyboard.addCapture('SPACE,UP,DOWN,LEFT,RIGHT');
 
     // marcadores de lugares y tacos
@@ -1412,6 +1417,7 @@ class Main extends Phaser.Scene {
     if (J(k.E) || J(k.ENTER) || J(k.F) || touch.pressed.E) this.toggleCar();
     if (J(k.T) || touch.pressed.T) this.startTaxi();
     if (J(k.M) || touch.pressed.M) toggleBigMap();
+    if (J(k.N)) toggleSound();
     touch.pressed = {};
 
     if (this.inCar) this.driveCar(this.inCar, ctl, dt); else this.walk(ctl, dt);
@@ -1424,6 +1430,7 @@ class Main extends Phaser.Scene {
     const z = this.baseZoom() * (this.inCar ? 1 - Math.min(sp / 320, 1) * 0.15 : 1.1);
     cam.setZoom(cam.zoom + (z - cam.zoom) * Math.min(1, dt * 2));
     // al manejar, la camara se adelanta en la direccion del auto para ver lo que viene
+    if (window.SND) { let near = 0; for (const o of this.cars) if (Math.abs(o.x - f.x) < 350 && Math.abs(o.y - f.y) < 350) near++; SND.update(!!this.inCar, sp, near); }
     const look = this.inCar ? 0.45 : 0, tx = -(this.inCar ? this.inCar.vx : 0) * look, ty = -(this.inCar ? this.inCar.vy : 0) * look;
     cam.followOffset.x += (tx - cam.followOffset.x) * Math.min(1, dt * 2.5);
     cam.followOffset.y += (ty - cam.followOffset.y) * Math.min(1, dt * 2.5);
@@ -1444,7 +1451,7 @@ class Main extends Phaser.Scene {
       const running = c.run && !this.tired;
       if (running) {
         this.stamina -= dt;
-        if (this.stamina <= 0) { this.stamina = 0; this.tired = true; toast('😮‍💨 ' + pick(FRASES_CANSADO), 'Camina un rato para recuperar el aire.', 2.4); }
+        if (this.stamina <= 0) { this.stamina = 0; this.tired = true; toast('😮‍💨 ' + pick(FRASES_CANSADO), 'Camina un rato para recuperar el aire.', 2.4); if (window.SND) SND.play('tired'); }
       } else this.stamina = Math.min(STAMINA, this.stamina + dt * 0.8);
       const run = running ? 1.8 : 1, sp = 62 * run * Math.min(1, m);
       mx /= m; my /= m;
@@ -1514,6 +1521,7 @@ class Main extends Phaser.Scene {
       if (hitObj && hitObj.poli && car === this.inCar) this.hitPoli(speed);
       if (speed > 110) {
         this.cameras.main.shake(120, Math.min(0.012, speed / 30000));
+        if (car === this.inCar && window.SND) SND.play('crash', speed / 250);
         car.hp -= speed / 14;
         if (car.hp <= 0 && !broken) { car.sprite.setTint(0x444444); toast('¡Auto deshuesado!', 'Bájate con E y roba otro.'); }
       }
@@ -1529,6 +1537,7 @@ class Main extends Phaser.Scene {
       const sp = Math.hypot(car.vx, car.vy);
       if (sp > 90) {
         this.cameras.main.shake(180, Math.min(0.014, sp / 22000));
+        if (car === this.inCar && window.SND) SND.play('crash', 0.2);
         car.vx *= 0.55; car.vy *= 0.55; car.hp -= sp / 45;
         if (Math.random() < 0.6) toast(pick(FRASES_TOPE), '', 1.6);
       } else if (sp > 25) this.cameras.main.shake(90, 0.003);
@@ -1694,7 +1703,7 @@ class Main extends Phaser.Scene {
   checkActivities(dt, f, sp) {
     for (const l of landmarks) {
       if (l.found || dist(l.x, l.y, f.x, f.y) > 110) continue;
-      l.found = true; state.money += 100; save(); updateStats();
+      l.found = true; state.money += 100; save(); bigSound = true; updateStats();
       const n = landmarks.filter(q => q.found).length;
       toast('★ ' + l.name, l.desc + '  (+$100)' + (n === landmarks.length ? ' ¡Conoces todo el Centro!' : ''), 5);
       this.setObjective();
@@ -1712,7 +1721,7 @@ class Main extends Phaser.Scene {
     }
     for (const e of EGGS) {
       if (e.got || dist(e.x, e.y, f.x, f.y) > 45 || sp > 90) continue;
-      e.got = true; state.money += e.pay; save(); updateStats();
+      e.got = true; state.money += e.pay; save(); bigSound = true; updateStats();
       const n = EGGS.filter(q => q.got).length;
       toast('🥚 ' + e.name + ' (+$' + e.pay + ')', e.say + (n === EGGS.length ? '  ¡Encontraste todos los secretos de Tijuana!' : '  Secreto ' + n + ' de ' + EGGS.length + '.'), 6);
       this.tweens.add({ targets: e.icon, alpha: 0, scale: 1.2, duration: 900, delay: 1500, onComplete: () => e.icon.setVisible(false) });
@@ -1953,8 +1962,10 @@ function setupTouch() {
 }
 
 // ---------- arranque ----------
+function toggleSound() { const m = SND.toggle(); $('snd').textContent = m ? '🔇' : '🔊'; }
 function start() {
   $('intro').style.display = 'none';
+  if (window.SND) { SND.init(); $('snd').style.display = 'block'; $('snd').textContent = SND.muted ? '🔇' : '🔊'; $('snd').addEventListener('click', toggleSound); }
   setupTouch();
   const game = new Phaser.Game({
     type: Phaser.AUTO, parent: 'game', backgroundColor: '#2a2a2a',

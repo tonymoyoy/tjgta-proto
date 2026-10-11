@@ -20,6 +20,7 @@
 <div id="timer" class="hud"></div>
 <div id="arrow" class="hud"></div>
 <div id="credit" class="hud"></div>
+<div id="snd" class="hud" title="Sonido (N)">🔊</div>
 
 <div id="bigmap"><canvas id="bigc"></canvas><p>Toca el mapa para marcar un destino. M o toca fuera para cerrar.</p></div>
 
@@ -43,6 +44,7 @@
     <tr><td>Shift</td><td>Correr a pie (unos 5 segundos, luego hay que descansar)</td></tr>
     <tr><td>T</td><td>Trabajar de taxista (en auto)</td></tr>
     <tr><td>M</td><td>Mapa grande y marcar destino</td></tr>
+    <tr><td>N</td><td>Prender o apagar el sonido</td></tr>
   </table>
   <p style="color:var(--muted);font-size:14px;margin:0 0 18px">Descubre los lugares reales del Centro ★, prueba la ruta del taco 🌮, colecciona los cafés ☕, gana pesos como taxista o róbale la moto a un repartidor 🛵 y entrega su pedido. Cuidado con la comida china 🏮: ahí se te va el dinero.</p>
   <button class="go" id="go">JUGAR</button>
@@ -52,6 +54,7 @@
 
 <script src="src/phaser-3.90.0.min.js"></script>
 <script src="data/centro.js"></script>
+<script src="src/audio.js"></script>
 <script src="src/game.js"></script>
 </body>
 </html>
