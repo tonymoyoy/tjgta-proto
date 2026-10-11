@@ -829,7 +829,7 @@ function vehicleTexture(scene, ti, ci, d) {
 
 const SHIRTS = ['#d35400', '#2980b9', '#27ae60', '#8e44ad', '#c0392b', '#ecf0f1', '#16a085', '#7f8c8d', '#f39c12', '#2c3e50'];
 function makeTextures(scene) {
-  makeMoto(scene); makeTaxi(scene); makePolice(scene);
+  makeMoto(scene); makeTaxi(scene); makePolice(scene); makeTacoStands(scene);
   // personas vistas desde arriba, mirando a la derecha; 8 cuadros de caminata (el cuadro 0 es parado).
   // Se dibujan al doble de resolucion y el sprite se muestra a escala 0.5 para que se vean nitidas.
   const PF = PED_FRAME * 2, SKIN = ['#c68e5f', '#a8714a', '#e0b08a', '#8d5a36'], PANTS = ['#2c3e66', '#3b3b3b', '#5a4632', '#1f2a38'];
@@ -949,6 +949,77 @@ function makeTaxi(scene) {
   t.refresh();
 }
 const PED_FRAME = 24;
+// puesto callejero de tacos visto desde arriba: lona a rayas, trompo de pastor, comal y bancos de plastico.
+// Tres combinaciones de colores de lona; se dibuja al doble y se muestra a escala 0.5.
+const LONAS = [['#d62828', '#f4efe6'], ['#f77f00', '#fcbf49'], ['#2a9d8f', '#e9f5db']];
+function makeTacoStands(scene) {
+  LONAS.forEach(([c1, c2], v) => {
+    const t = scene.textures.createCanvas('puesto' + v, 88, 76), x = t.getContext();
+    x.scale(2, 2); x.translate(4, 3);
+    // sombra
+    x.fillStyle = 'rgba(0,0,0,0.3)'; x.fillRect(3, 3, 32, 22);
+    // carrito y mostrador de lamina al frente (abajo)
+    x.fillStyle = '#9aa1a6'; x.fillRect(2, 15, 30, 9); x.strokeStyle = '#5d6469'; x.lineWidth = 0.6; x.strokeRect(2, 15, 30, 9);
+    x.fillStyle = '#2b2b2b'; x.fillRect(5, 17, 9, 5); // comal
+    x.fillStyle = '#c96f2d'; for (const [a, b] of [[7, 18.5], [10, 19.5], [8.5, 20.8], [11.5, 18]]) { x.beginPath(); x.arc(a, b, 0.9, 0, 7); x.fill(); }
+    // salsas: roja y verde
+    x.fillStyle = '#b3201b'; x.beginPath(); x.arc(18, 19.5, 1.5, 0, 7); x.fill();
+    x.fillStyle = '#3f8f2f'; x.beginPath(); x.arc(22, 19.5, 1.5, 0, 7); x.fill();
+    x.fillStyle = '#f2e6c9'; x.fillRect(25, 17.5, 5, 4); // tortillas
+    // lona a rayas encima
+    for (let i = 0; i < 6; i++) { x.fillStyle = i % 2 ? c2 : c1; x.fillRect(i * 5.5, 0, 5.5, 15); }
+    x.strokeStyle = 'rgba(0,0,0,0.45)'; x.lineWidth = 0.7; x.strokeRect(0, 0, 33, 15);
+    x.fillStyle = 'rgba(255,255,255,0.18)'; x.fillRect(0, 0, 33, 4);
+    // letrero pintado a mano
+    x.fillStyle = 'rgba(0,0,0,0.55)'; x.fillRect(7, 5, 19, 6.5);
+    x.fillStyle = '#ffe066'; x.font = 'bold 6px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('TACOS', 16.5, 8.4);
+    // trompo de pastor a un lado, con su pina arriba
+    x.fillStyle = '#3a3a3a'; x.fillRect(33, 9, 4, 4);
+    x.fillStyle = '#b5521b'; x.beginPath(); x.arc(35, 11, 3.2, 0, 7); x.fill();
+    x.fillStyle = '#e07b2e'; x.beginPath(); x.arc(34.3, 10.3, 1.9, 0, 7); x.fill();
+    x.fillStyle = '#f2c94c'; x.beginPath(); x.arc(35, 11, 1, 0, 7); x.fill();
+    // bancos de plastico
+    for (const [a, b, c] of [[6, 30, '#c62828'], [15, 31, '#1565c0'], [24, 30, '#c62828']]) {
+      x.fillStyle = 'rgba(0,0,0,0.25)'; x.beginPath(); x.arc(a + 0.8, b + 0.8, 2.4, 0, 7); x.fill();
+      x.fillStyle = c; x.beginPath(); x.arc(a, b, 2.4, 0, 7); x.fill();
+      x.fillStyle = 'rgba(255,255,255,0.25)'; x.beginPath(); x.arc(a - 0.6, b - 0.6, 0.9, 0, 7); x.fill();
+    }
+    t.refresh();
+  });
+}
+// el puesto va en la banqueta de la calle mas cercana (del lado donde esta la taqueria),
+// con el mostrador y los bancos viendo hacia la calle. Devuelve [x, y, rotacion].
+function onAsphalt(x, y, pad) {
+  for (const r of roads) {
+    if (r.c > 7 || x < r.bb[0] || x > r.bb[2] || y < r.bb[1] || y > r.bb[3]) continue;
+    for (let i = 0; i < r.p.length - 2; i += 2) if (segDist(x, y, r.p[i], r.p[i + 1], r.p[i + 2], r.p[i + 3]) < ROAD_W[r.c] / 2 * M + pad) return true;
+  }
+  return false;
+}
+function sidewalkSpot(x, y) {
+  const cands = [];
+  for (const r of roads) {
+    if (r.c > 6 || r.f & 1 || x < r.bb[0] - 200 || x > r.bb[2] + 200 || y < r.bb[1] - 200 || y > r.bb[3] + 200) continue;
+    const p = r.p;
+    for (let i = 0; i < p.length - 2; i += 2) {
+      const ax = p[i], ay = p[i + 1], bx = p[i + 2], by = p[i + 3], dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy || 1;
+      // a la mitad del tramo cuando se puede, lejos de las esquinas
+      const t = Math.max(0.2, Math.min(0.8, ((x - ax) * dx + (y - ay) * dy) / L2)), qx = ax + dx * t, qy = ay + dy * t;
+      cands.push({ d: Math.hypot(x - qx, y - qy), qx, qy, dx, dy, r });
+    }
+  }
+  cands.sort((a, b) => a.d - b.d);
+  for (const { qx, qy, dx, dy, r } of cands.slice(0, 12)) {
+    const nl = Math.hypot(dx, dy) || 1;
+    for (const side of [1, -1]) {
+      let nx = -dy / nl * side, ny = dx / nl * side;
+      if (side === 1 && (x - qx) * nx + (y - qy) * ny < 0) { nx = -nx; ny = -ny; }
+      const off = ROAD_W[r.c] / 2 * M + 17, px = qx + nx * off, py = qy + ny * off;
+      if (!onAsphalt(px, py, 15)) return [px, py, Math.atan2(-ny, -nx) - Math.PI / 2];
+    }
+  }
+  return [x, y, 0];
+}
 
 // ---------- escena ----------
 class Main extends Phaser.Scene {
@@ -973,8 +1044,10 @@ class Main extends Phaser.Scene {
       this.marks.push({ l, ring, star, label });
     }
     for (const t of tacos) {
-      t.icon = this.add.text(t.x, t.y, '🌮', { fontSize: '22px' }).setOrigin(0.5).setDepth(19);
-      t.label = this.add.text(t.x, t.y - 22, t.name, { fontSize: '12px', color: '#ffe0a0', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5).setDepth(19);
+      const [sx, sy, rot] = sidewalkSpot(t.x, t.y);
+      t.x = sx; t.y = sy;
+      t.icon = this.add.image(t.x, t.y, 'puesto' + (hash(t.name.length * 31 + (t.x | 0)) % LONAS.length)).setScale(0.55).setRotation(rot).setDepth(6);
+      t.label = this.add.text(t.x, t.y - 26, t.name, { fontSize: '12px', color: '#ffe0a0', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5).setDepth(19);
     }
     for (const c of cafes) {
       c.icon = this.add.text(c.x, c.y, '☕', { fontSize: '20px' }).setOrigin(0.5).setDepth(19);
@@ -1495,7 +1568,7 @@ class Main extends Phaser.Scene {
       if (m.found !== m.l.found) { m.found = m.l.found; m.star.setColor(m.l.found ? '#bbbbbb' : '#ffd23f'); }
       m.label.setVisible(near);
     }
-    for (const t of tacos) { t.icon.setVisible(!t.eaten); t.label.setVisible(!t.eaten && dist(t.x, t.y, f.x, f.y) < 300); }
+    for (const t of tacos) { t.icon.setAlpha(t.eaten ? 0.7 : 1); t.label.setVisible(!t.eaten && dist(t.x, t.y, f.x, f.y) < 300); }
     for (const c of cafes) { c.icon.setVisible(!c.drunk); c.label.setVisible(!c.drunk && dist(c.x, c.y, f.x, f.y) < 300); }
     for (const c of chinas) c.label.setVisible(dist(c.x, c.y, f.x, f.y) < 300);
     const g = this.goal();
