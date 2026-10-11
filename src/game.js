@@ -72,6 +72,27 @@ const landmarks = D.landmarks.map(([name, desc, x, y]) => ({ name, desc, x: x * 
 const tacos = D.tacos.map(([name, x, y]) => ({ name, x: x * S, y: y * S, eaten: false }));
 const cafes = D.cafes.map(([name, x, y]) => ({ name, x: x * S, y: y * S, drunk: false }));
 
+// ---------- easter eggs: personajes y cosas tipicas de Tijuana, uno de cada uno y escondidos ----------
+// cerca de un lugar (por nombre) y corridos dx,dy metros; al encontrarlos sueltan una frase y una lana
+const EGGS = [
+  { k: 'burro', name: 'El Burro Zebra', near: 'Arco Monumental', dx: 45, dy: 160, pay: 200,
+    say: '"¿Qué me ves? Soy burro pintado, no caballo de carreras. Ten, pa\' que te tomes la foto."' },
+  { k: 'cesar', name: 'La Ensalada César', near: "Hotel Caesar's", dx: 30, dy: -25, pay: 150,
+    say: '"Nací aquí en 1924 y los gringos juran que soy italiana. Ni modo, toma una lana."' },
+  { k: 'xolo', name: 'Un Xolo pelón', near: 'Parque Teniente Guerrero', dx: 40, dy: -50, pay: 150,
+    say: '"Sí, estoy pelón. No, no tengo frío. Sí, le voy a los Xolos. Ten tu feria y no me andes sobando."' },
+  { k: 'cobija', name: 'El de las Cobijas de Tigre', near: 'Garita de San Ysidro', dx: -60, dy: 50, pay: 150,
+    say: '"¡Cobija de tigre, güero, calientita! ...Ya, no compras nada. Toma, pero no le digas a mi vieja."' },
+  { k: 'gringo', name: 'Un Gringo Perdido', near: 'Puente El Chaparral', dx: -50, dy: 60, pay: 250,
+    say: '"Bro, where is la Revolución? Llevo tres días caminando. Toma mis dólares, ya no los entiendo."' },
+  { k: 'mariachi', name: 'El Mariachi Desvelado', near: 'Plaza Santa Cecilia', dx: -40, dy: -20, pay: 200,
+    say: '"Te canto El Rey gratis... no, mentira. Bueno, hoy sí, y hasta te doy pa\'l camión."' },
+  { k: 'elote', name: 'El Elotero', near: 'Mercado Hidalgo', dx: 40, dy: 40, pay: 100,
+    say: '"¿Con todo? Mayonesa, queso, chile y tu dignidad. Invita la casa y de pilón una lana."' },
+  { k: 'payaso', name: 'El Payaso del Crucero', near: 'Glorieta Cuauhtémoc', dx: 60, dy: -40, pay: 150,
+    say: '"Hago malabares con tres limones y dos chambas. Toma, que hoy me fue bien en el semáforo."' },
+].map(e => { const l = landmarks.find(q => q.name === e.near) || landmarks[0]; return { ...e, x: l.x + e.dx * M, y: l.y + e.dy * M, got: false }; });
+
 // ---------- indices espaciales ----------
 function gridIndex(items, cell, bbKey) {
   const g = new Map();
@@ -524,10 +545,13 @@ landmarks.forEach(l => { l.found = state.found.includes(l.name); });
 tacos.forEach(t => { t.eaten = state.eaten.includes(t.name); });
 state.cafes = state.cafes || [];
 cafes.forEach(c => { c.drunk = state.cafes.includes(c.name); });
+state.eggs = state.eggs || [];
+EGGS.forEach(e => { e.got = state.eggs.includes(e.k); });
 function save() {
   state.found = landmarks.filter(l => l.found).map(l => l.name);
   state.eaten = tacos.filter(t => t.eaten).map(t => t.name);
   state.cafes = cafes.filter(c => c.drunk).map(c => c.name);
+  state.eggs = EGGS.filter(e => e.got).map(e => e.k);
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch (e) { /* sin almacenamiento */ }
 }
 
@@ -612,7 +636,8 @@ let toastT = 0, streetT = 0, lastStreet = '';
 function toast(title, body, secs) { hud.toast.innerHTML = '<b></b><span></span>'; hud.toast.firstChild.textContent = title; hud.toast.lastChild.textContent = body || ''; hud.toast.style.opacity = 1; toastT = secs || 3.5; }
 function updateStats() {
   hud.money.textContent = '$' + state.money.toLocaleString('es-MX');
-  hud.counts.textContent = `★ Lugares ${landmarks.filter(l => l.found).length}/${landmarks.length} · 🌮 Tacos ${tacos.filter(t => t.eaten).length}/${tacos.length} · ☕ Cafés ${cafes.filter(c => c.drunk).length}/${cafes.length}`;
+  hud.counts.textContent = `★ Lugares ${landmarks.filter(l => l.found).length}/${landmarks.length} · 🌮 Tacos ${tacos.filter(t => t.eaten).length}/${tacos.length} · ☕ Cafés ${cafes.filter(c => c.drunk).length}/${cafes.length}` +
+    (EGGS.some(e => e.got) ? ` · 🥚 Secretos ${EGGS.filter(e => e.got).length}/${EGGS.length}` : '');
 }
 
 // ---------- texturas ----------
@@ -829,7 +854,7 @@ function vehicleTexture(scene, ti, ci, d) {
 
 const SHIRTS = ['#d35400', '#2980b9', '#27ae60', '#8e44ad', '#c0392b', '#ecf0f1', '#16a085', '#7f8c8d', '#f39c12', '#2c3e50'];
 function makeTextures(scene) {
-  makeMoto(scene); makeTaxi(scene); makePolice(scene); makeTacoStands(scene); makeCafes(scene); makeChinas(scene);
+  makeMoto(scene); makeTaxi(scene); makePolice(scene); makeTacoStands(scene); makeCafes(scene); makeChinas(scene); makeEggs(scene);
   // personas vistas desde arriba, mirando a la derecha; 8 cuadros de caminata (el cuadro 0 es parado).
   // Se dibujan al doble de resolucion y el sprite se muestra a escala 0.5 para que se vean nitidas.
   const PF = PED_FRAME * 2, SKIN = ['#c68e5f', '#a8714a', '#e0b08a', '#8d5a36'], PANTS = ['#2c3e66', '#3b3b3b', '#5a4632', '#1f2a38'];
@@ -1064,6 +1089,72 @@ function makeChinas(scene) {
     t.refresh();
   }
 }
+// easter eggs vistos desde arriba, 64x64 a 2x (centro en 16,16)
+function makeEggs(scene) {
+  const ell = (x, c, cx, cy, rx, ry, a) => { x.fillStyle = c; x.beginPath(); x.ellipse(cx, cy, rx, ry, a || 0, 0, 7); x.fill(); };
+  const shadow = (x, rx, ry) => ell(x, 'rgba(0,0,0,0.3)', 17.5, 17.5, rx, ry);
+  const persona = (x, cx, cy, shirt, skin, hair) => { ell(x, shirt, cx, cy, 4.6, 3.4); ell(x, skin, cx, cy - 0.5, 2.4, 2.4); if (hair) ell(x, hair, cx, cy - 1.2, 2.4, 1.5); };
+  const draw = {
+    burro(x) { // burro pintado de cebra con su carretita de fotos
+      shadow(x, 9, 13);
+      x.fillStyle = '#c0392b'; x.fillRect(10, 20, 15, 9); x.fillStyle = '#f1c40f'; x.fillRect(11, 21, 13, 7);
+      x.fillStyle = '#8e44ad'; x.fillRect(11, 24, 13, 1.5);
+      ell(x, '#f4f1ea', 16, 12, 4.6, 8);
+      x.strokeStyle = '#111'; x.lineWidth = 1.1;
+      for (let i = 6; i <= 17; i += 2.6) { x.beginPath(); x.moveTo(11.6, i); x.quadraticCurveTo(16, i + 1.4, 20.4, i); x.stroke(); }
+      ell(x, '#f4f1ea', 16, 3.2, 2.4, 3.2); ell(x, '#555', 16, 1, 1.6, 1.2);
+      ell(x, '#222', 13.6, 4.6, 0.9, 2, -0.4); ell(x, '#222', 18.4, 4.6, 0.9, 2, 0.4);
+      x.fillStyle = '#e74c3c'; x.fillRect(12, 9, 8, 1.6);
+    },
+    cesar(x) { // un tazon gigante de ensalada Cesar
+      shadow(x, 12, 12); ell(x, '#e8e2d0', 16, 16, 12, 12); ell(x, '#cfc6ad', 16, 16, 10.5, 10.5);
+      for (let i = 0; i < 14; i++) { const a = i * 2.4, r = 2 + (i % 5) * 1.6; ell(x, i % 2 ? '#6ab04c' : '#8bc34a', 16 + Math.cos(a) * r, 16 + Math.sin(a) * r, 3.4, 2, a); }
+      for (let i = 0; i < 6; i++) { const a = i * 1.1 + 0.5; x.fillStyle = '#d9a441'; x.fillRect(15 + Math.cos(a) * 6, 15 + Math.sin(a) * 6, 2.2, 2.2); }
+      x.fillStyle = '#fff8dc'; for (let i = 0; i < 18; i++) x.fillRect(9 + (i * 7) % 14, 10 + (i * 5) % 12, 1, 1);
+    },
+    xolo(x) { // xoloitzcuintle: gris, pelon, con su copete
+      shadow(x, 6, 12); ell(x, '#4a4f55', 16, 17, 4.4, 8); ell(x, '#4a4f55', 16, 7, 2.8, 3.6);
+      ell(x, '#3a3e43', 14, 4.6, 1, 2.4, -0.5); ell(x, '#3a3e43', 18, 4.6, 1, 2.4, 0.5);
+      ell(x, '#f5f5f5', 16, 6.6, 1.2, 1.6); x.strokeStyle = '#4a4f55'; x.lineWidth = 1.2;
+      x.beginPath(); x.moveTo(16, 24.5); x.quadraticCurveTo(19, 28, 17, 31); x.stroke();
+      ell(x, '#c0392b', 16, 11, 3, 0.9);
+    },
+    cobija(x) { // vendedor con un monton de cobijas de tigre
+      shadow(x, 12, 9);
+      for (let i = 0; i < 3; i++) {
+        const y0 = 10 + i * 2.2, x0 = 5 + i * 1.5; x.fillStyle = ['#e67e22', '#2980b9', '#e74c3c'][i]; x.fillRect(x0, y0, 15, 11);
+        x.strokeStyle = '#111'; x.lineWidth = 1; for (let k = 2; k < 15; k += 3) { x.beginPath(); x.moveTo(x0 + k, y0); x.lineTo(x0 + k + 1.5, y0 + 5); x.lineTo(x0 + k, y0 + 11); x.stroke(); }
+      }
+      persona(x, 25, 16, '#7f8c8d', '#a0703c', '#1a1a1a');
+    },
+    gringo(x) { // turista quemado con sombrero de souvenir, camisa hawaiana y maleta
+      shadow(x, 9, 9); x.fillStyle = '#95a5a6'; x.fillRect(20, 18, 6, 8);
+      ell(x, '#f1c40f', 15, 16, 4.8, 3.6); for (let i = 0; i < 5; i++) ell(x, '#e84393', 12 + i * 1.6, 15 + (i % 2) * 2, 0.8, 0.8);
+      ell(x, '#d4a017', 15, 15, 8, 8); ell(x, '#e58e26', 15, 15, 5.4, 5.4); ell(x, '#2ecc71', 15, 15, 7.2, 7.2); ell(x, '#d4a017', 15, 15, 6.4, 6.4);
+      ell(x, '#ff8a80', 15, 15, 2.6, 2.6); ell(x, '#ff6f61', 15, 15, 1.4, 1.4);
+    },
+    mariachi(x) { // charro de negro con sombrero de ala ancha y guitarron
+      shadow(x, 11, 11); ell(x, '#e5b25d', 23, 21, 5, 6.4, 0.6); ell(x, '#8a5a2b', 23, 21, 1.6, 1.6);
+      x.strokeStyle = '#5a3b1c'; x.lineWidth = 1.4; x.beginPath(); x.moveTo(20, 16.5); x.lineTo(15, 10); x.stroke();
+      ell(x, '#111', 15, 15, 5.5, 4); ell(x, '#2b2b2b', 15, 14, 9, 9); ell(x, '#d4af37', 15, 14, 9, 9); ell(x, '#2b2b2b', 15, 14, 8, 8);
+      ell(x, '#1a1a1a', 15, 14, 3.6, 3.6); x.strokeStyle = '#d4af37'; x.lineWidth = 0.6; x.beginPath(); x.arc(15, 14, 5.6, 0, 7); x.stroke();
+    },
+    elote(x) { // carrito de elotes con sombrilla
+      shadow(x, 12, 10); x.fillStyle = '#bdc3c7'; x.fillRect(5, 16, 22, 11);
+      for (let i = 0; i < 5; i++) ell(x, '#f4d03f', 8 + i * 4, 22, 1.5, 3.6);
+      const cs = ['#e74c3c', '#f5f5f5', '#27ae60', '#f5f5f5'];
+      for (let i = 0; i < 8; i++) { x.fillStyle = cs[i % 4]; x.beginPath(); x.moveTo(13, 11); x.arc(13, 11, 9, i * Math.PI / 4, (i + 1) * Math.PI / 4); x.fill(); }
+      persona(x, 27, 9, '#f5f5f5', '#a0703c', '#222');
+    },
+    payaso(x) { // payaso de crucero con peluca de colores y limones en el aire
+      shadow(x, 8, 8); ell(x, '#3498db', 16, 17, 5, 3.8);
+      for (let i = 0; i < 6; i++) ell(x, ['#e74c3c', '#f1c40f', '#2ecc71'][i % 3], 16 + Math.cos(i) * 3.3, 16 + Math.sin(i) * 3.3, 2.2, 2.2);
+      ell(x, '#fbe9d0', 16, 16, 2.6, 2.6); ell(x, '#e74c3c', 16, 14.4, 1, 1);
+      for (const [lx, ly] of [[8, 6], [16, 3], [24, 6]]) ell(x, '#7bc043', lx, ly, 1.8, 1.5);
+    },
+  };
+  for (const k in draw) { const t = scene.textures.createCanvas('egg_' + k, 64, 64), x = t.getContext(); x.scale(2, 2); draw[k](x); t.refresh(); }
+}
 function onAsphalt(x, y, pad) {
   for (const r of roads) {
     if (r.c > 7 || x < r.bb[0] || x > r.bb[2] || y < r.bb[1] || y > r.bb[3]) continue;
@@ -1140,6 +1231,11 @@ class Main extends Phaser.Scene {
       c.icon = this.add.image(sx - bx * 30, sy - by * 30, 'antro0' + c.up).setScale(0.6).setRotation(rot).setDepth(6);
       const hh = Math.abs(Math.cos(rot)) * 40 + Math.abs(Math.sin(rot)) * 54;
       c.label = this.add.text(c.icon.x, c.icon.y - hh - 8, c.name, { fontSize: '12px', color: '#ff8a80', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5).setDepth(19);
+    }
+    for (const e of EGGS) {
+      const [sx, sy, rot] = sidewalkSpot(e.x, e.y, (SIDEWALK + 0.5) * M);
+      e.x = sx; e.y = sy;
+      e.icon = this.add.image(sx, sy, 'egg_' + e.k).setScale(0.9).setRotation(rot).setDepth(7).setVisible(!e.got);
     }
     this.target = this.add.image(0, 0, 'ring').setDepth(4).setTint(0x57d16b).setVisible(false);
 
@@ -1543,6 +1639,13 @@ class Main extends Phaser.Scene {
       c.drunk = true; state.money += 20; save(); updateStats();
       toast('☕ ' + c.name, pick(['Un americano para el camino.', 'Café de olla bien cargado.', 'Un latte con pan dulce.', 'Un cold brew, que hace calor.']) + '  (+$20)', 3);
     }
+    for (const e of EGGS) {
+      if (e.got || dist(e.x, e.y, f.x, f.y) > 45 || sp > 90) continue;
+      e.got = true; state.money += e.pay; save(); updateStats();
+      const n = EGGS.filter(q => q.got).length;
+      toast('🥚 ' + e.name + ' (+$' + e.pay + ')', e.say + (n === EGGS.length ? '  ¡Encontraste todos los secretos de Tijuana!' : '  Secreto ' + n + ' de ' + EGGS.length + '.'), 6);
+      this.tweens.add({ targets: e.icon, alpha: 0, scale: 1.2, duration: 900, delay: 1500, onComplete: () => e.icon.setVisible(false) });
+    }
     for (const c of chinas) {
       c.cool -= dt;
       if (c.cool > 0 || dist(c.x, c.y, f.x, f.y) > 40 || sp > 70) continue;
@@ -1793,11 +1896,11 @@ $('go').addEventListener('click', start);
 // reiniciar la partida: borra dinero y lugares, tacos y cafes descubiertos (pide tocar dos veces)
 (() => {
   const b = $('reset');
-  if (state.money > 0 || landmarks.some(l => l.found) || tacos.some(t => t.eaten) || cafes.some(c => c.drunk)) b.style.display = 'inline-block';
+  if (state.money > 0 || landmarks.some(l => l.found) || tacos.some(t => t.eaten) || cafes.some(c => c.drunk) || EGGS.some(e => e.got)) b.style.display = 'inline-block';
   b.addEventListener('click', () => {
     if (!b.classList.contains('confirm')) { b.classList.add('confirm'); b.textContent = '¿Seguro? Toca otra vez para borrar todo'; return; }
     state.money = 0;
-    landmarks.forEach(l => { l.found = false; }); tacos.forEach(t => { t.eaten = false; }); cafes.forEach(c => { c.drunk = false; });
+    landmarks.forEach(l => { l.found = false; }); tacos.forEach(t => { t.eaten = false; }); cafes.forEach(c => { c.drunk = false; }); EGGS.forEach(e => { e.got = false; });
     save();
     b.classList.remove('confirm'); b.textContent = 'Partida reiniciada ✓'; b.disabled = true;
   });
