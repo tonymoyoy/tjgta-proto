@@ -829,7 +829,7 @@ function vehicleTexture(scene, ti, ci, d) {
 
 const SHIRTS = ['#d35400', '#2980b9', '#27ae60', '#8e44ad', '#c0392b', '#ecf0f1', '#16a085', '#7f8c8d', '#f39c12', '#2c3e50'];
 function makeTextures(scene) {
-  makeMoto(scene); makeTaxi(scene); makePolice(scene); makeTacoStands(scene); makeCafes(scene);
+  makeMoto(scene); makeTaxi(scene); makePolice(scene); makeTacoStands(scene); makeCafes(scene); makeChinas(scene);
   // personas vistas desde arriba, mirando a la derecha; 8 cuadros de caminata (el cuadro 0 es parado).
   // Se dibujan al doble de resolucion y el sprite se muestra a escala 0.5 para que se vean nitidas.
   const PF = PED_FRAME * 2, SKIN = ['#c68e5f', '#a8714a', '#e0b08a', '#8d5a36'], PANTS = ['#2c3e66', '#3b3b3b', '#5a4632', '#1f2a38'];
@@ -1018,6 +1018,52 @@ function makeCafes(scene) {
     t.refresh();
   });
 }
+// "comida china": local grande con marquesina de neon, faroles rojos, alfombra, cordon y cadenero.
+// Dos texturas para que el neon parpadee. El frente (alfombra) va hacia abajo.
+function makeChinas(scene) {
+  for (const k of ['0', '1', '0u', '1u']) {
+    const f = +k[0], up = k.length > 1; // 'u': letrero volteado para locales que quedan "de cabeza"
+    const t = scene.textures.createCanvas('antro' + k, 176, 128), x = t.getContext();
+    x.scale(2, 2); x.translate(4, 3);
+    const neon = f ? '#3ff0ff' : '#ff3fa4';
+    // edificio y marquesina
+    x.fillStyle = 'rgba(0,0,0,0.35)'; x.fillRect(3, 3, 80, 36);
+    x.fillStyle = '#2a1630'; x.fillRect(0, 0, 80, 36);
+    x.fillStyle = '#3a1e42'; for (let i = 4; i < 80; i += 8) x.fillRect(i, 2, 4, 20);
+    x.fillStyle = '#7a0f1a'; x.fillRect(4, 24, 72, 12);
+    x.strokeStyle = neon; x.lineWidth = 1.2; x.strokeRect(4.5, 24.5, 71, 11);
+    x.shadowColor = neon; x.shadowBlur = 4;
+    x.fillStyle = '#ffd23f'; x.font = 'bold 8px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.save(); x.translate(40, 30.2); if (up) x.rotate(Math.PI); x.fillText('COMIDA CHINA', 0, 0); x.restore();
+    x.shadowBlur = 0;
+    x.strokeStyle = neon; x.lineWidth = 1; x.strokeRect(0.5, 0.5, 79, 35);
+    // faroles rojos en las esquinas
+    for (const lx of [8, 72]) {
+      x.fillStyle = f ? '#ff5a4a' : '#d4261a'; x.beginPath(); x.ellipse(lx, 40, 3.6, 4.4, 0, 0, 7); x.fill();
+      x.strokeStyle = '#f5c542'; x.lineWidth = 0.6; x.beginPath(); x.moveTo(lx - 3.6, 40); x.lineTo(lx + 3.6, 40); x.stroke();
+      x.fillStyle = '#f5c542'; x.fillRect(lx - 1.5, 35, 3, 1.2); x.fillRect(lx - 1.5, 44, 3, 1.2);
+    }
+    // puerta y alfombra roja
+    x.fillStyle = '#0d0d0d'; x.fillRect(33, 34, 14, 3);
+    x.fillStyle = '#b3141f'; x.fillRect(35, 37, 10, 15);
+    // cordon de terciopelo con postes dorados
+    x.strokeStyle = '#8e0f2a'; x.lineWidth = 0.9;
+    for (const sx of [30, 50]) {
+      x.beginPath(); x.moveTo(sx, 38); x.quadraticCurveTo(sx + (sx < 40 ? -1.5 : 1.5), 44, sx, 50); x.stroke();
+      x.fillStyle = '#e8c35a'; for (const py of [38, 50]) { x.beginPath(); x.arc(sx, py, 1.2, 0, 7); x.fill(); }
+    }
+    // cadenero junto a la puerta
+    x.fillStyle = '#111'; x.beginPath(); x.ellipse(54, 40, 3.2, 4.2, 0, 0, 7); x.fill();
+    x.fillStyle = '#7a5236'; x.beginPath(); x.arc(54, 40, 1.8, 0, 7); x.fill();
+    x.fillStyle = '#000'; x.fillRect(53, 39.4, 2.2, 0.8);
+    // gente formada afuera del cordon
+    for (const [px, py, c] of [[25, 42, '#2980b9'], [24, 47.5, '#8e44ad'], [26, 53, '#27ae60']]) {
+      x.fillStyle = c; x.beginPath(); x.ellipse(px, py, 1.8, 2.6, 0, 0, 7); x.fill();
+      x.fillStyle = '#3b2414'; x.beginPath(); x.arc(px, py, 1.3, 0, 7); x.fill();
+    }
+    t.refresh();
+  }
+}
 function onAsphalt(x, y, pad) {
   for (const r of roads) {
     if (r.c > 7 || x < r.bb[0] || x > r.bb[2] || y < r.bb[1] || y > r.bb[3]) continue;
@@ -1086,8 +1132,14 @@ class Main extends Phaser.Scene {
       c.label = this.add.text(c.x, c.y - 24, c.name, { fontSize: '12px', color: '#e8d2b5', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5).setDepth(19);
     }
     for (const c of chinas) {
-      c.icon = this.add.text(c.x, c.y, '🏮', { fontSize: '22px' }).setOrigin(0.5).setDepth(19);
-      c.label = this.add.text(c.x, c.y - 22, c.name, { fontSize: '12px', color: '#ff8a80', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5).setDepth(19);
+      // la entrada (punta de la alfombra) queda en la banqueta; el local se mete hacia el edificio
+      const [sx, sy, rot] = sidewalkSpot(c.x, c.y, (SIDEWALK + 0.5) * M + 2);
+      c.x = sx; c.y = sy;
+      const bx = -Math.sin(rot), by = Math.cos(rot); // hacia el frente del local (la calle)
+      c.up = Math.cos(rot) < -0.3 ? 'u' : '';
+      c.icon = this.add.image(sx - bx * 30, sy - by * 30, 'antro0' + c.up).setScale(0.6).setRotation(rot).setDepth(6);
+      const hh = Math.abs(Math.cos(rot)) * 40 + Math.abs(Math.sin(rot)) * 54;
+      c.label = this.add.text(c.icon.x, c.icon.y - hh - 8, c.name, { fontSize: '12px', color: '#ff8a80', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5).setDepth(19);
     }
     this.target = this.add.image(0, 0, 'ring').setDepth(4).setTint(0x57d16b).setVisible(false);
 
@@ -1397,6 +1449,8 @@ class Main extends Phaser.Scene {
     // torreta de las patrullas
     const blink = 'poli' + ((this.time.now / 280 | 0) % 2);
     for (const c of this.cars) if (c.poli && c.sprite.texture.key !== blink) c.sprite.setTexture(blink);
+    const neon = 'antro' + ((this.time.now / 600 | 0) % 2);
+    for (const c of chinas) if (c.icon.texture.key !== neon + c.up) c.icon.setTexture(neon + c.up);
     const tmp = this.tmp;
     for (const c of this.cars) {
       const hx = Math.cos(c.a), hy = Math.sin(c.a);
