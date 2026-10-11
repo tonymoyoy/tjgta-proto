@@ -593,15 +593,15 @@ const PEDIDOS = [
 const CLIENTES = [
   '"¿Y la salsa?" Así nomás te recibió.', 'Te pagó con monedas de 50 centavos, una por una.',
   'Te abrió en pijama de dinosaurio y te dijo "gracias, mi rey".', 'Te calificó con 5 estrellas y un emoji de calavera.',
-  '"Pedí esto hace tres semanas", pero igual se lo comió.', 'Te preguntó si también llevas a los niños a la escuela.',
+  '"Pedí esto hace tres semanas", pero igual se lo comió.', 'Te pidió que le cambiaras un foco ya que ibas a estar ahí.',
   'Su perro te recibió primero. El perro firmó.', '"Déjalo en la puerta", dijo el señor desde la puerta.',
-  'Te ofreció la mitad de su pedido. Era tuyo de todas formas.', 'Te dio las gracias en inglés, español y espanglish.',
+  'Te ofreció la mitad de su pedido. Era tuyo de todas formas.', 'Te dio de propina un boleto de la rifa de la parroquia.',
 ];
 const CANCELADOS = [
   'El cliente canceló y te dejó una estrella con un comentario de tres párrafos.',
   'Se enfrió el pedido. Te lo comiste en un semáforo, para que no se desperdiciara.',
-  'El cliente se cambió de casa mientras llegabas.', 'La app dice que entregaste. La app miente.',
-  'El cliente se fue a San Diego por otro pedido.',
+  'El cliente ya se había dormido. Tocaste y salió su abuela con la chancla.', 'La app dice que entregaste. La app miente.',
+  'Llegaste a la dirección y era un lote baldío con un perro muy enojado.',
 ];
 
 // ---------- HUD ----------
