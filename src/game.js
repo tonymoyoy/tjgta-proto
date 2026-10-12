@@ -752,6 +752,8 @@ const VTYPES = [
   { name: 'Lowrider', L: 40, W: 16, top: 210, acc: 100, steer: 2.1, hp: 110, w: 4, r: 5, cols: ['#6c3483', '#117864', '#922b21', '#1a5276', '#b7950b'] },
   { name: 'Calafia', L: 52, W: 19, top: 170, acc: 70, steer: 1.8, hp: 200, w: 4, r: 3.5, cols: ['#c0392b', '#1e8449', '#2874a6', '#d35400'] },
   { name: 'Camión de carga', L: 46, W: 18, top: 175, acc: 75, steer: 1.9, hp: 180, w: 4, r: 3, cols: ['#c0392b', '#1f618d', '#ecf0f1', '#d4ac0d'] },
+  // superdeportivo italiano estilo F40: rojo, rapidisimo, fragil y escaso
+  { name: 'Bólido italiano', L: 34, W: 16, top: 330, acc: 195, steer: 2.9, hp: 75, w: 2, r: 3, cols: ['#d10a0a'] },
 ];
 const VT_TAXI = { name: 'Taxi libre', L: 37, W: 16, top: 230, acc: 115, steer: 2.6, hp: 100 };
 const VT_MOTO = { name: 'Moto de reparto', L: 19, W: 9.2, top: 210, acc: 150, steer: 3.4, hp: 60 };
@@ -872,6 +874,28 @@ function drawVehicle(x, ti, col, dirty) {
     ws = [L - 5, 2, 3.4, W - 4]; x.fillStyle = GLASS; x.fillRect(0.6, 3.5, 1.6, W - 7);
     x.fillStyle = col; x.fillRect(L - 1.6, 4, 1.2, W - 8);
     lights(L - 1.8, 1.4);
+  } else if (T.name === 'Bólido italiano') {
+    rr(0, 0, L, W, T.r, col);
+    x.fillStyle = shade(col, 0.78); x.fillRect(4, 0.3, L - 10, 1.1); x.fillRect(4, W - 1.4, L - 10, 1.1); // costados esculpidos
+    // tapa del motor con rejillas atras de la cabina
+    rr(3.2, 2.6, 11, W - 5.2, 1, shade(col, 0.86));
+    x.strokeStyle = shade(col, 0.45); x.lineWidth = 0.55; x.beginPath();
+    for (let i = 4.2; i < 14; i += 1.35) { x.moveTo(i, 3.4); x.lineTo(i, W - 3.4); } x.stroke();
+    // aleron trasero de lado a lado con sus soportes
+    x.fillStyle = shade(col, 0.7); x.fillRect(0.3, 0.3, 2.6, W - 0.6);
+    x.fillStyle = '#111'; x.fillRect(0.3, 0, 2.6, 1.1); x.fillRect(0.3, W - 1.1, 2.6, 1.1);
+    x.fillStyle = 'rgba(0,0,0,0.55)'; x.fillRect(2.9, 0.8, 0.6, W - 1.6); // sombra del aleron sobre la carroceria
+    // cabina chiquita y medallon
+    rr(15.2, 3, 6.3, W - 6, 1.6, shade(col, 0.93));
+    x.fillStyle = GLASS; x.fillRect(14, 3.6, 1.3, W - 7.2);
+    ws = [21.5, 2.6, 3.8, W - 5.2];
+    // tomas de aire NACA en el cofre
+    x.fillStyle = shade(col, 0.42);
+    for (const yy of [4, W - 5.4]) { x.beginPath(); x.moveTo(26, yy + 0.7); x.lineTo(30.5, yy); x.lineTo(30.5, yy + 1.4); x.closePath(); x.fill(); }
+    // faros escondidos y cuatro calaveras redondas
+    x.fillStyle = '#fff6b0'; x.fillRect(L - 2.2, 2, 1.6, 2.4); x.fillRect(L - 2.2, W - 4.4, 1.6, 2.4);
+    x.fillStyle = '#ff3b30'; for (const yy of [3, 5.2, W - 5.2, W - 3]) { x.beginPath(); x.arc(1.2, yy, 0.85, 0, 7); x.fill(); }
+    mirrors(20.5);
   } else {
     // camion de carga: caja blanca atras, cabina de color adelante
     rr(0, 0, 33, W, 1.5, '#e8e7e1');
