@@ -667,6 +667,40 @@ const FRASES_BACHE = ['¡Ese bache tenía su propio código postal!', 'Ahí se f
   '¡Uy! Ese ya hasta paga predial.', 'Gracias, Ayuntamiento.', '¿Bache o alberca? Ni el gobierno sabe.', 'Se te cayó hasta la placa.',
   'Ese bache tiene más años que la Revu.', 'Directo a la vulcanizadora.', 'Ni el Mimo Moy se hace que no lo vio.',
   'Ahí vive una familia de tlacuaches.', 'Ese bache sale en Google Maps.'];
+// lo que te dice la gente cuando te le pegas caminando
+const FRASES_PEATON = [
+  // historia
+  'En 1911 los magonistas tomaron Tijuana. Y luego llegaron los gringos a tomar tequila.',
+  'Mi abuelo dice que vio a Rita Hayworth en el Agua Caliente. Mi abuelo dice muchas cosas.',
+  'La ensalada César se inventó aquí, no en Italia. Apúntalo.',
+  'En la Ley Seca los gringos venían a la Revu a echarse lo que allá no podían.',
+  'Antes la línea se cruzaba en diez minutos. Ahora llévate lonche y cobija.',
+  // Sinaloa
+  '¿Eres de Culiacán? Aquí todos tenemos un primo de Sinaloa.',
+  'Media Tijuana es de Sinaloa y la otra media está esperando su raite pa\'llá.',
+  'Si oyes tambora a las 3 de la mañana es el vecino de Mazatlán celebrando que es martes.',
+  'Aquí todos somos "compa": eso lo trajeron los sinaloenses junto con la machaca.',
+  // pochos
+  'Órale bro, ¿where queda la Revu? Mi abuela me mandó por unos tacos.',
+  'Soy de Chula Vista pero mi corazón es de la Libertad... y mi dentista también.',
+  'Vine por medicina barata y ya llevo seis tacos y un sarape.',
+  'Mi primo de San Diego dice "parquear la troca". Ya se nos perdió.',
+  // deporte
+  '¡Xolos campeón 2012! Todavía no me quito la playera.',
+  '¡Vamos Toros! El beisbol aquí se vive con carne asada en el estacionamiento.',
+  'El Terrible Morales es de aquí, ¿eh? Respeta el barrio.',
+  '¿Vas al Caliente? Lleva chamarra, en la noche refresca aunque no lo creas.',
+  // inseguridad
+  'No dejes nada a la vista en el carro, ni el cargador del cel.',
+  'Aquí cuando te dicen "cuídate" no es despedida, es consejo.',
+  'Aquí el que no tiene alarma tiene perro, y el que no tiene perro, reza.',
+  // comida
+  'Los mejores tacos de adobada son los de la esquina... de cualquier esquina.',
+  'Si no has desayunado birria, ¿qué estás haciendo con tu vida?',
+  'Hot dog de la Revu a las 2 de la mañana: ese es el verdadero monumento de Tijuana.',
+  'Una Tecate bien helada y unos de cabeza: la dieta tijuanense.',
+  'Pide un ceviche de carreta, el de la esquina no falla... casi nunca.',
+];
 const FRASES_TOPE = [
   '¡Tope!', '¡Ese tope no venía en el mapa!', '¡Aguas con el tope!', '¡Adiós suspensión!',
   '¡Ese tope lo puso el taller de enfrente!', '¡Se me salió el hígado!', '¡Uy, el escape se quedó atrás!',
@@ -1324,6 +1358,10 @@ class Main extends Phaser.Scene {
       e.icon = this.add.image(sx, sy, 'egg_' + e.k).setScale(0.9).setRotation(rot).setDepth(7).setVisible(!e.got);
     }
     this.stamina = STAMINA; this.tired = false;
+    this.chatDeck = []; this.chatCool = 0;
+    this.bubble = this.add.text(0, 0, '', { fontSize: '8px', fontFamily: 'Inter, system-ui, sans-serif', color: '#1a1a1a', backgroundColor: '#fffdf4', padding: { x: 4, y: 3 }, resolution: 3,
+      wordWrap: { width: 130 }, align: 'center' }).setOrigin(0.5, 1).setDepth(22).setVisible(false);
+    this.bubble.ped = null;
     this.staminaBar = this.add.graphics().setDepth(20);
     this.target = this.add.image(0, 0, 'ring').setDepth(4).setTint(0x57d16b).setVisible(false);
 
@@ -1423,7 +1461,7 @@ class Main extends Phaser.Scene {
       this.cars.push(car);
     }
     n = 0;
-    while (this.peds.length < 32 && n++ < 6) {
+    while (this.peds.length < 26 && n++ < 6) {
       const e = randomEdgeNear(walkG, p.x, p.y, initial ? 60 : R + 20, R + 250); if (!e) break;
       const side = e.c >= 8 ? rnd(-3, 3) : (Math.random() < 0.5 ? 1 : -1) * (e.w / 2 + rnd(0.6, 2.2) * M);
       const ped = { e, dir: Math.random() < 0.5 ? 1 : -1, s: rnd(0, e.len), side, speed: rnd(14, 26), st: 'walk', t: 0, x: 0, y: 0, a: 0 };
@@ -1453,6 +1491,7 @@ class Main extends Phaser.Scene {
     if (this.inCar) this.driveCar(this.inCar, ctl, dt); else this.walk(ctl, dt);
     this.updateTraffic(dt);
     this.updatePeds(dt);
+    this.pedChat(dt);
 
     const f = this.focus();
     const cam = this.cameras.main;
@@ -1743,6 +1782,27 @@ class Main extends Phaser.Scene {
       else { p.dir = -p.dir; p.s = p.e.len - p.s; }
       p.a = tmp.a;
       p.sprite.setPosition(p.x, p.y).setRotation(p.a);
+    }
+  }
+
+  // la gente te habla si te le pegas caminando (una frase distinta cada vez hasta agotarlas)
+  pedChat(dt) {
+    const b = this.bubble;
+    this.chatCool -= dt;
+    if (b.ped) {
+      b.t -= dt;
+      b.setPosition(b.ped.x, b.ped.y - 16);
+      if (b.t <= 0 || b.ped.st === 'down' || dist(b.ped.x, b.ped.y, this.player.x, this.player.y) > 140) { b.ped = null; b.setVisible(false); }
+    }
+    if (this.inCar || this.chatCool > 0) return;
+    const pl = this.player;
+    for (const p of this.peds) {
+      if (p.st !== 'walk' || p.talked || dist(p.x, p.y, pl.x, pl.y) > 14) continue;
+      if (!this.chatDeck.length) this.chatDeck = Phaser.Utils.Array.Shuffle(FRASES_PEATON.slice());
+      p.talked = true; b.ped = p; b.t = 4.5; this.chatCool = 2.5;
+      b.setText(this.chatDeck.pop()).setPosition(p.x, p.y - 16).setVisible(true);
+      if (window.SND) SND.play('chat');
+      break;
     }
   }
 

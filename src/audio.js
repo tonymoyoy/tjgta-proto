@@ -137,6 +137,10 @@ const SFX = {
     tone(sfxBus, 'sine', 90, t, 0.25, 0.5 * v, { to: 35 });
     if (force > 0.6) noise(sfxBus, t + 0.03, 0.25, 0.15 * v, 'highpass', 5000);
   },
+  chat() { // "¡eh!" corto cuando alguien te habla
+    const t = ctx.currentTime;
+    tone(sfxBus, 'triangle', midi(76), t, 0.07, 0.08); tone(sfxBus, 'triangle', midi(81), t + 0.07, 0.1, 0.08);
+  },
   tired() { // jadeo
     const t = ctx.currentTime;
     for (let i = 0; i < 3; i++) noise(sfxBus, t + i * 0.35, 0.2, 0.12, 'bandpass', 1200, 0.7);
