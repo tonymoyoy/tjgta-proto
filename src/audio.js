@@ -131,6 +131,12 @@ const SFX = {
       tone(sfxBus, 'square', midi(n), t + d, l, 0.12, { lp: 3000 }); tone(sfxBus, 'triangle', midi(n - 12), t + d, l, 0.15);
     });
   },
+  boom() { // explosion del auto
+    const t = ctx.currentTime;
+    noise(sfxBus, t, 1.2, 0.9, 'lowpass', 700);
+    tone(sfxBus, 'sine', 70, t, 0.8, 0.8, { to: 25 });
+    noise(sfxBus, t + 0.05, 0.4, 0.2, 'highpass', 4000);
+  },
   crash(force) { // golpe: tronido grave + vidrio
     const t = ctx.currentTime, v = Math.min(1, 0.25 + force);
     noise(sfxBus, t, 0.35, 0.6 * v, 'lowpass', 500);

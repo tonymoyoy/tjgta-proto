@@ -973,7 +973,7 @@ function vehicleTexture(scene, ti, ci, d) {
 
 const SHIRTS = ['#d35400', '#2980b9', '#27ae60', '#8e44ad', '#c0392b', '#ecf0f1', '#16a085', '#7f8c8d', '#f39c12', '#2c3e50'];
 function makeTextures(scene) {
-  makeMoto(scene); makeTaxi(scene); makePolice(scene); makeTacoStands(scene); makeCafes(scene); makeChinas(scene); makeEggs(scene);
+  makeMoto(scene); makeTaxi(scene); makePolice(scene); makeTacoStands(scene); makeCafes(scene); makeChinas(scene); makeEggs(scene); makeScorch(scene);
   // personas vistas desde arriba, mirando a la derecha; 8 cuadros de caminata (el cuadro 0 es parado).
   // Se dibujan al doble de resolucion y el sprite se muestra a escala 0.5 para que se vean nitidas.
   const PF = PED_FRAME * 2, SKIN = ['#c68e5f', '#a8714a', '#e0b08a', '#8d5a36'], PANTS = ['#2c3e66', '#3b3b3b', '#5a4632', '#1f2a38'];
@@ -1208,6 +1208,17 @@ function makeChinas(scene) {
     t.refresh();
   }
 }
+// encima del auto quemado: manchas de hollin, vidrios rotos y lamina abollada (64 de largo x 32 de ancho, frente a la derecha)
+function makeScorch(scene) {
+  const t = scene.textures.createCanvas('scorch', 64, 32), x = t.getContext(), r = mulberry(7);
+  for (let i = 0; i < 14; i++) { x.fillStyle = 'rgba(0,0,0,' + (0.25 + r() * 0.4) + ')'; x.beginPath(); x.ellipse(6 + r() * 52, 5 + r() * 22, 3 + r() * 9, 2 + r() * 6, r() * 3, 0, 7); x.fill(); }
+  x.fillStyle = 'rgba(255,120,30,0.35)'; x.beginPath(); x.ellipse(46, 16, 10, 8, 0, 0, 7); x.fill(); // cofre al rojo vivo
+  x.strokeStyle = 'rgba(220,230,240,0.7)'; x.lineWidth = 0.7; // parabrisas estrellado
+  for (let i = 0; i < 7; i++) { const a = r() * 6.3; x.beginPath(); x.moveTo(38, 16); x.lineTo(38 + Math.cos(a) * 7, 16 + Math.sin(a) * 9); x.stroke(); }
+  x.strokeStyle = 'rgba(0,0,0,0.6)'; x.lineWidth = 1.2; // abolladuras
+  for (let i = 0; i < 5; i++) { const px = 8 + r() * 48, py = r() < 0.5 ? 2 : 30; x.beginPath(); x.moveTo(px, py); x.quadraticCurveTo(px + 3, py + (py < 16 ? 5 : -5), px + 7, py); x.stroke(); }
+  t.refresh();
+}
 // easter eggs vistos desde arriba, 64x64 a 2x (centro en 16,16)
 function makeEggs(scene) {
   const ell = (x, c, cx, cy, rx, ry, a) => { x.fillStyle = c; x.beginPath(); x.ellipse(cx, cy, rx, ry, a || 0, 0, 7); x.fill(); };
@@ -1357,7 +1368,7 @@ class Main extends Phaser.Scene {
       e.x = sx; e.y = sy;
       e.icon = this.add.image(sx, sy, 'egg_' + e.k).setScale(0.9).setRotation(rot).setDepth(7).setVisible(!e.got);
     }
-    this.stamina = STAMINA; this.tired = false;
+    this.stamina = STAMINA; this.tired = false; this.burning = [];
     this.chatDeck = []; this.chatCool = 0;
     this.bubble = this.add.text(0, 0, '', { fontSize: '8px', fontFamily: 'Inter, system-ui, sans-serif', color: '#1a1a1a', backgroundColor: '#fffdf4', padding: { x: 4, y: 3 }, resolution: 3,
       wordWrap: { width: 130 }, align: 'center' }).setOrigin(0.5, 1).setDepth(22).setVisible(false);
@@ -1492,6 +1503,7 @@ class Main extends Phaser.Scene {
     this.updateTraffic(dt);
     this.updatePeds(dt);
     this.pedChat(dt);
+    this.updateBurning(dt);
 
     const f = this.focus();
     const cam = this.cameras.main;
@@ -1592,7 +1604,7 @@ class Main extends Phaser.Scene {
         this.cameras.main.shake(120, Math.min(0.012, speed / 30000));
         if (car === this.inCar && window.SND) SND.play('crash', speed / 250);
         car.hp -= speed / 14;
-        if (car.hp <= 0 && !broken) { car.sprite.setTint(0x444444); toast('¡Auto deshuesado!', 'Bájate con E y roba otro.'); }
+        if (car.hp <= 0 && !broken) { this.wreck(car); toast('¡Auto deshuesado!', 'Bájate con E y roba otro.'); }
       }
     }
     // topes
@@ -1624,15 +1636,53 @@ class Main extends Phaser.Scene {
           this.cameras.main.shake(160, Math.min(0.012, sp / 20000));
           if (window.SND) SND.play('crash', 0.35);
           toast('🕳️ ' + pick(FRASES_BACHE), 'Tu auto: -' + Math.round(dmg) + ' de vida', 2);
-          if (car.hp <= 0 && !broken) { car.sprite.setTint(0x444444); toast('¡Auto deshuesado!', 'El bache ganó. Bájate con E y roba otro.'); }
+          if (car.hp <= 0 && !broken) { this.wreck(car); toast('¡Auto deshuesado!', 'El bache ganó. Bájate con E y roba otro.'); }
         }
       }
       car.bache = inB;
     }
     car.sprite.setPosition(car.x, car.y).setRotation(car.a);
+    if (car.hp <= 0 && !car.wrecked) { this.wreck(car); toast('¡Auto deshuesado!', 'Bájate con E y roba otro.'); }
     car.smokeT = (car.smokeT || 0) - dt;
     if (car.hp < car.maxHp * 0.35 && car.smokeT <= 0) { car.smokeT = 0.12; this.puff(car.x + Math.cos(car.a) * (car.hl - 3), car.y + Math.sin(car.a) * (car.hl - 3)); }
   }
+  // auto destruido: explota, queda chamuscado y abollado, y se quema un rato (luego solo humea)
+  wreck(car) {
+    if (car.wrecked) return;
+    car.wrecked = true;
+    car.sprite.setTint(0x3b302a);
+    car.scorch = this.add.image(car.x, car.y, 'scorch').setRotation(car.a).setDepth(car.sprite.depth + 0.1).setDisplaySize(car.hl * 2.15, car.hw * 2.3);
+    car.burn = 30; car.fireT = 0;
+    this.burning.push(car);
+    const fx = this.add.circle(car.x, car.y, 10, 0xffb030, 0.9).setDepth(17).setBlendMode(Phaser.BlendModes.ADD);
+    this.tweens.add({ targets: fx, scale: 4, alpha: 0, duration: 450, onComplete: () => fx.destroy() });
+    for (let i = 0; i < 10; i++) this.flame(car.x + rnd(-8, 8), car.y + rnd(-8, 8), 1.8);
+    this.cameras.main.shake(300, 0.012);
+    if (window.SND) SND.play('boom');
+  }
+  flame(x, y, big = 1) {
+    const f = this.add.circle(x, y, rnd(2.5, 4.5) * big, Math.random() < 0.5 ? 0xff6a00 : 0xffc23a, 0.95).setDepth(16).setBlendMode(Phaser.BlendModes.ADD);
+    this.tweens.add({ targets: f, y: y - rnd(10, 18) * big, x: x + rnd(-3, 3), scale: 0.2, alpha: 0, duration: rnd(350, 600), onComplete: () => f.destroy() });
+  }
+  blackSmoke(x, y) {
+    const s = this.add.circle(x, y, 5, 0x1e1e1e, 0.55).setDepth(15);
+    this.tweens.add({ targets: s, scale: 4, alpha: 0, y: y - 22, x: x + rnd(-6, 6), duration: 1600, onComplete: () => s.destroy() });
+  }
+  updateBurning(dt) {
+    const f = this.focus(), R = this.viewR() + 60;
+    this.burning = this.burning.filter(c => {
+      if (!c.sprite.active) { c.scorch.destroy(); return false; }
+      c.scorch.setPosition(c.x, c.y).setRotation(c.a);
+      if (dist(c.x, c.y, f.x, f.y) > R) return true; // fuera de la vista no se dibuja el fuego
+      c.burn -= dt; c.fireT -= dt;
+      if (c.fireT > 0) return true;
+      const hx = c.x + Math.cos(c.a) * c.hl * 0.45, hy = c.y + Math.sin(c.a) * c.hl * 0.45; // el cofre
+      if (c.burn > 0) { c.fireT = 0.06; this.flame(hx + rnd(-5, 5), hy + rnd(-5, 5), 1.3); this.flame(c.x + rnd(-6, 6), c.y + rnd(-5, 5)); if (Math.random() < 0.35) this.blackSmoke(hx, hy - 6); }
+      else { c.fireT = 0.35; this.blackSmoke(hx, hy); }
+      return true;
+    });
+  }
+
   puff(x, y) {
     const s = this.add.circle(x, y, 5, 0x555555, 0.6).setDepth(15);
     this.tweens.add({ targets: s, scale: 3, alpha: 0, y: y - 10, duration: 900, onComplete: () => s.destroy() });
