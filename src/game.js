@@ -294,32 +294,18 @@ const chinas = (() => {
   return out;
 })();
 
-// ---------- detalles de la calle: pasos peatonales y topes ----------
+// ---------- detalles de la calle: topes y baches ----------
 function mulberry(seed) {
   let a = seed >>> 0;
   return () => { a = (a + 0x6d2b79f5) >>> 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
-const crosswalks = [], topes = [], baches = [];
+const topes = [], baches = [];
 (() => {
-  const inc = traffic.nodes.map(() => new Set());
-  for (const e of traffic.edges) { inc[e.a].add(e); inc[e.b].add(e); }
-  inc.forEach((set, n) => {
-    if (set.size < 3) return;
-    const es = [...set], maxW = Math.max(...es.map(e => e.w));
-    for (const e of es) {
-      if (e.c > 5) continue;
-      const d = maxW / 2 + 3 * M + 8;
-      if (e.len < d + 25) continue;
-      const q = edgePos(e, d, e.a === n ? 1 : -1, 0, {});
-      crosswalks.push({ x: q.x, y: q.y, a: q.a, w: e.w });
-    }
-  });
   for (const e of traffic.edges) {
     if (e.c < 4 || e.len < 160 || hash(e.id * 7 + 3) % 3 !== 0) continue;
     const q = edgePos(e, e.len / 2, 1, 0, {});
     topes.push({ x: q.x, y: q.y, a: q.a, w: e.w, bb: [q.x - 40, q.y - 40, q.x + 40, q.y + 40] });
   }
-  crosswalks.forEach(c => { c.bb = [c.x - 60, c.y - 60, c.x + 60, c.y + 60]; });
   // baches: uno cada ~600 m de calle en promedio, en cualquier carril, lejos de las esquinas
   for (const e of traffic.edges) {
     if (e.c > 6 || e.len < 120) continue;
@@ -331,7 +317,6 @@ const crosswalks = [], topes = [], baches = [];
     }
   }
 })();
-const chunkCross = gridIndex(crosswalks, CHUNK, 'bb');
 const chunkTopes = gridIndex(topes, CHUNK, 'bb');
 const TCELL = 128;
 const topeGrid = gridIndex(topes, TCELL, 'bb');
@@ -398,13 +383,6 @@ function roadMarks(ctx, k) {
     path(1); ctx.fillStyle = '#1b1a19'; ctx.fill();
     ctx.save(); ctx.clip(); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.translate(-2, -2); path(1); ctx.fill(); ctx.restore();
     ctx.fillStyle = '#6a655c'; for (let j = 0; j < 6; j++) ctx.fillRect((rnd() - 0.5) * b.r * 2.6, (rnd() - 0.5) * b.r * 2.2, 1.6, 1.6);
-    ctx.restore();
-  }
-  for (const i of chunkCross.get(k) || []) {
-    const c = crosswalks[i];
-    ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.a);
-    ctx.fillStyle = 'rgba(205,202,192,0.7)';
-    for (let l = -c.w / 2 + 4; l < c.w / 2 - 3; l += 6) ctx.fillRect(-8, l, 16, 3);
     ctx.restore();
   }
   for (const i of chunkTopes.get(k) || []) {
