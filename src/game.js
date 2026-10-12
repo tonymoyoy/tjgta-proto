@@ -654,7 +654,7 @@ const FRASES_POLI = [
   '¿Y la placa? ¿Y el seguro? ¿Y la vergüenza?',
 ];
 // cuando se te acaba el aire de tanto correr
-const FRASES_CANSADO = ['¡Te bofeaste!', 'Mucho taco y poco ejercicio.', 'Se te salió un pulmón, compa.', 'Ni que fueras el Chicharito.',
+const FRASES_CANSADO = ['¡Te bofeaste!', 'Mucho taco y poco ejercicio.', 'Se te salió un pulmón, compa.', 'Así no llegas ni a la fila de la garita.',
   'Pa\'l otra, menos caguama.', 'Échate un aguita, campeón.', 'Ya no das ni un paso más, ¿verdad?', 'Te faltó el aire, viejo lobo.'];
 const STAMINA = 5; // segundos que aguantas corriendo
 // al llegar a un cafe
