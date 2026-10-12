@@ -21,8 +21,8 @@ Te las dicen cuando caminas pegado a alguien. Salen todas sin repetirse antes de
 
 10. "Órale bro, ¿where queda la Revu? Mi abuela me mandó por unos tacos."
 11. "Bro, mi outfit es todo de la Ross: diez dólares y me veo de Fashion Valley."
-12. "Trabajo en San Diego pero vivo aquí: allá la renta cuesta un riñón... y el otro también."
-13. "Mi primo de San Diego dice "parquear la troca". Ya se nos perdió."
+12. "Cruzo la línea diario, bro: con mi sueldo en San Diego nomás me alcanza para rentar un clóset."
+13. "Hablo spanglish bien fluent: "voy a la marketa por unas groceries y regreso pronto, ¿okay?""
 
 ## Deporte
 

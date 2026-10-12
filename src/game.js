@@ -683,8 +683,8 @@ const FRASES_PEATON = [
   // pochos
   'Órale bro, ¿where queda la Revu? Mi abuela me mandó por unos tacos.',
   'Bro, mi outfit es todo de la Ross: diez dólares y me veo de Fashion Valley.',
-  'Trabajo en San Diego pero vivo aquí: allá la renta cuesta un riñón... y el otro también.',
-  'Mi primo de San Diego dice "parquear la troca". Ya se nos perdió.',
+  'Cruzo la línea diario, bro: con mi sueldo en San Diego nomás me alcanza para rentar un clóset.',
+  'Hablo spanglish bien fluent: "voy a la marketa por unas groceries y regreso pronto, ¿okay?"',
   // deporte
   '¡Xolos campeón 2012! Todavía no me quito la playera.',
   '¡Vamos Toros! El beisbol aquí se vive con carne asada en el estacionamiento.',
