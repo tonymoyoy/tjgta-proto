@@ -299,7 +299,7 @@ function mulberry(seed) {
   let a = seed >>> 0;
   return () => { a = (a + 0x6d2b79f5) >>> 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
-const crosswalks = [], topes = [];
+const crosswalks = [], topes = [], baches = [];
 (() => {
   const inc = traffic.nodes.map(() => new Set());
   for (const e of traffic.edges) { inc[e.a].add(e); inc[e.b].add(e); }
@@ -320,12 +320,25 @@ const crosswalks = [], topes = [];
     topes.push({ x: q.x, y: q.y, a: q.a, w: e.w, bb: [q.x - 40, q.y - 40, q.x + 40, q.y + 40] });
   }
   crosswalks.forEach(c => { c.bb = [c.x - 60, c.y - 60, c.x + 60, c.y + 60]; });
+  // baches: uno cada ~600 m de calle en promedio, en cualquier carril, lejos de las esquinas
+  for (const e of traffic.edges) {
+    if (e.c > 6 || e.len < 120) continue;
+    const rnd = mulberry(e.id * 131 + 17);
+    for (let n = e.len / 3000 + rnd(); n >= 1; n--) {
+      const q = edgePos(e, e.len * (0.2 + rnd() * 0.6), 1, (rnd() - 0.5) * (e.w - 16), {});
+      const r = 6 + rnd() * 6;
+      baches.push({ x: q.x, y: q.y, a: rnd() * 6.3, r, seed: (rnd() * 1e9) | 0, bb: [q.x - r - 4, q.y - r - 4, q.x + r + 4, q.y + r + 4] });
+    }
+  }
 })();
 const chunkCross = gridIndex(crosswalks, CHUNK, 'bb');
 const chunkTopes = gridIndex(topes, CHUNK, 'bb');
 const TCELL = 128;
 const topeGrid = gridIndex(topes, TCELL, 'bb');
 function topesNear(x, y) { return topeGrid.get(Math.floor(x / TCELL) + ',' + Math.floor(y / TCELL)) || []; }
+const chunkBaches = gridIndex(baches, CHUNK, 'bb');
+const bacheGrid = gridIndex(baches, TCELL, 'bb');
+function bachesNear(x, y) { return bacheGrid.get(Math.floor(x / TCELL) + ',' + Math.floor(y / TCELL)) || []; }
 
 // ---------- dibujo de trozos del mapa ----------
 function trace(ctx, p, close) {
@@ -375,6 +388,18 @@ function grime(ctx, list, cx, cy) {
   }
 }
 function roadMarks(ctx, k) {
+  // baches: hoyo irregular oscuro con orilla de asfalto quebrado y algo de grava
+  for (const i of chunkBaches.get(k) || []) {
+    const b = baches[i], rnd = mulberry(b.seed), pts = [];
+    for (let j = 0; j < 9; j++) { const a = j / 9 * Math.PI * 2, rr = b.r * (0.7 + rnd() * 0.45); pts.push([Math.cos(a) * rr, Math.sin(a) * rr * 0.8]); }
+    ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.a);
+    const path = (sc) => { ctx.beginPath(); pts.forEach(([x, y], j) => j ? ctx.lineTo(x * sc, y * sc) : ctx.moveTo(x * sc, y * sc)); ctx.closePath(); };
+    path(1.35); ctx.fillStyle = 'rgba(92,88,80,0.75)'; ctx.fill(); ctx.strokeStyle = 'rgba(30,30,30,0.5)'; ctx.lineWidth = 0.8; ctx.stroke();
+    path(1); ctx.fillStyle = '#1b1a19'; ctx.fill();
+    ctx.save(); ctx.clip(); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.translate(-2, -2); path(1); ctx.fill(); ctx.restore();
+    ctx.fillStyle = '#6a655c'; for (let j = 0; j < 6; j++) ctx.fillRect((rnd() - 0.5) * b.r * 2.6, (rnd() - 0.5) * b.r * 2.2, 1.6, 1.6);
+    ctx.restore();
+  }
   for (const i of chunkCross.get(k) || []) {
     const c = crosswalks[i];
     ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.a);
@@ -637,6 +662,11 @@ const FRASES_CAFE = ['Un americano para el camino.', 'Café de olla bien cargado
   'Un espresso doble, pa\' despertar hasta al compa.', 'Un capuchino con canela y un ratito de wifi.', 'Un matcha bien verde, pa\' sentirte fresa de la Zona Río.',
   'Un frappé de cajeta, ni modo, se antojó.', 'Un mocha con concha de chocolate.', 'Café con leche como el de la abuela.',
   'Un dirty chai: especias, espresso y cero arrepentimientos.', 'Un pour over y un barista explicándote el grano.', 'Un descafeinado... ¿y para qué viniste?'];
+// al caer en un bache
+const FRASES_BACHE = ['¡Ese bache tenía su propio código postal!', 'Ahí se fue la suspensión, compa.', 'Bache tijuanense: si lo tapan, lo extrañan.',
+  '¡Uy! Ese ya hasta paga predial.', 'Gracias, Ayuntamiento.', '¿Bache o alberca? Ni el gobierno sabe.', 'Se te cayó hasta la placa.',
+  'Ese bache tiene más años que la Revu.', 'Directo a la vulcanizadora.', 'Ni el Mimo Moy se hace que no lo vio.',
+  'Ahí vive una familia de tlacuaches.', 'Ese bache sale en Google Maps.'];
 const FRASES_TOPE = [
   '¡Tope!', '¡Ese tope no venía en el mapa!', '¡Aguas con el tope!', '¡Adiós suspensión!',
   '¡Ese tope lo puso el taller de enfrente!', '¡Se me salió el hígado!', '¡Uy, el escape se quedó atrás!',
@@ -1543,6 +1573,23 @@ class Main extends Phaser.Scene {
       } else if (sp > 25) this.cameras.main.shake(90, 0.003);
     }
     car.onTope = onTope;
+    // baches: solo al jugador le duelen (los demas ya se los saben de memoria)
+    if (car === this.inCar) {
+      let inB = null;
+      for (const i of bachesNear(car.x, car.y)) { const b = baches[i]; if (dist(car.x, car.y, b.x, b.y) < b.r + car.hw * 0.6) inB = b; }
+      if (inB && car.bache !== inB) {
+        const sp = Math.hypot(car.vx, car.vy);
+        if (sp > 30) {
+          const dmg = (car.moto ? 1.5 : 1) * (inB.r / 9) * (4 + sp / 18);
+          car.hp -= dmg; car.vx *= 0.8; car.vy *= 0.8;
+          this.cameras.main.shake(160, Math.min(0.012, sp / 20000));
+          if (window.SND) SND.play('crash', 0.35);
+          toast('🕳️ ' + pick(FRASES_BACHE), 'Tu auto: -' + Math.round(dmg) + ' de vida', 2);
+          if (car.hp <= 0 && !broken) { car.sprite.setTint(0x444444); toast('¡Auto deshuesado!', 'El bache ganó. Bájate con E y roba otro.'); }
+        }
+      }
+      car.bache = inB;
+    }
     car.sprite.setPosition(car.x, car.y).setRotation(car.a);
     car.smokeT = (car.smokeT || 0) - dt;
     if (car.hp < car.maxHp * 0.35 && car.smokeT <= 0) { car.smokeT = 0.12; this.puff(car.x + Math.cos(car.a) * (car.hl - 3), car.y + Math.sin(car.a) * (car.hl - 3)); }
@@ -1972,7 +2019,7 @@ function start() {
     scale: { mode: Phaser.Scale.RESIZE, width: window.innerWidth, height: window.innerHeight },
     scene: [Main], fps: { target: 60, smoothStep: false },
   });
-  window.TJGTA = game; game.dbg = { VTYPES, vehicleTexture, state, drawChunk };
+  window.TJGTA = game; game.dbg = { VTYPES, vehicleTexture, state, drawChunk, baches };
 }
 $('go').addEventListener('click', start);
 // reiniciar la partida: borra dinero y lugares, tacos y cafes descubiertos (pide tocar dos veces)
