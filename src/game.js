@@ -679,17 +679,17 @@ const FRASES_PEATON = [
   '¿Eres de Culiacán? Aquí todos tenemos un primo de Sinaloa.',
   'Media Tijuana es de Sinaloa y la otra media está esperando su raite pa\'llá.',
   'Si oyes tambora a las 3 de la mañana es el vecino de Mazatlán celebrando que es martes.',
-  'Aquí todos somos "compa": eso lo trajeron los sinaloenses junto con la machaca.',
+  '¿Aguachile? Lo trajeron los sinaloenses y aquí nos lo quedamos, compa.',
   // pochos
   'Órale bro, ¿where queda la Revu? Mi abuela me mandó por unos tacos.',
-  'Soy de Chula Vista pero mi corazón es de la Libertad... y mi dentista también.',
-  'Vine por medicina barata y ya llevo seis tacos y un sarape.',
+  'Bro, mi outfit es todo de la Ross: diez dólares y me veo de Fashion Valley.',
+  'Trabajo en San Diego pero vivo aquí: allá la renta cuesta un riñón... y el otro también.',
   'Mi primo de San Diego dice "parquear la troca". Ya se nos perdió.',
   // deporte
   '¡Xolos campeón 2012! Todavía no me quito la playera.',
   '¡Vamos Toros! El beisbol aquí se vive con carne asada en el estacionamiento.',
   'El Terrible Morales es de aquí, ¿eh? Respeta el barrio.',
-  '¿Vas al Caliente? Lleva chamarra, en la noche refresca aunque no lo creas.',
+  'Aquí hasta la abuelita se sabe la alineación de los Xolos... y la critica.',
   // inseguridad
   'No dejes nada a la vista en el carro, ni el cargador del cel.',
   'Aquí cuando te dicen "cuídate" no es despedida, es consejo.',
@@ -698,7 +698,7 @@ const FRASES_PEATON = [
   'Los mejores tacos de adobada son los de la esquina... de cualquier esquina.',
   'Si no has desayunado birria, ¿qué estás haciendo con tu vida?',
   'Hot dog de la Revu a las 2 de la mañana: ese es el verdadero monumento de Tijuana.',
-  'Una Tecate bien helada y unos de cabeza: la dieta tijuanense.',
+  'Pescado en la mañana, adobada en la noche y carne asada el domingo. Así se vive aquí.',
   'Pide un ceviche de carreta, el de la esquina no falla... casi nunca.',
 ];
 const FRASES_TOPE = [
