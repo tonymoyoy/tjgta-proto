@@ -1221,72 +1221,201 @@ function makeScorch(scene) {
   for (let i = 0; i < 5; i++) { const px = 8 + r() * 48, py = r() < 0.5 ? 2 : 30; x.beginPath(); x.moveTo(px, py); x.quadraticCurveTo(px + 3, py + (py < 16 ? 5 : -5), px + 7, py); x.stroke(); }
   t.refresh();
 }
-// easter eggs vistos desde arriba, 64x64 a 2x (centro en 16,16)
+// easter eggs vistos desde arriba: lienzo de 32x32 unidades dibujado a 5x para que tengan detalle
 function makeEggs(scene) {
-  const ell = (x, c, cx, cy, rx, ry, a) => { x.fillStyle = c; x.beginPath(); x.ellipse(cx, cy, rx, ry, a || 0, 0, 7); x.fill(); };
-  const shadow = (x, rx, ry) => ell(x, 'rgba(0,0,0,0.3)', 17.5, 17.5, rx, ry);
-  const persona = (x, cx, cy, shirt, skin, hair) => { ell(x, shirt, cx, cy, 4.6, 3.4); ell(x, skin, cx, cy - 0.5, 2.4, 2.4); if (hair) ell(x, hair, cx, cy - 1.2, 2.4, 1.5); };
+  let x;
+  const ell = (c, cx, cy, rx, ry, a) => { x.fillStyle = c; x.beginPath(); x.ellipse(cx, cy, rx, ry, a || 0, 0, 7); x.fill(); };
+  const line = (c, w, pts) => { x.strokeStyle = c; x.lineWidth = w; x.lineCap = 'round'; x.beginPath(); pts.forEach(([a, b], i) => i ? x.lineTo(a, b) : x.moveTo(a, b)); x.stroke(); };
+  const rad = (cx, cy, r, c0, c1) => { const g = x.createRadialGradient(cx - r * 0.35, cy - r * 0.35, r * 0.1, cx, cy, r); g.addColorStop(0, c0); g.addColorStop(1, c1); return g; };
+  const ball = (cx, cy, r, c0, c1, out) => { x.fillStyle = rad(cx, cy, r, c0, c1); x.beginPath(); x.arc(cx, cy, r, 0, 7); x.fill(); if (out) { x.strokeStyle = out; x.lineWidth = 0.35; x.stroke(); } };
+  const shadow = (cx, cy, rx, ry) => ell('rgba(0,0,0,0.32)', cx + 1.2, cy + 1.4, rx, ry);
+  // persona vista desde arriba: hombros con brazos, cabeza con pelo (opcional)
+  const shoulders = (cx, cy, c0, c1, w = 5, h = 3.4) => { x.fillStyle = rad(cx, cy, w, c0, c1); x.beginPath(); x.ellipse(cx, cy, w, h, 0, 0, 7); x.fill(); x.strokeStyle = 'rgba(0,0,0,0.45)'; x.lineWidth = 0.35; x.stroke(); };
   const draw = {
-    burro(x) { // burro pintado de cebra con su carretita de fotos
-      shadow(x, 9, 13);
-      x.fillStyle = '#c0392b'; x.fillRect(10, 20, 15, 9); x.fillStyle = '#f1c40f'; x.fillRect(11, 21, 13, 7);
-      x.fillStyle = '#8e44ad'; x.fillRect(11, 24, 13, 1.5);
-      ell(x, '#f4f1ea', 16, 12, 4.6, 8);
-      x.strokeStyle = '#111'; x.lineWidth = 1.1;
-      for (let i = 6; i <= 17; i += 2.6) { x.beginPath(); x.moveTo(11.6, i); x.quadraticCurveTo(16, i + 1.4, 20.4, i); x.stroke(); }
-      ell(x, '#f4f1ea', 16, 3.2, 2.4, 3.2); ell(x, '#555', 16, 1, 1.6, 1.2);
-      ell(x, '#222', 13.6, 4.6, 0.9, 2, -0.4); ell(x, '#222', 18.4, 4.6, 0.9, 2, 0.4);
-      x.fillStyle = '#e74c3c'; x.fillRect(12, 9, 8, 1.6);
+    burro(x0) { // burro pintado de cebra con sarape, jalando su carreta para la foto
+      shadow(16, 18, 11, 13);
+      // carreta de madera pintada con letrero
+      x.fillStyle = '#7a4a22'; x.fillRect(8.5, 21, 15, 9.5);
+      x.fillStyle = '#c0392b'; x.fillRect(9.2, 21.6, 13.6, 8.3);
+      x.fillStyle = '#f4d03f'; x.fillRect(9.2, 23.5, 13.6, 1.1); x.fillStyle = '#27ae60'; x.fillRect(9.2, 26.8, 13.6, 1.1);
+      x.fillStyle = '#fff'; x.font = 'bold 2.4px sans-serif'; x.textAlign = 'center'; x.fillText('TIJUANA', 16, 26.4);
+      ell('#2c2c2c', 7.8, 25.5, 1, 3.2); ell('#2c2c2c', 24.2, 25.5, 1, 3.2); // ruedas
+      line('#5a3415', 0.6, [[13, 21], [14, 15]]); line('#5a3415', 0.6, [[19, 21], [18, 15]]); // varas
+      // cuerpo de burro con rayas
+      x.fillStyle = rad(16, 11, 7, '#ffffff', '#d9d6cc'); x.beginPath(); x.ellipse(16, 11.5, 4.4, 7.4, 0, 0, 7); x.fill();
+      x.save(); x.clip();
+      for (let i = 4.6; i <= 19; i += 1.9) line('#141414', 0.8, [[11, i], [14, i + 1.1], [16, i + 0.4], [18, i + 1.1], [21, i]]);
+      x.restore(); x.strokeStyle = 'rgba(0,0,0,0.5)'; x.lineWidth = 0.35; x.beginPath(); x.ellipse(16, 11.5, 4.4, 7.4, 0, 0, 7); x.stroke();
+      // sarape en el lomo
+      x.fillStyle = '#e74c3c'; x.fillRect(12.2, 9.5, 7.6, 4.4);
+      ['#f1c40f', '#27ae60', '#2980b9', '#8e44ad'].forEach((c, i) => { x.fillStyle = c; x.fillRect(12.2, 9.9 + i * 1, 7.6, 0.45); });
+      for (let i = 0; i < 6; i++) line('#fdebd0', 0.3, [[12.4 + i * 1.4, 13.9], [12.4 + i * 1.4, 14.8]]); // flecos
+      // cabeza, orejas y crin
+      ell('#e8e5dc', 16, 3.2, 2.3, 3); ell('#5d5d5d', 16, 1, 1.6, 1.1); ell('#111', 15.4, 0.8, 0.3, 0.25); ell('#111', 16.6, 0.8, 0.3, 0.25);
+      line('#141414', 0.5, [[15, 3], [17, 3.2]]); line('#141414', 0.5, [[15.1, 4.5], [16.9, 4.6]]);
+      ell('#e8e5dc', 13.7, 4.6, 0.9, 2.6, -0.5); ell('#e8e5dc', 18.3, 4.6, 0.9, 2.6, 0.5); ell('#c9a9a6', 13.7, 4.6, 0.4, 1.8, -0.5); ell('#c9a9a6', 18.3, 4.6, 0.4, 1.8, 0.5);
+      line('#141414', 0.9, [[16, 5.5], [16, 7.5]]); // crin
+      line('#e74c3c', 0.4, [[14, 3.6], [18, 3.6]]); // bozal
     },
-    cesar(x) { // un tazon gigante de ensalada Cesar
-      shadow(x, 12, 12); ell(x, '#e8e2d0', 16, 16, 12, 12); ell(x, '#cfc6ad', 16, 16, 10.5, 10.5);
-      for (let i = 0; i < 14; i++) { const a = i * 2.4, r = 2 + (i % 5) * 1.6; ell(x, i % 2 ? '#6ab04c' : '#8bc34a', 16 + Math.cos(a) * r, 16 + Math.sin(a) * r, 3.4, 2, a); }
-      for (let i = 0; i < 6; i++) { const a = i * 1.1 + 0.5; x.fillStyle = '#d9a441'; x.fillRect(15 + Math.cos(a) * 6, 15 + Math.sin(a) * 6, 2.2, 2.2); }
-      x.fillStyle = '#fff8dc'; for (let i = 0; i < 18; i++) x.fillRect(9 + (i * 7) % 14, 10 + (i * 5) % 12, 1, 1);
+    cesar(x0) { // tazon de ensalada Cesar con crutones, queso, limon y tenedor
+      shadow(16, 16, 13, 13);
+      ball(16, 16, 13, '#ffffff', '#cfcabb', 'rgba(0,0,0,0.35)');
+      ball(16, 16, 11, '#d9d3c2', '#bdb6a3');
+      for (let i = 0; i < 22; i++) { // hojas de lechuga romana con su vena
+        const a = i * 2.39, r = 1.5 + (i % 6) * 1.5, lx = 16 + Math.cos(a) * r, ly = 16 + Math.sin(a) * r;
+        x.fillStyle = rad(lx, ly, 3.4, i % 3 ? '#9ccc65' : '#c5e1a5', i % 2 ? '#558b2f' : '#689f38');
+        x.beginPath(); x.ellipse(lx, ly, 3.6, 1.7, a + 0.6, 0, 7); x.fill();
+        line('rgba(240,250,220,0.7)', 0.25, [[lx - Math.cos(a + 0.6) * 3, ly - Math.sin(a + 0.6) * 3], [lx + Math.cos(a + 0.6) * 3, ly + Math.sin(a + 0.6) * 3]]);
+      }
+      for (let i = 0; i < 8; i++) { const a = i * 0.8 + 0.3, r = 3 + (i % 3) * 2.2, cx = 16 + Math.cos(a) * r, cy = 16 + Math.sin(a) * r;
+        x.fillStyle = '#c98a3a'; x.fillRect(cx - 1, cy - 1, 2, 2); x.fillStyle = '#e8b866'; x.fillRect(cx - 1, cy - 1, 1.2, 1.2); }
+      for (let i = 0; i < 16; i++) { const a = i * 1.7, r = 2 + (i % 5) * 1.7; ell('#fff8e1', 16 + Math.cos(a) * r, 16 + Math.sin(a) * r, 0.9, 0.35, a); }
+      // gajo de limon y tenedor
+      x.fillStyle = '#f9e04b'; x.beginPath(); x.moveTo(24, 21); x.arc(24, 21, 3.4, 3.4, 5.2); x.closePath(); x.fill();
+      line('#fffde7', 0.35, [[24, 21], [21.2, 19.6]]); line('#fffde7', 0.35, [[24, 21], [22.4, 18.1]]);
+      line('#b0b7bd', 0.8, [[4, 26], [10, 20]]); for (const d of [-0.7, 0, 0.7]) line('#c9d0d6', 0.35, [[10 + d, 20 - d], [12 + d, 18 - d]]);
     },
-    xolo(x) { // xoloitzcuintle: gris, pelon, con su copete
-      shadow(x, 6, 12); ell(x, '#4a4f55', 16, 17, 4.4, 8); ell(x, '#4a4f55', 16, 7, 2.8, 3.6);
-      ell(x, '#3a3e43', 14, 4.6, 1, 2.4, -0.5); ell(x, '#3a3e43', 18, 4.6, 1, 2.4, 0.5);
-      ell(x, '#f5f5f5', 16, 6.6, 1.2, 1.6); x.strokeStyle = '#4a4f55'; x.lineWidth = 1.2;
-      x.beginPath(); x.moveTo(16, 24.5); x.quadraticCurveTo(19, 28, 17, 31); x.stroke();
-      ell(x, '#c0392b', 16, 11, 3, 0.9);
+    xolo(x0) { // xoloitzcuintle pelon con copete, collar de los Xolos y cola
+      shadow(16, 17, 7, 13);
+      line('#454b52', 1.3, [[16, 25], [18.5, 28], [17.5, 31]]); // cola
+      for (const [px, py] of [[12.6, 10.5], [19.4, 10.5], [13, 22.5], [19, 22.5]]) ell('#3d4248', px, py, 1.3, 1.8); // patas
+      x.fillStyle = rad(16, 16, 9, '#6c737b', '#3b4046'); x.beginPath(); x.ellipse(16, 16.5, 4.6, 8.6, 0, 0, 7); x.fill();
+      x.strokeStyle = 'rgba(0,0,0,0.5)'; x.lineWidth = 0.35; x.stroke();
+      for (const yy of [13, 15, 17]) line('rgba(30,30,30,0.45)', 0.3, [[13.5, yy], [16, yy + 0.6], [18.5, yy]]); // arrugas
+      ell('rgba(230,200,190,0.35)', 15, 18, 1.6, 2.4); // manchita rosada
+      // collar rojo con placa dorada
+      line('#c0392b', 1, [[12.4, 9.2], [16, 10], [19.6, 9.2]]); ball(16, 10.4, 0.7, '#fff3a0', '#c9a227');
+      // cabeza alargada, orejas de murcielago y copete
+      x.fillStyle = rad(16, 6, 3.5, '#6c737b', '#3b4046'); x.beginPath(); x.ellipse(16, 5.8, 2.7, 3.8, 0, 0, 7); x.fill();
+      ell('#2f3338', 16, 2.4, 1.2, 1); // hocico
+      x.fillStyle = '#4a5057';
+      for (const s of [-1, 1]) { x.beginPath(); x.moveTo(16 + s * 1.6, 6.5); x.lineTo(16 + s * 5, 4.2); x.lineTo(16 + s * 2.4, 8.2); x.closePath(); x.fill(); }
+      for (const s of [-1, 1]) { x.fillStyle = '#c99a94'; x.beginPath(); x.moveTo(16 + s * 2, 6.7); x.lineTo(16 + s * 4.2, 4.9); x.lineTo(16 + s * 2.6, 7.6); x.closePath(); x.fill(); }
+      for (let i = 0; i < 7; i++) line('#e8e8e8', 0.35, [[15.2 + i * 0.27, 4.3], [14.8 + i * 0.4, 7.4]]); // copete blanco
     },
-    batiz(x) { // rockero de pelo largo canoso, lentes oscuros y su guitarra electrica
-      shadow(x, 10, 11);
-      ell(x, '#c0392b', 22, 21, 4.4, 5.4, 0.5); ell(x, '#111', 22, 21, 1.4, 1.4);
-      x.strokeStyle = '#3b2a1a'; x.lineWidth = 1.6; x.beginPath(); x.moveTo(19.5, 17.5); x.lineTo(13, 9); x.stroke();
-      ell(x, '#151515', 15, 17, 5.6, 4);
-      ell(x, '#e8e8e8', 15, 14, 4.4, 5.4); ell(x, '#c99a6b', 15, 12.2, 2.2, 2);
-      x.fillStyle = '#111'; x.fillRect(12.8, 11.4, 4.4, 1.2);
+    batiz(x0) { // rockero de pelo largo canoso con lentes, chamarra de piel, guitarra roja y su amplificador
+      shadow(15, 17, 12, 10);
+      // amplificador
+      x.fillStyle = '#1b1b1b'; x.fillRect(22, 18, 8, 9); x.fillStyle = '#3a3a3a'; x.fillRect(22.6, 18.6, 6.8, 7.8);
+      for (let i = 0; i < 6; i++) line('#555', 0.25, [[22.8, 19.3 + i * 1.2], [29.2, 19.3 + i * 1.2]]);
+      x.fillStyle = '#e0c068'; x.fillRect(24, 18.2, 4, 0.7);
+      line('#111', 0.4, [[22, 22], [19, 21.5], [17, 20]]); // cable
+      // guitarra electrica roja cruzada
+      x.save(); x.translate(13, 18); x.rotate(-0.75);
+      x.fillStyle = '#5a3a1e'; x.fillRect(2.2, -0.75, 9, 1.5); // mastil
+      x.fillStyle = '#d9c39a'; for (let i = 0; i < 6; i++) x.fillRect(3 + i * 1.4, -0.75, 0.2, 1.5); // trastes
+      x.fillStyle = '#222'; x.beginPath(); x.roundRect(10.8, -1.2, 2.6, 2.4, 0.6); x.fill(); // clavijero
+      x.fillStyle = rad(-1, 0, 4.5, '#ff5a4a', '#a3150b'); x.beginPath();
+      x.ellipse(-2.4, 0, 3.4, 3.8, 0, 0, 7); x.ellipse(1.3, 0, 2.6, 2.9, 0, 0, 7); x.fill();
+      x.fillStyle = '#f5f2ea'; x.beginPath(); x.ellipse(-1.2, 0.8, 2.2, 1.8, 0.4, 0, 7); x.fill(); // golpeador
+      x.fillStyle = '#222'; x.fillRect(-2.8, -1.4, 0.6, 2.8); x.fillRect(-0.6, -1.4, 0.6, 2.8);
+      line('#ddd', 0.12, [[-3.6, -0.5], [13, -0.5]]); line('#ddd', 0.12, [[-3.6, 0.5], [13, 0.5]]);
+      x.restore();
+      // chamarra de piel negra con hombreras y cierre
+      shoulders(14, 14, '#3a3a3a', '#0d0d0d', 6, 3.8);
+      line('#9a9a9a', 0.3, [[14, 10.5], [14, 17.5]]);
+      ell('#1a1a1a', 8.6, 15.5, 1.6, 2.6, 0.3); ell('#1a1a1a', 19.4, 15.5, 1.6, 2.6, -0.3);
+      // cabeza: pelo largo canoso cayendo sobre los hombros, lentes oscuros
+      x.fillStyle = rad(14, 12, 5, '#ffffff', '#b8b8b8');
+      x.beginPath(); x.ellipse(14, 12.6, 3.8, 4.8, 0, 0, 7); x.fill();
+      for (let i = 0; i < 9; i++) line('rgba(150,150,150,0.8)', 0.25, [[11 + i * 0.75, 9], [10.6 + i * 0.85, 16.5]]);
+      ell('#c99a6b', 14, 9.4, 2.1, 1.8); // frente
+      x.fillStyle = '#0b0b0b'; x.beginPath(); x.roundRect(12, 8.6, 1.8, 1, 0.4); x.roundRect(14.2, 8.6, 1.8, 1, 0.4); x.fill();
+      line('#0b0b0b', 0.25, [[13.8, 9], [14.2, 9]]);
     },
-    gringo(x) { // turista quemado con sombrero de souvenir, camisa hawaiana y maleta
-      shadow(x, 9, 9); x.fillStyle = '#95a5a6'; x.fillRect(20, 18, 6, 8);
-      ell(x, '#f1c40f', 15, 16, 4.8, 3.6); for (let i = 0; i < 5; i++) ell(x, '#e84393', 12 + i * 1.6, 15 + (i % 2) * 2, 0.8, 0.8);
-      ell(x, '#d4a017', 15, 15, 8, 8); ell(x, '#e58e26', 15, 15, 5.4, 5.4); ell(x, '#2ecc71', 15, 15, 7.2, 7.2); ell(x, '#d4a017', 15, 15, 6.4, 6.4);
-      ell(x, '#ff8a80', 15, 15, 2.6, 2.6); ell(x, '#ff6f61', 15, 15, 1.4, 1.4);
+    gringo(x0) { // turista quemado con sombrero de souvenir, camisa hawaiana, maleta con calcomanias y vaso
+      shadow(16, 17, 12, 11);
+      // maleta con ruedas y calcomanias
+      x.fillStyle = '#5d6d7e'; x.beginPath(); x.roundRect(22, 16, 7, 10, 1); x.fill();
+      x.fillStyle = '#85929e'; x.fillRect(22.6, 16.6, 5.8, 1);
+      [['#e74c3c', 23, 19], ['#f1c40f', 25.5, 21], ['#2ecc71', 23.4, 23.2]].forEach(([c, a, b]) => { x.fillStyle = c; x.fillRect(a, b, 2.2, 1.5); });
+      line('#2c3e50', 0.5, [[24, 16], [24, 13], [27, 13], [27, 16]]);
+      // brazos quemados y vaso de michelada
+      ell('#ff8a75', 7.6, 17.5, 1.5, 3, 0.4); ell('#ff8a75', 22, 13.6, 2.6, 1.3, -0.3);
+      ball(6.4, 21.4, 1.6, '#ffe082', '#c27c0e', '#7a5a10'); ell('#e74c3c', 6.4, 21.4, 1.6, 0.4); // vaso con chile en el borde
+      // camisa hawaiana
+      shoulders(15, 17, '#3cc1e6', '#1a8db3', 6, 3.8);
+      for (const [fx, fy, c] of [[11, 16.5, '#ff4f8b'], [14, 18.8, '#ffd23f'], [17.5, 15.8, '#ff4f8b'], [19.4, 18.6, '#ffffff'], [12.6, 19, '#ffffff']]) {
+        for (let k = 0; k < 5; k++) ell(c, fx + Math.cos(k * 1.26) * 0.7, fy + Math.sin(k * 1.26) * 0.7, 0.5, 0.5); ell('#f1c40f', fx, fy, 0.3, 0.3);
+      }
+      // sombrero de souvenir enorme con zigzag bordado y letrero
+      x.fillStyle = rad(15, 13, 9, '#f8e08e', '#c99a2e'); x.beginPath(); x.arc(15, 13, 8.6, 0, 7); x.fill();
+      x.strokeStyle = '#8a6514'; x.lineWidth = 0.35; x.stroke();
+      x.strokeStyle = '#e74c3c'; x.lineWidth = 0.55; x.beginPath();
+      for (let i = 0; i <= 36; i++) { const a = i / 36 * Math.PI * 2, r = i % 2 ? 6.6 : 7.6; i ? x.lineTo(15 + Math.cos(a) * r, 13 + Math.sin(a) * r) : x.moveTo(15 + Math.cos(a) * r, 13 + Math.sin(a) * r); } x.stroke();
+      ball(15, 13, 4.2, '#fbe9a8', '#d4a73a', '#8a6514');
+      x.strokeStyle = '#27ae60'; x.lineWidth = 0.6; x.beginPath(); x.arc(15, 13, 4.6, 0, 7); x.stroke();
+      x.fillStyle = '#c0392b'; x.font = 'bold 1.9px sans-serif'; x.textAlign = 'center'; x.fillText('TJ', 15, 13.7);
     },
-    mariachi(x) { // charro de negro con sombrero de ala ancha y guitarron
-      shadow(x, 11, 11); ell(x, '#e5b25d', 23, 21, 5, 6.4, 0.6); ell(x, '#8a5a2b', 23, 21, 1.6, 1.6);
-      x.strokeStyle = '#5a3b1c'; x.lineWidth = 1.4; x.beginPath(); x.moveTo(20, 16.5); x.lineTo(15, 10); x.stroke();
-      ell(x, '#111', 15, 15, 5.5, 4); ell(x, '#2b2b2b', 15, 14, 9, 9); ell(x, '#d4af37', 15, 14, 9, 9); ell(x, '#2b2b2b', 15, 14, 8, 8);
-      ell(x, '#1a1a1a', 15, 14, 3.6, 3.6); x.strokeStyle = '#d4af37'; x.lineWidth = 0.6; x.beginPath(); x.arc(15, 14, 5.6, 0, 7); x.stroke();
+    mariachi(x0) { // charro de negro con botonadura plateada, sombrero con bordado de oro y guitarron
+      shadow(15, 16, 12, 12);
+      // guitarron
+      x.save(); x.translate(22, 21); x.rotate(0.65);
+      x.fillStyle = '#4a2c12'; x.fillRect(-0.8, -10, 1.6, 6);
+      x.fillStyle = rad(0, 0, 6, '#e8b56a', '#9a5a20'); x.beginPath(); x.ellipse(0, 0, 4.6, 5.6, 0, 0, 7); x.fill();
+      x.strokeStyle = '#3a200a'; x.lineWidth = 0.4; x.stroke();
+      ell('#2a1606', 0, -1.2, 1.5, 1.5); line('#3a200a', 0.6, [[-2, 2.6], [2, 2.6]]);
+      for (const d of [-0.5, 0, 0.5]) line('#eee', 0.1, [[d, -9.5], [d, 2.6]]);
+      x.restore();
+      // traje negro con botonadura de plata en los brazos
+      shoulders(14, 16, '#3a3a3a', '#0a0a0a', 6.2, 4);
+      ell('#111', 8, 18.5, 1.6, 3, 0.25); ell('#111', 20, 18, 1.6, 3, -0.6);
+      for (let i = 0; i < 5; i++) { ball(8.3 - i * 0.1, 16 + i * 1.1, 0.32, '#ffffff', '#9aa0a6'); ball(19.6 + i * 0.25, 15.8 + i * 0.9, 0.32, '#ffffff', '#9aa0a6'); }
+      ell('#c0392b', 14, 19.6, 1.6, 0.8); // mono rojo
+      // sombrero de charro: ala ancha con bordado de oro y copa alta
+      x.fillStyle = rad(14, 13, 10, '#3a3a3a', '#0d0d0d'); x.beginPath(); x.arc(14, 13, 9.4, 0, 7); x.fill();
+      x.strokeStyle = '#d4af37'; x.lineWidth = 0.7; x.beginPath(); x.arc(14, 13, 8.7, 0, 7); x.stroke();
+      x.lineWidth = 0.3;
+      for (let i = 0; i < 24; i++) { const a = i / 24 * Math.PI * 2; x.beginPath(); x.arc(14 + Math.cos(a) * 7, 13 + Math.sin(a) * 7, 0.6, 0, 7); x.stroke(); }
+      ball(14, 13, 4.3, '#3d3d3d', '#111');
+      x.strokeStyle = '#d4af37'; x.lineWidth = 0.5; x.beginPath(); x.arc(14, 13, 4.6, 0, 7); x.stroke();
+      line('#d4af37', 0.35, [[11.4, 13], [16.6, 13]]); line('#d4af37', 0.35, [[14, 10.4], [14, 15.6]]);
     },
-    mimo(x) { // mimo: cara blanca, boina negra, playera de rayas y guantes blancos
-      shadow(x, 9, 8);
-      ell(x, '#f5f5f5', 16, 17, 5.4, 4);
-      x.fillStyle = '#111'; for (let i = 0; i < 4; i++) x.fillRect(11 + i * 3, 13.4, 1.4, 7.2);
-      ell(x, '#fff', 8.6, 13, 2, 2); ell(x, '#fff', 23.4, 13, 2, 2);
-      ell(x, '#fff', 16, 15.5, 3, 3); ell(x, '#111', 16, 14.3, 3.3, 2.4); ell(x, '#111', 16, 12, 1, 1);
-      ell(x, '#e74c3c', 16, 17.6, 1, 0.5);
+    mimo(x0) { // mimo: boina, cara blanca pintada, playera de rayas, tirantes y guantes atrapado en una caja invisible
+      // la caja invisible
+      x.setLineDash([1, 0.8]); x.strokeStyle = 'rgba(255,255,255,0.55)'; x.lineWidth = 0.35; x.strokeRect(4, 4, 24, 24); x.setLineDash([]);
+      shadow(16, 17, 9, 8);
+      // brazos estirados con guantes blancos tocando las paredes
+      ell('#f4f4f4', 8, 15, 3, 1.3, 0.1); ell('#f4f4f4', 24, 15, 3, 1.3, -0.1);
+      for (let i = 0; i < 4; i++) line('#111', 0.5, [[6 + i * 1.2, 14.2], [6 + i * 1.2, 15.8]]); for (let i = 0; i < 4; i++) line('#111', 0.5, [[22.4 + i * 1.2, 14.2], [22.4 + i * 1.2, 15.8]]);
+      ball(4.6, 15, 1.5, '#ffffff', '#cfcfcf', '#999'); ball(27.4, 15, 1.5, '#ffffff', '#cfcfcf', '#999');
+      for (const s of [-1, 1]) for (let k = 0; k < 4; k++) ell('#fff', 16 + s * 13.1, 13.7 + k * 0.9, 0.5, 0.35); // dedos en la pared
+      // torso con rayas y tirantes
+      x.save(); x.beginPath(); x.ellipse(16, 16, 5.4, 3.8, 0, 0, 7); x.clip();
+      x.fillStyle = '#f5f5f5'; x.fillRect(10, 12, 12, 8); for (let i = 0; i < 6; i++) { x.fillStyle = '#111'; x.fillRect(10.4 + i * 2, 12, 1, 8); }
+      x.restore(); x.strokeStyle = 'rgba(0,0,0,0.5)'; x.lineWidth = 0.35; x.beginPath(); x.ellipse(16, 16, 5.4, 3.8, 0, 0, 7); x.stroke();
+      line('#c0392b', 0.7, [[13.6, 12.6], [13.6, 19.4]]); line('#c0392b', 0.7, [[18.4, 12.6], [18.4, 19.4]]);
+      // cabeza con boina negra ladeada y cara pintada asomandose
+      ball(16, 13.4, 2.9, '#ffffff', '#dcdcdc', '#aaa');
+      ell('#111', 15.4, 12.4, 3.1, 2.4, -0.3); ell('#222', 15.8, 11.5, 0.5, 0.5);
+      ell('#111', 14.8, 14.5, 0.35, 0.6); ell('#111', 17.2, 14.5, 0.35, 0.6); ell('#d0112b', 16, 15.7, 0.8, 0.35);
+      line('#111', 0.15, [[14.8, 13.8], [14.8, 15.4]]); line('#111', 0.15, [[17.2, 13.8], [17.2, 15.4]]);
     },
-    payaso(x) { // payaso de crucero con peluca de colores y limones en el aire
-      shadow(x, 8, 8); ell(x, '#3498db', 16, 17, 5, 3.8);
-      for (let i = 0; i < 6; i++) ell(x, ['#e74c3c', '#f1c40f', '#2ecc71'][i % 3], 16 + Math.cos(i) * 3.3, 16 + Math.sin(i) * 3.3, 2.2, 2.2);
-      ell(x, '#fbe9d0', 16, 16, 2.6, 2.6); ell(x, '#e74c3c', 16, 14.4, 1, 1);
-      for (const [lx, ly] of [[8, 6], [16, 3], [24, 6]]) ell(x, '#7bc043', lx, ly, 1.8, 1.5);
+    payaso(x0) { // payaso de crucero: peluca de colores, nariz roja, traje de lunares, zapatotes y limones al aire
+      shadow(16, 18, 9, 10);
+      ell('#c0392b', 12.5, 25.5, 2.2, 3.4, 0.15); ell('#c0392b', 19.5, 25.5, 2.2, 3.4, -0.15); // zapatotes
+      ell('#ff7b6b', 12.3, 24.4, 1, 1.2); ell('#ff7b6b', 19.3, 24.4, 1, 1.2);
+      // traje de lunares
+      shoulders(16, 18, '#4fa3ff', '#1c5fb8', 6, 4.2);
+      for (const [px, py, c] of [[12.4, 17, '#ffd23f'], [15, 20, '#ff4f8b'], [18.6, 16.6, '#ffffff'], [19.6, 19.6, '#ffd23f'], [14.4, 16, '#ff4f8b'], [11.8, 19.6, '#ffffff']]) ell(c, px, py, 0.7, 0.7);
+      for (let i = 0; i < 5; i++) ell(i % 2 ? '#ffffff' : '#ff4f8b', 13.4 + i * 1.3, 14.8, 0.9, 0.6); // cuello de holan
+      // brazos arriba haciendo malabares
+      ell('#4fa3ff', 9.6, 14, 1.4, 2.6, 0.6); ell('#4fa3ff', 22.4, 14, 1.4, 2.6, -0.6);
+      ball(8.6, 11.8, 1, '#ffffff', '#d8d8d8'); ball(23.4, 11.8, 1, '#ffffff', '#d8d8d8');
+      // limones en el aire con su estela
+      x.setLineDash([0.6, 0.6]); x.strokeStyle = 'rgba(255,255,255,0.6)'; x.lineWidth = 0.3; x.beginPath(); x.arc(16, 9, 7.5, Math.PI * 1.05, Math.PI * 1.95); x.stroke(); x.setLineDash([]);
+      for (const [lx, ly] of [[9.6, 6.2], [16, 1.8], [22.4, 6.2]]) { ball(lx, ly, 1.5, '#c5ef7c', '#4c9a1c', '#2f6b0d'); ell('#8bc34a', lx + 0.5, ly - 0.5, 0.4, 0.3); }
+      // cabeza: peluca esponjada de colores, cara blanca y nariz roja
+      for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2; ball(16 + Math.cos(a) * 3.2, 13 + Math.sin(a) * 3.2, 1.6, ['#ff5252', '#ffd23f', '#4caf50', '#40c4ff', '#e040fb'][i % 5], ['#b71c1c', '#c79a00', '#1b5e20', '#0277bd', '#7b1fa2'][i % 5]); }
+      ball(16, 13, 2.7, '#ffffff', '#e8dccb', '#bbb');
+      ball(16, 12, 0.95, '#ff6b6b', '#c40000');
+      line('#d0112b', 0.4, [[14.8, 14.2], [16, 14.8], [17.2, 14.2]]);
     },
   };
-  for (const k in draw) { const t = scene.textures.createCanvas('egg_' + k, 64, 64), x = t.getContext(); x.scale(2, 2); draw[k](x); t.refresh(); }
+  for (const k in draw) {
+    const t = scene.textures.createCanvas('egg_' + k, 160, 160);
+    x = t.getContext(); x.save(); x.scale(5, 5); draw[k](x); x.restore(); t.refresh();
+  }
 }
 function onAsphalt(x, y, pad) {
   for (const r of roads) {
@@ -1368,7 +1497,7 @@ class Main extends Phaser.Scene {
     for (const e of EGGS) {
       const [sx, sy, rot] = sidewalkSpot(e.x, e.y, (SIDEWALK + 0.5) * M);
       e.x = sx; e.y = sy;
-      e.icon = this.add.image(sx, sy, 'egg_' + e.k).setScale(0.9).setRotation(rot).setDepth(7).setVisible(!e.got);
+      e.icon = this.add.image(sx, sy, 'egg_' + e.k).setScale(0.4).setRotation(rot).setDepth(7).setVisible(!e.got);
     }
     this.stamina = STAMINA; this.tired = false; this.burning = [];
     this.chatDeck = []; this.chatCool = 0;
