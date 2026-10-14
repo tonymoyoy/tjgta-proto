@@ -204,3 +204,20 @@ body:not(.touch) #keystouch { display: none; }
   #mini { width: 120px; height: 120px; }
   #optbtn { top: 140px; }
 }
+
+/* celular vertical: arriba queda libre el hueco de la camara; el panel de dinero se parte en dos lineas
+   para no chocar con el minimapa, y los botones se suben un poco para el pulgar */
+@media (orientation: portrait) and (pointer: coarse) {
+  #stats, #mini { top: max(34px, env(safe-area-inset-top)); }
+  #stats { max-width: calc(100vw - 160px); }
+  #stats .row { flex-wrap: wrap; row-gap: 0; column-gap: 8px; }
+  .touch #optbtn, #optbtn { top: 166px; }
+  #fps { top: 100px; }
+  #stick { bottom: 40px; }
+  #bigmap .mapbtns, #mlegend { top: max(34px, env(safe-area-inset-top)); }
+  #mlegend { right: 70px; }
+  #opts { padding-top: max(34px, env(safe-area-inset-top)); }
+  #bE, #bB { bottom: 118px; }
+  #bR { bottom: 42px; }
+  #bT { bottom: 46px; }
+}

@@ -2266,7 +2266,11 @@ class Main extends Phaser.Scene {
     setupBigMap(this);
   }
 
-  baseZoom() { return (Math.min(window.innerWidth, window.innerHeight) < 600 ? 1.45 : 1.8) * DPR; } // antes 1.15 y 1.4
+  // en celular vertical se aleja un poco: la pantalla es angosta y si no casi no se ve a los lados
+  baseZoom() {
+    const chico = Math.min(window.innerWidth, window.innerHeight) < 600, vertical = window.innerHeight > window.innerWidth;
+    return (chico ? (vertical ? 1.2 : 1.45) : 1.8) * DPR;
+  }
 
   walker(x, y, rate) {
     const i = pedVariant(), V = PED_VARIANTS[i];
@@ -3546,6 +3550,7 @@ function renderOptions() {
   $('optnight').disabled = !p.noche;
   $('optnight').textContent = p.noche ? (state.night ? '☀️ Volver al día' : '🌙 Tijuana de noche') + key('L') : '🔒 Tijuana de noche · conoce los ' + landmarks.length + ' lugares';
   for (const b of document.querySelectorAll('#optcal button')) b.classList.toggle('on', b.dataset.q === CALIDAD);
+  for (const b of document.querySelectorAll('#optori button')) b.classList.toggle('on', b.dataset.o === orientacion);
   $('optfps').textContent = (verFps ? '📈 Ver cuadros por segundo: sí' : '📈 Ver cuadros por segundo: no');
   $('optacta').disabled = !p.final;
   $('optacta').textContent = p.final ? '📜 Ver mi Acta de Tijuanense' : '🔒 Acta de Tijuanense · completa todo';
@@ -3569,6 +3574,18 @@ for (const b of document.querySelectorAll('#optcal button')) b.addEventListener(
   if (b.dataset.q === CALIDAD) return;
   try { localStorage.setItem('tjrush-calidad', b.dataset.q); } catch (e) { /* sin almacenamiento */ }
   save(); location.reload();
+});
+// orientacion de la pantalla: gira con el telefono, o fija horizontal o vertical (solo en la app;
+// es un plugin propio, OrientacionPlugin.java, que tambien la aplica al abrir)
+const ORI = window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform() ? Capacitor.registerPlugin('Orientacion') : null;
+let orientacion = 'auto';
+try { orientacion = localStorage.getItem('tjrush-orientacion') || 'auto'; } catch (e) { /* sin almacenamiento */ }
+if (!ORI) $('optori').style.display = 'none';
+for (const b of document.querySelectorAll('#optori button')) b.addEventListener('click', () => {
+  orientacion = b.dataset.o;
+  try { localStorage.setItem('tjrush-orientacion', orientacion); } catch (e) { /* sin almacenamiento */ }
+  ORI.set({ modo: orientacion }).catch(() => {});
+  renderOptions();
 });
 // contador de cuadros por segundo (para ver si el celular va fluido)
 let verFps = false;

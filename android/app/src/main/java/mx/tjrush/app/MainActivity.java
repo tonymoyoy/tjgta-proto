@@ -12,7 +12,10 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        registerPlugin(OrientacionPlugin.class);
         super.onCreate(savedInstanceState);
+        // la orientacion que se eligio en Opciones (automatica, horizontal o vertical)
+        setRequestedOrientation(OrientacionPlugin.modo(OrientacionPlugin.guardado(this)));
         // pantalla completa: el juego tambien ocupa la zona de la camara frontal
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             getWindow().getAttributes().layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
