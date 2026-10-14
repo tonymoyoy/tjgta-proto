@@ -88,6 +88,8 @@ window.ARTE = {
   fondo: (n) => lienzo(n, fondo).toDataURL(),
   frente: (n) => lienzo(n, frente).toDataURL(),
   icono: (n, redondo) => lienzo(n, (x) => completo(x, redondo)).toDataURL(),
+  // icono para la ficha de Google Play: cuadrado completo (la tienda le redondea las esquinas)
+  tienda: (n) => lienzo(n, (x) => { x.translate(54, 54); x.scale(1.4, 1.4); x.translate(-54, -54); fondo(x); frente(x); }).toDataURL(),
   arranque: (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; arranque(c.getContext('2d'), w, h); return c.toDataURL(); },
 };
 // vista previa al abrir la pagina a mano

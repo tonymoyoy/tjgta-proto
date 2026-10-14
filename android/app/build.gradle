@@ -16,8 +16,21 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // firma de la version para compartir y para Google Play: la llave vive FUERA del repo
+    // (~/tjrush-llaves/keystore.properties, o la ruta en la variable TJRUSH_KEYSTORE_PROPS)
+    def llavesProps = new File(System.getenv("TJRUSH_KEYSTORE_PROPS") ?: "${System.getProperty('user.home')}/tjrush-llaves/keystore.properties")
+    signingConfigs {
+        if (llavesProps.exists()) {
+            def k = new Properties(); llavesProps.withInputStream { k.load(it) }
+            release {
+                storeFile file(k['storeFile']); storePassword k['storePassword']
+                keyAlias k['keyAlias']; keyPassword k['keyPassword']
+            }
+        }
+    }
     buildTypes {
         release {
+            if (llavesProps.exists()) signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

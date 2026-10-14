@@ -7,7 +7,9 @@
     "build": "node scripts/build-www.mjs",
     "sync": "npm run build && npx cap sync android",
     "android": "npm run sync && npx cap run android",
-    "apk": "npm run sync && cd android && ./gradlew assembleDebug"
+    "apk": "npm run sync && cd android && ./gradlew assembleDebug",
+    "apk:release": "npm run sync && cd android && ./gradlew assembleRelease",
+    "aab": "npm run sync && cd android && ./gradlew bundleRelease"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.3",
