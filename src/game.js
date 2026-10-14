@@ -770,6 +770,8 @@ const FRASES_POLI = [
 const FRASES_CANSADO = ['¡Te bofeaste!', 'Mucho taco y poco ejercicio.', 'Se te salió un pulmón, compa.', 'Así no llegas ni a la fila de la garita.',
   'Pa\'l otra, menos caguama.', 'Échate un aguita, campeón.', 'Ya no das ni un paso más, ¿verdad?', 'Te faltó el aire, viejo lobo.'];
 const STAMINA = 5; // segundos que aguantas corriendo
+const FIESTA_SECS = 32;  // lo que dura la fiesta de la Plaza Santa Cecilia
+const MARI_SWAY = 333;   // mecerse al compas del vals (un tiempo a 180 bpm)
 // al llegar a un cafe
 const FRASES_CAFE = ['Un americano para el camino.', 'Café de olla bien cargado.', 'Un latte con pan dulce.', 'Un cold brew, que hace calor.',
   'Un espresso doble, pa\' despertar hasta al compa.', 'Un capuchino con canela y un ratito de wifi.', 'Un matcha bien verde, pa\' sentirte fresa de la Zona Río.',
@@ -954,6 +956,18 @@ const FRASES = {
     'La Mona sigue en la colonia Aeropuerto, desnuda y feliz. Más feliz que yo, seguro.',
   ],
 };
+// lo que te dicen en la fiesta de la Plaza Santa Cecilia (al completar todo)
+const FRASES_FIESTA = () => [
+  '¿Tú eres el que se comió los ' + tacos.length + ' tacos? Respeto.',
+  'Dicen que conoces los ' + landmarks.length + ' lugares. Yo nomás me sé el camino a mi casa.',
+  '¡' + cafes.length + ' cafés! Con razón no te cansas, compa.',
+  'Te vi en la línea, en la Revu y en El Cubo el mismo día. ¿Tú no duermes o qué?',
+  'Sabía que alguien terminaría este juego. El programador no lo creía.',
+  '¡Otra, otra! Que se aviente una el del guitarrón.',
+  'Esta fiesta es por ti. Bueno, y porque es martes.',
+  'Ya eres más tijuanense que el burro cebra. Bueno, casi.',
+  'Mi abuela dice que te invita a comer el domingo. Lleva tortillas.',
+];
 const FRASES_PEATON = Object.entries(FRASES).flatMap(([k, list]) => list.map(t => ({ k, t })));
 const FRASES_TOPE = [
   '¡Tope!', '¡Ese tope no venía en el mapa!', '¡Aguas con el tope!', '¡Adiós suspensión!',
@@ -1270,7 +1284,7 @@ function vehicleTexture(scene, ti, ci, d) {
 
 const SHIRTS = ['#d35400', '#2980b9', '#27ae60', '#8e44ad', '#c0392b', '#ecf0f1', '#16a085', '#7f8c8d', '#f39c12', '#2c3e50'];
 function makeTextures(scene) {
-  makeLights(scene); makeMoto(scene); makePerro(scene); makeLandmarkIcons(scene); makeTrocaTacos(scene); makeZonkey(scene); makeTaxi(scene); makePolice(scene); makeTacoStands(scene); makeCafes(scene); makeChinas(scene); makeEggs(scene); makeScorch(scene);
+  makeLights(scene); makeFiesta(scene); makeMoto(scene); makePerro(scene); makeLandmarkIcons(scene); makeTrocaTacos(scene); makeZonkey(scene); makeTaxi(scene); makePolice(scene); makeTacoStands(scene); makeCafes(scene); makeChinas(scene); makeEggs(scene); makeScorch(scene);
   // personas vistas desde arriba, mirando a la derecha; 8 cuadros de caminata (el cuadro 0 es parado).
   // Se dibujan a SPR veces la resolucion y el sprite se muestra a escala 1 / SPR para que se vean nitidas.
   const PF = PED_FRAME * SPR, SKIN = ['#c68e5f', '#a8714a', '#e0b08a', '#8d5a36'], PANTS = ['#2c3e66', '#3b3b3b', '#5a4632', '#1f2a38'];
@@ -1361,6 +1375,37 @@ function makeLights(scene) {
   g.addColorStop(0, 'rgba(255,255,255,0.95)'); g.addColorStop(0.6, 'rgba(255,255,255,0.45)'); g.addColorStop(1, 'rgba(255,255,255,0)');
   x.fillStyle = g; x.beginPath(); x.moveTo(0, 56); x.lineTo(256, 0); x.lineTo(256, 128); x.lineTo(0, 72); x.closePath(); x.fill();
   t.refresh();
+}
+// la fiesta de la Plaza Santa Cecilia: mariachis vistos desde arriba (sombrero ancho con bordado dorado, traje negro
+// con botonadura de plata) con su instrumento al frente: 0 trompeta, 1 guitarra, 2 violin, 3 guitarron.
+// Miran a la derecha; cuadro de 30 x 30 a SPR veces la resolucion. Ademas 'chispa' (cohetes) y 'confeti'.
+function makeFiesta(scene) {
+  const F = 30;
+  for (let v = 0; v < 4; v++) {
+    const t = scene.textures.createCanvas('mariachi' + v, F * SPR, F * SPR), x = t.getContext();
+    x.scale(SPR, SPR); x.translate(F / 2, F / 2);
+    const ell = (c, ex, ey, rx, ry, a) => { x.fillStyle = c; x.beginPath(); x.ellipse(ex, ey, rx, ry, a || 0, 0, 7); x.fill(); };
+    ell('rgba(0,0,0,0.3)', 1.5, 1.5, 10, 10);
+    // brazos hacia el instrumento y hombros con botonadura
+    ell('#1a1a1a', 3, -5, 4, 1.8, 0.4); ell('#1a1a1a', 3, 5, 4, 1.8, -0.4);
+    ell('#151515', -1, 0, 4, 8);
+    x.fillStyle = '#d9d9d9'; for (const yy of [-6.5, -4.5, 4.5, 6.5]) { x.beginPath(); x.arc(-1, yy, 0.6, 0, 7); x.fill(); }
+    // instrumento
+    if (v === 0) { x.strokeStyle = '#e8b923'; x.lineWidth = 1.3; x.beginPath(); x.moveTo(4, 0); x.lineTo(13, 0); x.stroke(); ell('#f5d250', 13.5, 0, 1.4, 2.6); ell('#a07a10', 13.9, 0, 0.7, 1.6); }
+    if (v === 1) { ell('#a0622d', 7, 2.5, 4.2, 3.2, 0.5); ell('#3e2410', 7, 2.5, 1.1, 1.1); x.strokeStyle = '#5d3a1a'; x.lineWidth = 1.2; x.beginPath(); x.moveTo(8.5, 0); x.lineTo(13, -6); x.stroke(); }
+    if (v === 2) { ell('#8b3a1a', 5, -5, 2.4, 1.6, -0.6); x.strokeStyle = '#d7ccc8'; x.lineWidth = 0.6; x.beginPath(); x.moveTo(2, -1); x.lineTo(10, -8); x.stroke(); }
+    if (v === 3) { ell('#9a5a28', 8, 0, 5.5, 5, 0); ell('#c98a4a', 8, 0, 4.2, 3.8, 0); ell('#3e2410', 8, 0, 1.4, 1.4); }
+    // sombrero ancho con bordado y la copa
+    x.fillStyle = '#1c1c1c'; x.beginPath(); x.arc(-0.5, 0, 7.5, 0, 7); x.fill();
+    x.strokeStyle = '#e3b341'; x.lineWidth = 0.8; x.beginPath(); x.arc(-0.5, 0, 6.6, 0, 7); x.stroke();
+    x.setLineDash([1, 1.2]); x.beginPath(); x.arc(-0.5, 0, 5.4, 0, 7); x.stroke(); x.setLineDash([]);
+    ell('#2a2a2a', -0.5, 0, 3.2, 3); x.strokeStyle = '#e3b341'; x.lineWidth = 0.7; x.beginPath(); x.arc(-0.5, 0, 3.2, 0, 7); x.stroke();
+    t.refresh();
+  }
+  let t = scene.textures.createCanvas('chispa', 16, 16), x = t.getContext();
+  const g = x.createRadialGradient(8, 8, 0, 8, 8, 8); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.4, 'rgba(255,255,255,0.8)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = g; x.fillRect(0, 0, 16, 16); t.refresh();
+  t = scene.textures.createCanvas('confeti', 6, 3); x = t.getContext(); x.fillStyle = '#fff'; x.fillRect(0, 0, 6, 3); t.refresh();
 }
 // troca de tacos vista desde arriba: caja blanca con letrero en el techo, toldo a rayas del lado derecho
 // (el del servicio) y su chimenea del trompo. Lienzo (L + 6) x (W + 6); la troca empieza en (3, 3)
@@ -2130,6 +2175,10 @@ class Main extends Phaser.Scene {
     this.night = { a: state.night && this.perk.noche ? 1 : 0, rt: null, cut: [], glow: [] };
     if (state.celebrated.includes('taco')) this.spawnSpecial('troca', 60);
     if (state.celebrated.includes('final')) this.spawnSpecial('zonkey', 110);
+    // la fiesta: si ya fue, los mariachis se quedan en la plaza; si falta, sigue la invitacion
+    this.fiesta = null;
+    if (state.celebrated.includes('fiesta')) this.spawnMariachis();
+    else if (state.celebrated.includes('final')) this.time.delayedCall(4000, () => { this.inviteFiesta(); toast('🎉 Te esperan en la Plaza Santa Cecilia', 'La fiesta no empieza sin ti. Sigue los puntos verdes.', 5); });
     this.populate(true);
     updateStats();
     this.setObjective();
@@ -2272,7 +2321,7 @@ class Main extends Phaser.Scene {
     const f = this.focus();
     const cam = this.cameras.main;
     const sp = this.inCar ? Math.hypot(this.inCar.vx, this.inCar.vy) : 0;
-    const z = this.baseZoom() * (this.inCar ? 1 - Math.min(sp / 320, 1) * 0.15 : 1.1);
+    const z = this.baseZoom() * (this.inCar ? 1 - Math.min(sp / 320, 1) * 0.15 : 1.1) * (this.fiesta && this.fiesta.on ? 0.72 : 1); // la fiesta se ve de mas lejos
     cam.setZoom(cam.zoom + (z - cam.zoom) * Math.min(1, dt * 2));
     // al manejar, la camara se adelanta en la direccion del auto para ver lo que viene
     if (window.SND) { let near = 0; for (const o of this.cars) if (Math.abs(o.x - f.x) < 350 && Math.abs(o.y - f.y) < 350) near++; SND.update(!!this.inCar, sp, near); }
@@ -2285,6 +2334,7 @@ class Main extends Phaser.Scene {
     this.checkActivities(dt, f, sp);
     this.updateMarkers(time, f);
     this.updateRoute(time, dt, f);
+    this.updateFiesta(time, dt, f);
     this.updateNight(time, dt, f);
     this.updateHud(dt, f);
   }
@@ -2640,7 +2690,7 @@ class Main extends Phaser.Scene {
   // Una capa oscura del tamaño de la pantalla (RenderTexture fija a la camara) a la que cada cuadro se le "borran"
   // las luces con texturas suaves; encima, resplandores de color en el mundo con mezcla aditiva.
   updateNight(time, dt, f) {
-    const n = this.night, want = state.night && this.perk.noche ? 1 : 0;
+    const n = this.night, want = (state.night && this.perk.noche) || (this.fiesta && this.fiesta.on) ? 1 : 0; // la fiesta es de noche
     n.a += Math.max(-dt * 1.2, Math.min(dt * 1.2, want - n.a));
     let gi = 0;
     if (n.a > 0.001) {
@@ -2686,11 +2736,104 @@ class Main extends Phaser.Scene {
         if (c.poli) glow(c.x, c.y, 16, Math.floor(time / 220) % 2 ? 0xff1a1a : 0x2a5bff, 0.75);
       };
       for (const c of this.cars) lights(c);
+      if (this.fiesta) for (const L of this.fiesta.lights) { cut('luz', L.x, L.y, L.r); glow(L.x, L.y, L.r * 0.7, L.tint, 0.5 * L.a); } // cohetes
       if (this.inCar) lights(this.inCar);
       else cut('luz', this.player.x, this.player.y, 42);
       rt.erase(n.cut.slice(0, ci));
     } else if (n.rt) n.rt.setVisible(false);
     for (let i = gi; i < n.glow.length; i++) n.glow[i].setVisible(false);
+  }
+
+  // ----- la fiesta en la Plaza Santa Cecilia (al completar todo) -----
+  plaza() { return landmarks.find(l => l.name === 'Plaza Santa Cecilia') || landmarks[0]; }
+  inviteFiesta() { const p = this.plaza(); this.waypoint = { x: p.x, y: p.y, fiesta: true }; this.setObjective(); }
+  // mariachis en medio circulo de un lado de la plaza, viendo hacia el centro; se quedan despues de la fiesta
+  spawnMariachis() {
+    if (this.mariachis) return;
+    const P = this.plaza(); this.mariachis = [];
+    for (let i = 0; i < 6; i++) {
+      const a = Math.PI * (1.15 + i / 5 * 0.7);
+      let r = 58, x, y;
+      do { x = P.x + Math.cos(a) * r; y = P.y + Math.sin(a) * r; r -= 6; } while (blocked(x, y) && r > 20);
+      const m = this.add.image(x, y, 'mariachi' + [0, 1, 0, 3, 2, 1][i]).setDepth(7).setScale(1 / SPR).setRotation(a + Math.PI);
+      this.tweens.add({ targets: m, angle: m.angle + 7, duration: MARI_SWAY, yoyo: true, repeat: -1, ease: 'Sine.inOut', delay: i * 90 });
+      this.mariachis.push(m);
+    }
+  }
+  startFiesta() {
+    const P = this.plaza();
+    const fz = this.fiesta = { on: true, t: 0, P, crowd: [], lights: [], next: 1, said: 0, frases: Phaser.Utils.Array.Shuffle(FRASES_FIESTA()).slice(0, 5) };
+    state.celebrated.push('fiesta'); save();
+    this.waypoint = null; this.chatCool = 99; this.setObjective();
+    this.spawnMariachis();
+    if (window.SND) SND.mariachi(true);
+    toast('🎉 ¡Fiesta en la Plaza Santa Cecilia!', '¡Que toquen los mariachis! Todo Tijuana vino a felicitarte.', 5);
+    // la gente llega caminando y se queda alrededor, meciendose con la musica
+    for (let i = 0; i < 16; i++) {
+      const a = i / 16 * Math.PI * 2 + rnd(-0.15, 0.15); let r = rnd(85, 125), x, y;
+      do { x = P.x + Math.cos(a) * r; y = P.y + Math.sin(a) * r; r -= 8; } while (blocked(x, y) && r > 50);
+      if (blocked(x, y)) continue;
+      const sx = x + Math.cos(a) * 160, sy = y + Math.sin(a) * 160, k = (Math.random() * SHIRTS.length) | 0;
+      const s = this.add.sprite(sx, sy, 'ped' + k, 0).setDepth(6).setScale(1 / SPR).setRotation(a + Math.PI).setAlpha(0);
+      s.play('walk' + k);
+      this.tweens.add({ targets: s, x, y, alpha: 1, duration: 2200 + Math.random() * 1500, onComplete: () => {
+        s.stop(); s.setFrame(0); this.tweens.add({ targets: s, angle: s.angle + 10, duration: MARI_SWAY, yoyo: true, repeat: -1, ease: 'Sine.inOut' }); } });
+      fz.crowd.push(s);
+    }
+    // cohetes de colores entre la plaza y el Arco (esta 250 px al sur) y confeti cayendo
+    fz.bursts = [0xff3d6e, 0xffd23f, 0x4fc3f7, 0x7cff6b, 0xff9a3c, 0xd36bff].map(tint => {
+      const em = this.add.particles(0, 0, 'chispa', {
+        speed: { min: 60, max: 180 }, angle: { min: 0, max: 360 }, lifespan: { min: 1000, max: 1700 }, gravityY: 45,
+        scale: { start: 0.95, end: 0 }, alpha: { start: 1, end: 0 }, tint, blendMode: 'ADD', emitting: false }).setDepth(21);
+      em.color = tint; return em;
+    });
+    fz.confeti = this.add.particles(0, 0, 'confeti', {
+      x: { min: P.x - 170, max: P.x + 170 }, y: P.y - 140, lifespan: 4500, speedY: { min: 25, max: 55 }, speedX: { min: -20, max: 20 },
+      rotate: { start: 0, end: 360 }, scale: { min: 0.8, max: 1.3 }, tint: [0xe91e63, 0xffeb3b, 0x2196f3, 0x4caf50, 0xff9800, 0x9c27b0], frequency: 45 }).setDepth(21);
+  }
+  launchCohete() {
+    // salen del lado del Arco y estallan sobre la plaza, donde se ven
+    const fz = this.fiesta, P = fz.P, x0 = P.x + rnd(-200, 200), y0 = P.y + rnd(60, 200), y1 = y0 - rnd(150, 230), x1 = x0 + rnd(-30, 30);
+    const rocket = this.add.image(x0, y0, 'chispa').setDepth(21).setScale(0.5).setBlendMode(Phaser.BlendModes.ADD).setTint(0xfff2c0);
+    const light = { x: x0, y: y0, r: 30, tint: 0xfff2c0, a: 1 }; fz.lights.push(light);
+    if (window.SND) SND.play('cohete');
+    this.tweens.add({ targets: rocket, x: x1, y: y1, duration: 750, ease: 'Quad.out', onUpdate: () => { light.x = rocket.x; light.y = rocket.y; }, onComplete: () => {
+      rocket.destroy();
+      const em = pick(fz.bursts); em.explode(70, x1, y1);
+      light.r = 110; light.tint = em.color;
+      this.tweens.add({ targets: light, a: 0, r: 60, duration: 1300, onComplete: () => fz.lights.splice(fz.lights.indexOf(light), 1) });
+    } });
+  }
+  updateFiesta(time, dt, f) {
+    const fz = this.fiesta;
+    if (!fz) {
+      // la fiesta empieza al llegar a la plaza (despues de completar todo)
+      if (state.celebrated.includes('final') && !state.celebrated.includes('fiesta')) { const P = this.plaza(); if (dist(P.x, P.y, f.x, f.y) < 130) this.startFiesta(); }
+      return;
+    }
+    if (!fz.on) return;
+    fz.t += dt; this.chatCool = 99;
+    if (fz.t < FIESTA_SECS - 4 && (fz.next -= dt) <= 0) { fz.next = rnd(0.5, 1.1); this.launchCohete(); }
+    if (fz.t > 18) fz.confeti.stop();
+    // felicitaciones, una cada ~5 s, de alguien de la multitud
+    if (fz.said < fz.frases.length && fz.t > 4 + fz.said * 5 && fz.crowd.length) {
+      const who = fz.crowd[(fz.said * 3) % fz.crowd.length], b = this.bubble, txt = fz.frases[fz.said++];
+      b.ped = { x: who.x, y: who.y, st: 'fiesta' }; b.t = 4.4;
+      b.el.className = 'hud bubble fiesta'; b.el.textContent = txt; b.el.style.setProperty('--tilt', (Math.random() * 5 - 2.5).toFixed(1) + 'deg');
+      this.placeBubble(); void b.el.offsetWidth; b.el.classList.add('on');
+      if (window.SND) SND.play('chat');
+    }
+    if (fz.t >= FIESTA_SECS) this.endFiesta();
+  }
+  endFiesta() {
+    const fz = this.fiesta; fz.on = false; this.chatCool = 3;
+    if (window.SND) SND.mariachi(false);
+    state.money += 1000; save(); bigSound = true; updateStats();
+    toast('🎉 ¡Viva Tijuana!', 'Ganaste $1,000 de la cooperacha. Los mariachis se quedan en la plaza. Toca 📜 para ver tu Acta de Tijuanense.', 7);
+    // la gente se va dispersando; los cohetes y el confeti terminan solos
+    fz.crowd.forEach((s, i) => { this.tweens.killTweensOf(s); this.tweens.add({ targets: s, alpha: 0, delay: i * 120, duration: 900, onComplete: () => s.destroy() }); });
+    this.time.delayedCall(4000, () => { fz.bursts.forEach(e => e.destroy()); fz.confeti.destroy(); this.fiesta = null; });
+    this.setObjective();
   }
 
   // ----- premios por completar colecciones -----
@@ -2713,7 +2856,8 @@ class Main extends Phaser.Scene {
     if (k === 'noche') { showPerkButtons(); toast('★ ¡Cronista de Tijuana!', 'Conoces los ' + landmarks.length + ' lugares. Se desbloqueó Tijuana de noche: toca 🌙.', 6.5); }
     if (k === 'final') {
       this.spawnSpecial('zonkey', 40); showPerkButtons();
-      toast('🏆 ¡Ya eres tijuanense!', 'Completaste todo. Aquí cerca te espera un burro cebra dorado. Toca 📜 para ver tu Acta de Tijuanense.', 7);
+      toast('🏆 ¡Ya eres tijuanense!', 'Completaste todo. Aquí cerca te espera un burro cebra dorado y... ¡hay fiesta en la Plaza Santa Cecilia! Sigue los puntos verdes.', 8);
+      this.inviteFiesta();
     }
   }
   // estaciona la troca o el burro en la calle mas cercana, a `ahead` px de donde estas
@@ -2870,6 +3014,7 @@ class Main extends Phaser.Scene {
     let t = '';
     if (this.taxi) t = this.taxi.phase === 'pick' ? 'Taxi: recoge al pasajero' : 'Taxi: lleva al pasajero a ' + this.taxi.name;
     else if (this.delivery) t = 'Entrega: ' + this.delivery.order + ' en ' + this.delivery.street;
+    else if (this.waypoint && this.waypoint.fiesta) t = '🎉 Ve a la fiesta en la Plaza Santa Cecilia';
     else if (this.inCar && this.inCar.moto) t = 'Roba otra moto de repartidor para un pedido';
     else if (this.inCar) t = 'T: trabajar de taxista · M: mapa';
     else t = 'Busca ★, 🌮 y ☕ · E: robar un auto';
@@ -2922,7 +3067,7 @@ class Main extends Phaser.Scene {
     const g = this.goal();
     this.target.setVisible(!!g);
     if (g) this.target.setPosition(g.x, g.y).setScale(pulse * (this.taxi && this.taxi.phase === 'pick' ? 1.3 : 2) / SPR);
-    if (this.waypoint && dist(this.waypoint.x, this.waypoint.y, f.x, f.y) < 60) { this.waypoint = null; toast('Llegaste a tu destino', '', 1.5); }
+    if (this.waypoint && !this.waypoint.fiesta && dist(this.waypoint.x, this.waypoint.y, f.x, f.y) < 60) { this.waypoint = null; toast('Llegaste a tu destino', '', 1.5); }
   }
 
   updateHud(dt, f) {

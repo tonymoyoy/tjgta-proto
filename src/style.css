@@ -68,6 +68,9 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); c
   font-weight: 500; text-shadow: 0 0 6px rgba(57,255,106,.55); }
 .bubble.linea { --bg: #eef2f6; --bd: #475569; --fg: #1e293b; }
 .bubble.barrio { --bg: #fff0f6; --bd: #db2777; }
+/* felicitaciones de la fiesta: franja de papel picado arriba */
+.bubble.fiesta { --bg: #fffdf4; --bd: #e91e63;
+  background: repeating-linear-gradient(90deg, #e91e63 0 12px, #ffeb3b 12px 24px, #2196f3 24px 36px, #4caf50 36px 48px, #ff9800 48px 60px) top / 100% 6px no-repeat, #fffdf4; }
 #arrow { width: 0; height: 0; border-left: 14px solid transparent; border-right: 14px solid transparent;
   border-bottom: 30px solid var(--good); filter: drop-shadow(0 0 3px #000); display: none; transform-origin: 50% 50%; }
 #snd { display: none; top: 202px; right: 12px; width: 40px; height: 40px; border-radius: 50%; background: rgba(0,0,0,.6);

@@ -72,6 +72,54 @@ function schedule() {
   }
 }
 
+// ---------- mariachi de la fiesta: vals original en Do mayor, 3/4 a 180 bpm ----------
+// guitarron en el tiempo 1, vihuela rasgueando en 2 y 3, y dos trompetas en terceras. Va por su propio bus
+// para cortarlo de golpe al terminar; mientras suena, la musica de fondo se baja.
+const MARI_BEAT = 60 / 180, MAJOR = [0, 2, 4, 5, 7, 9, 11];
+const MARI_CHORDS = { C: [48, 52, 55], F: [53, 57, 60], G: [43, 47, 50] };
+// [acorde, [nota midi, tiempos]...] por compas; dos frases de 8 compases
+const MARI_SONG = [
+  ['C', [76, 2], [79, 1]], ['G', [77, 1], [76, 1], [74, 1]], ['G', [71, 2], [74, 1]], ['C', [72, 3]],
+  ['F', [81, 2], [81, 1]], ['C', [79, 1], [76, 1], [72, 1]], ['G', [74, 1], [77, 1], [76, 1]], ['C', [72, 3]],
+  ['C', [79, 1], [81, 1], [79, 1]], ['F', [77, 2], [81, 1]], ['G', [79, 1], [77, 1], [74, 1]], ['C', [76, 3]],
+  ['F', [77, 1], [76, 1], [74, 1]], ['C', [72, 2], [76, 1]], ['G', [74, 2], [71, 1]], ['C', [72, 3]],
+];
+// la segunda trompeta va una tercera abajo, dentro de la escala
+const third = (n) => { const o = Math.floor(n / 12), pc = n % 12, i = MAJOR.indexOf(pc); if (i < 0) return n - 4; const j = i - 2; return (j < 0 ? o - 1 : o) * 12 + MAJOR[(j + 7) % 7]; };
+let mariBus = null, mariOn = false, mariTimer = null;
+function mariachiLoop(t0) {
+  let t = t0;
+  for (const [ch, ...notes] of MARI_SONG) {
+    const c = MARI_CHORDS[ch];
+    tone(mariBus, 'triangle', midi(c[0] - 12), t, MARI_BEAT * 0.9, 0.5, { lp: 600 });            // guitarron
+    for (const b of [1, 2]) c.forEach((n, i) => tone(mariBus, 'triangle', midi(n + 12), t + b * MARI_BEAT + i * 0.012, 0.12, 0.07, { lp: 3000 })); // vihuela
+    let d = 0;
+    for (const [n, beats] of notes) {
+      const len = beats * MARI_BEAT * 0.92;
+      tone(mariBus, 'sawtooth', midi(n), t + d, len, 0.09, { lp: 2600 }); tone(mariBus, 'square', midi(third(n)), t + d, len, 0.05, { lp: 2200 });
+      d += beats * MARI_BEAT;
+    }
+    t += 3 * MARI_BEAT;
+  }
+  return t;
+}
+function mariachi(on) {
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  if (on && !mariOn) {
+    mariOn = true;
+    mariBus = ctx.createGain(); mariBus.gain.value = 0.9; mariBus.connect(sfxBus);
+    musicBus.gain.setTargetAtTime(0.0001, now, 0.4);
+    let next = now + 0.2;
+    const loop = () => { if (!mariOn) return; next = mariachiLoop(next); mariTimer = setTimeout(loop, (next - ctx.currentTime - 1) * 1000); };
+    loop();
+  } else if (!on && mariOn) {
+    mariOn = false; clearTimeout(mariTimer);
+    mariBus.gain.setTargetAtTime(0.0001, now, 0.3); const b = mariBus; setTimeout(() => b.disconnect(), 1500);
+    musicBus.gain.setTargetAtTime(VOL.music, now + 0.5, 0.8);
+  }
+}
+
 // ---------- ambiente de ciudad ----------
 let traffic;
 function startAmbience() {
@@ -147,6 +195,13 @@ const SFX = {
     const t = ctx.currentTime;
     tone(sfxBus, 'triangle', midi(76), t, 0.07, 0.08); tone(sfxBus, 'triangle', midi(81), t + 0.07, 0.1, 0.08);
   },
+  cohete() { // silbido que sube y el tronido con chisporroteo
+    const t = ctx.currentTime;
+    tone(sfxBus, 'sine', 700, t, 0.7, 0.05, { to: 2200 });
+    noise(sfxBus, t + 0.75, 0.5, 0.45, 'lowpass', 900);
+    tone(sfxBus, 'sine', 110, t + 0.75, 0.4, 0.4, { to: 40 });
+    for (let i = 0; i < 9; i++) noise(sfxBus, t + 0.85 + Math.random() * 0.7, 0.04, 0.12, 'highpass', 5000);
+  },
   tired() { // jadeo
     const t = ctx.currentTime;
     for (let i = 0; i < 3; i++) noise(sfxBus, t + i * 0.35, 0.2, 0.12, 'bandpass', 1200, 0.7);
@@ -156,6 +211,7 @@ const SFX = {
 window.SND = {
   init,
   play(name, arg) { if (ctx && !muted && SFX[name]) SFX[name](arg); },
+  mariachi,
   // se llama cada cuadro: motor segun velocidad y rumor de trafico segun autos cercanos
   update(inCar, speed, cars) {
     if (!ctx) return;
