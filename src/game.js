@@ -1039,8 +1039,8 @@ function updateStats() {
   if (window.SND) { if (dm > 0) SND.play(bigSound ? 'fanfare' : 'gain', dm); else if (dm < 0) SND.play('loss'); }
   bigSound = false;
   hud.money.textContent = '$' + state.money.toLocaleString('es-MX');
-  hud.counts.textContent = `★ Lugares ${landmarks.filter(l => l.found).length}/${landmarks.length} · 🌮 Tacos ${tacos.filter(t => t.eaten).length}/${tacos.length} · ☕ Cafés ${cafes.filter(c => c.drunk).length}/${cafes.length}` +
-    (EGGS.some(e => e.got) ? ` · 🥚 Secretos ${EGGS.filter(e => e.got).length}/${EGGS.length}` : '');
+  hud.counts.textContent = `★ ${landmarks.filter(l => l.found).length}/${landmarks.length} · 🌮 ${tacos.filter(t => t.eaten).length}/${tacos.length} · ☕ ${cafes.filter(c => c.drunk).length}/${cafes.length}` +
+    (EGGS.some(e => e.got) ? ` · 🥚 ${EGGS.filter(e => e.got).length}/${EGGS.length}` : '');
 }
 
 // ---------- texturas ----------
@@ -2829,7 +2829,7 @@ class Main extends Phaser.Scene {
     const fz = this.fiesta; fz.on = false; this.chatCool = 3;
     if (window.SND) SND.mariachi(false);
     state.money += 1000; save(); bigSound = true; updateStats();
-    toast('🎉 ¡Viva Tijuana!', 'Ganaste $1,000 de la cooperacha. Los mariachis se quedan en la plaza. Toca 📜 para ver tu Acta de Tijuanense.', 7);
+    toast('🎉 ¡Viva Tijuana!', 'Ganaste $1,000 de la cooperacha. Los mariachis se quedan en la plaza. Tu Acta de Tijuanense está en ⚙️ Opciones.', 7);
     // la gente se va dispersando; los cohetes y el confeti terminan solos
     fz.crowd.forEach((s, i) => { this.tweens.killTweensOf(s); this.tweens.add({ targets: s, alpha: 0, delay: i * 120, duration: 900, onComplete: () => s.destroy() }); });
     this.time.delayedCall(4000, () => { fz.bursts.forEach(e => e.destroy()); fz.confeti.destroy(); this.fiesta = null; });
@@ -2853,7 +2853,7 @@ class Main extends Phaser.Scene {
       this.spawnSpecial('troca', 40);
       toast('🌮 ¡Taquero honorario!', 'Te comiste los ' + tacos.length + ' tacos. Cualquier taquería te repara el carro, y aquí cerca te dejaron una troca de tacos.', 6.5);
     }
-    if (k === 'noche') { showPerkButtons(); toast('★ ¡Cronista de Tijuana!', 'Conoces los ' + landmarks.length + ' lugares. Se desbloqueó Tijuana de noche: toca 🌙.', 6.5); }
+    if (k === 'noche') { showPerkButtons(); toast('★ ¡Cronista de Tijuana!', 'Conoces los ' + landmarks.length + ' lugares. Se desbloqueó Tijuana de noche: búscala en ⚙️ Opciones (o tecla L).', 6.5); }
     if (k === 'final') {
       this.spawnSpecial('zonkey', 40); showPerkButtons();
       toast('🏆 ¡Ya eres tijuanense!', 'Completaste todo. Aquí cerca te espera un burro cebra dorado y... ¡hay fiesta en la Plaza Santa Cecilia! Sigue los puntos verdes.', 8);
@@ -3015,10 +3015,8 @@ class Main extends Phaser.Scene {
     if (this.taxi) t = this.taxi.phase === 'pick' ? 'Taxi: recoge al pasajero' : 'Taxi: lleva al pasajero a ' + this.taxi.name;
     else if (this.delivery) t = 'Entrega: ' + this.delivery.order + ' en ' + this.delivery.street;
     else if (this.waypoint && this.waypoint.fiesta) t = '🎉 Ve a la fiesta en la Plaza Santa Cecilia';
-    else if (this.inCar && this.inCar.moto) t = 'Roba otra moto de repartidor para un pedido';
-    else if (this.inCar) t = 'T: trabajar de taxista · M: mapa';
-    else t = 'Busca ★, 🌮 y ☕ · E: robar un auto';
-    hud.obj.textContent = t;
+    else if (this.waypoint) t = '📍 Sigue la ruta verde a tu destino';
+    hud.obj.textContent = t; // vacio = no se muestra (las instrucciones estan en Opciones)
   }
   goal() {
     if (this.taxi) return this.taxi;
@@ -3395,7 +3393,6 @@ function openActa() {
   $('actaname').value = state.name || '';
   drawActa(); $('actabox').style.display = 'flex';
 }
-$('acta').addEventListener('click', openActa);
 $('actaclose').addEventListener('click', () => { $('actabox').style.display = 'none'; });
 $('actaname').addEventListener('input', () => { state.name = $('actaname').value; save(); drawActa(); });
 // el teclado del juego no debe mover al jugador mientras escribes tu nombre
@@ -3413,23 +3410,67 @@ $('actasave').addEventListener('click', async () => {
   }
 });
 
-// la noche se prende y apaga con el boton 🌙 o la tecla L (solo si ya conoces los 25 lugares)
+// la noche se prende y apaga en Opciones o con la tecla L (solo si ya conoces los 25 lugares)
 function toggleNight() {
   if (!perks().noche) return;
-  state.night = !state.night; save();
-  $('night').textContent = state.night ? '☀️' : '🌙';
+  state.night = !state.night; save(); renderOptions();
 }
-// los botones de premios aparecen cuando se ganan
-function showPerkButtons() {
-  const p = perks();
-  $('night').style.display = p.noche ? 'block' : 'none'; $('night').textContent = state.night ? '☀️' : '🌙';
-  $('acta').style.display = p.final ? 'block' : 'none';
+function toggleSound() { if (window.SND) SND.toggle(); renderOptions(); }
+// los premios se muestran en Opciones; se llama al ganarlos
+function showPerkButtons() { renderOptions(); }
+
+// ---------- menu de opciones: tu avance, ajustes y controles ----------
+let optsOpen = false;
+function renderOptions() {
+  const p = perks(), n = (a, k) => a.filter(o => o[k]).length;
+  const rows = [
+    ['★ Lugares', n(landmarks, 'found'), landmarks.length, 'Tijuana de noche'],
+    ['🌮 Tacos', n(tacos, 'eaten'), tacos.length, 'las taquerías te reparan el carro y una troca de tacos'],
+    ['☕ Cafés', n(cafes, 'drunk'), cafes.length, 'correr sin cansarte'],
+  ];
+  if (EGGS.some(e => e.got)) rows.push(['🥚 Secretos', n(EGGS, 'got'), EGGS.length, '']);
+  $('optprog').innerHTML = '';
+  for (const [name, v, tot, prize] of rows) {
+    const d = document.createElement('div'); d.className = 'prog' + (v >= tot ? ' done' : '');
+    d.innerHTML = '<div></div><div class="bar"><i></i></div><small></small>';
+    d.firstChild.textContent = name + '  ' + v + '/' + tot; d.querySelector('i').style.width = (v / tot * 100) + '%';
+    d.lastChild.textContent = prize ? (v >= tot ? '✓ ' : 'Premio: ') + prize : '';
+    $('optprog').appendChild(d);
+  }
+  const extra = document.createElement('div'); extra.className = 'prog';
+  extra.innerHTML = '<small></small>';
+  extra.firstChild.textContent = '$' + state.money.toLocaleString('es-MX') + ' · ' + state.deliveries + ' entregas · ' + state.rides + ' viajes de taxi · ' +
+    (p.final ? '🏆 ¡Completaste todo!' : 'Completa todo: burro cebra dorado, fiesta y Acta');
+  $('optprog').appendChild(extra);
+  const muted = window.SND && SND.muted, key = (k) => document.body.classList.contains('touch') ? '' : '  (' + k + ')'; // teclas solo en PC
+  $('optsnd').textContent = (muted ? '🔇 Sonido: apagado' : '🔊 Sonido: encendido') + key('N');
+  $('optnight').disabled = !p.noche;
+  $('optnight').textContent = p.noche ? (state.night ? '☀️ Volver al día' : '🌙 Tijuana de noche') + key('L') : '🔒 Tijuana de noche · conoce los ' + landmarks.length + ' lugares';
+  $('optacta').disabled = !p.final;
+  $('optacta').textContent = p.final ? '📜 Ver mi Acta de Tijuanense' : '🔒 Acta de Tijuanense · completa todo';
 }
-$('night').addEventListener('click', toggleNight);
-function toggleSound() { const m = SND.toggle(); $('snd').textContent = m ? '🔇' : '🔊'; }
+function toggleOptions() {
+  const sc = window.TJGTA && TJGTA.scene.scenes[0];
+  optsOpen = !optsOpen;
+  $('opts').style.display = optsOpen ? 'flex' : 'none';
+  if (optsOpen) renderOptions();
+  // el juego se detiene mientras ves el menu
+  if (sc) { if (optsOpen) sc.scene.pause(); else sc.scene.resume(); }
+}
+$('optbtn').addEventListener('click', toggleOptions);
+$('optclose').addEventListener('click', toggleOptions);
+$('optsnd').addEventListener('click', toggleSound);
+$('optnight').addEventListener('click', toggleNight);
+$('optacta').addEventListener('click', () => { toggleOptions(); openActa(); });
+// O o Esc abren y cierran el menu (con el juego en pausa Phaser no lee el teclado, por eso va aqui)
+window.addEventListener('keydown', (ev) => {
+  if ($('intro').style.display !== 'none' || $('actabox').style.display === 'flex' || ev.target.tagName === 'INPUT') return;
+  if (ev.key === 'o' || ev.key === 'O' || (ev.key === 'Escape' && optsOpen)) toggleOptions();
+});
 function start() {
   $('intro').style.display = 'none';
-  if (window.SND) { SND.init(); $('snd').style.display = 'block'; $('snd').textContent = SND.muted ? '🔇' : '🔊'; $('snd').addEventListener('click', toggleSound); }
+  if (window.SND) SND.init();
+  $('optbtn').style.display = 'block';
   setupTouch();
   showPerkButtons();
   const game = new Phaser.Game({

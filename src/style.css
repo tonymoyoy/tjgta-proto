@@ -20,10 +20,13 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); c
 #game { position: fixed; inset: 0; }
 
 .hud { position: fixed; pointer-events: none; z-index: 5; }
-#stats { top: 12px; left: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
-  padding: 8px 12px; font-size: 14px; line-height: 1.5; min-width: 170px; }
-#stats .money { font-size: 24px; font-weight: bold; color: var(--good); letter-spacing: 1px; }
-#stats .obj { color: var(--accent); max-width: 240px; }
+/* panel compacto: dinero y avance en una linea; el objetivo solo aparece cuando hay algo que hacer */
+#stats { top: 10px; left: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  padding: 4px 10px; font-size: 13px; line-height: 1.4; }
+#stats .row { display: flex; align-items: baseline; gap: 10px; white-space: nowrap; }
+#stats .money { font-size: 18px; font-weight: bold; color: var(--good); letter-spacing: 0.5px; }
+#stats .obj { color: var(--accent); max-width: 300px; font-size: 12px; }
+#stats .obj:empty { display: none; }
 #mini { top: 12px; right: 12px; width: 180px; height: 180px; border-radius: 50%; border: 3px solid rgba(0,0,0,.7);
   box-shadow: 0 0 0 2px var(--line); background: #222; }
 /* avisos arriba al centro, entre el panel y el minimapa (left/right los ajusta layoutTop() en game.js);
@@ -73,15 +76,35 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); c
   background: repeating-linear-gradient(90deg, #e91e63 0 12px, #ffeb3b 12px 24px, #2196f3 24px 36px, #4caf50 36px 48px, #ff9800 48px 60px) top / 100% 6px no-repeat, #fffdf4; }
 #arrow { width: 0; height: 0; border-left: 14px solid transparent; border-right: 14px solid transparent;
   border-bottom: 30px solid var(--good); filter: drop-shadow(0 0 3px #000); display: none; transform-origin: 50% 50%; }
-#snd { display: none; top: 202px; right: 12px; width: 40px; height: 40px; border-radius: 50%; background: rgba(0,0,0,.6);
+#optbtn { display: none; top: 202px; right: 12px; width: 40px; height: 40px; border-radius: 50%; background: rgba(0,0,0,.6);
   font-size: 20px; line-height: 40px; text-align: center; cursor: pointer; pointer-events: auto; user-select: none; }
-.touch #snd { top: 140px; }
-/* botones de premios, en la misma fila que el del sonido */
-.hudbtn { display: none; top: 202px; width: 40px; height: 40px; border-radius: 50%; background: rgba(0,0,0,.6);
-  font-size: 20px; line-height: 40px; text-align: center; cursor: pointer; pointer-events: auto; user-select: none; }
-#night { right: 60px; }
-#acta { right: 108px; }
-.touch .hudbtn { top: 140px; }
+.touch #optbtn { top: 140px; }
+/* menu de opciones */
+#opts { display: none; position: fixed; inset: 0; z-index: 9; background: rgba(0,0,0,.78); align-items: center; justify-content: center; padding: 10px; }
+#opts .card { background: #1b1b1d; border: 1px solid var(--line); border-radius: 12px; width: min(860px, 100%); max-height: 100%; overflow-y: auto;
+  padding: 10px 16px 14px; color: var(--text); }
+#opts .head { display: flex; align-items: center; justify-content: space-between; }
+#opts h3 { margin: 4px 0; font-size: 20px; color: var(--accent); }
+#opts h4 { margin: 10px 0 6px; font-size: 13px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
+#opts .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+@media (max-width: 640px) { #opts .cols { grid-template-columns: 1fr; } }
+#optclose { width: 38px; height: 38px; border-radius: 50%; border: 0; background: rgba(160,30,30,.85); color: #fff; font-size: 18px; cursor: pointer; }
+.prog { margin-bottom: 7px; font-size: 13px; }
+.prog .bar { height: 6px; border-radius: 3px; background: #333; overflow: hidden; margin-top: 3px; }
+.prog .bar i { display: block; height: 100%; background: var(--accent); }
+.prog.done .bar i { background: var(--good); }
+.prog small { color: var(--muted); }
+.prog.done small { color: var(--good); }
+.optrow { display: block; width: 100%; text-align: left; margin-bottom: 6px; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--line);
+  background: #2a2a2d; color: var(--text); font-size: 14px; cursor: pointer; }
+.optrow:disabled { opacity: .55; cursor: default; }
+#opts table.keys { border-collapse: collapse; font-size: 13px; width: 100%; }
+#opts table.keys td { padding: 3px 6px; color: var(--muted); vertical-align: top; }
+#opts table.keys td:first-child { color: var(--text); font-weight: bold; white-space: nowrap; }
+#keyspc { display: none; }
+body:not(.touch) #keyspc { display: table; }
+body:not(.touch) #keystouch { display: none; }
+#opts .tip { font-size: 12px; color: var(--muted); margin: 8px 0 0; }
 #credit { bottom: 4px; right: 8px; font-size: 10px; color: var(--muted); opacity: .8; }
 
 /* mapa grande a pantalla completa: se arrastra y se acerca (ver renderBig en game.js) */
@@ -151,5 +174,5 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); c
   #stats { font-size: 12px; min-width: 0; padding: 6px 8px; }
   #stats .money { font-size: 18px; }
   #mini { width: 120px; height: 120px; }
-  #snd, .hudbtn { top: 140px; }
+  #optbtn { top: 140px; }
 }

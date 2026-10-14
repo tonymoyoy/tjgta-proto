@@ -10,8 +10,7 @@
 <div id="game"></div>
 
 <div id="stats" class="hud">
-  <div class="money" id="money">$0</div>
-  <div id="counts"></div>
+  <div class="row"><span class="money" id="money">$0</span><span id="counts"></span></div>
   <div class="obj" id="obj"></div>
 </div>
 <canvas id="mini" class="hud" width="180" height="180"></canvas>
@@ -24,9 +23,46 @@
 <div id="bubble" class="hud bubble"></div>
 <div id="arrow" class="hud"></div>
 <div id="credit" class="hud"></div>
-<div id="snd" class="hud" title="Sonido (N)">🔊</div>
-<div id="night" class="hud hudbtn" title="Noche (L)">🌙</div>
-<div id="acta" class="hud hudbtn" title="Acta de Tijuanense">📜</div>
+<div id="optbtn" class="hud" title="Opciones (O)">⚙️</div>
+
+<!-- menu de opciones: avance, ajustes y controles (el juego se pausa mientras esta abierto) -->
+<div id="opts"><div class="card">
+  <div class="head"><h3>⚙️ Opciones</h3><button id="optclose" title="Cerrar (O / Esc)">✕</button></div>
+  <div class="cols">
+    <section>
+      <h4>Ajustes</h4>
+      <button class="optrow" id="optsnd"></button>
+      <button class="optrow" id="optnight"></button>
+      <button class="optrow" id="optacta"></button>
+      <h4>Tu avance</h4>
+      <div id="optprog"></div>
+    </section>
+    <section>
+      <h4>Controles</h4>
+      <table class="keys" id="keystouch">
+        <tr><td>Joystick</td><td>Caminar o manejar</td></tr>
+        <tr><td>AUTO</td><td>Robar un auto / bajarte</td></tr>
+        <tr><td>FRENO</td><td>Freno de mano (derrapes)</td></tr>
+        <tr><td>REVERSA</td><td>Echarte para atrás</td></tr>
+        <tr><td>TAXI</td><td>Trabajar de taxista (en auto)</td></tr>
+        <tr><td>MAPA</td><td>Mapa grande: arrastra, pellizca y toca para marcar destino</td></tr>
+        <tr><td>⚙️</td><td>Este menú</td></tr>
+      </table>
+      <table class="keys" id="keyspc">
+        <tr><td>Flechas / WASD</td><td>Caminar o manejar</td></tr>
+        <tr><td>E</td><td>Robar un auto / bajarte</td></tr>
+        <tr><td>Espacio</td><td>Freno de mano (derrapes)</td></tr>
+        <tr><td>R / ↓</td><td>Reversa</td></tr>
+        <tr><td>Shift</td><td>Correr a pie</td></tr>
+        <tr><td>T</td><td>Trabajar de taxista (en auto)</td></tr>
+        <tr><td>M</td><td>Mapa grande (rueda para acercar, clic para destino)</td></tr>
+        <tr><td>N · L</td><td>Sonido · noche</td></tr>
+        <tr><td>O / Esc</td><td>Este menú</td></tr>
+      </table>
+      <p class="tip">Te habla la gente si caminas pegado a ella. Roba la moto de un repartidor 🛵 para hacer entregas. En la comida china 🏮 se te va el dinero.</p>
+    </section>
+  </div>
+</div></div>
 
 <div id="actabox"><div class="card">
   <canvas id="actac" width="1600" height="1100"></canvas>
