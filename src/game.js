@@ -1282,55 +1282,112 @@ function vehicleTexture(scene, ti, ci, d) {
   return key;
 }
 
-const SHIRTS = ['#d35400', '#2980b9', '#27ae60', '#8e44ad', '#c0392b', '#ecf0f1', '#16a085', '#7f8c8d', '#f39c12', '#2c3e50'];
+const SHIRTS = ['#d35400', '#2980b9', '#27ae60', '#8e44ad', '#c0392b', '#ecf0f1', '#16a085', '#7f8c8d', '#f39c12', '#2c3e50',
+  '#e91e63', '#ff7043', '#9ccc65', '#4dd0e1', '#fdd835', '#795548', '#5c6bc0', '#212121'];
+// 36 personas distintas para la gente de la calle: se reparten genero, edad y complexion y lo demas sale de un
+// generador con semilla fija (siempre las mismas). speed: los viejitos caminan mas despacio, los ninos un poco mas rapido
+const PED_VARIANTS = (() => {
+  const R = mulberry(2024), pick2 = (a) => a[(R() * a.length) | 0];
+  const SKINS = ['#e0b08a', '#c68e5f', '#a8714a', '#8d5a36', '#6b4428'];
+  const PANTS = ['#2c3e66', '#3b3b3b', '#5a4632', '#1f2a38', '#6d6d6d', '#8d6e63', '#1d3f8f'];
+  const AGES = ['joven', 'adulto', 'viejo', 'adulto', 'joven', 'nino'], BUILDS = ['normal', 'delgado', 'gordo', 'normal', 'delgado', 'normal'];
+  const out = [];
+  for (let i = 0; i < 36; i++) {
+    const female = i % 2 === 1, age = AGES[i % 6], build = age === 'nino' ? pick2(['normal', 'delgado']) : BUILDS[(i >> 1) % 6];
+    const gray = pick2(['#bdbdbd', '#e0e0e0', '#9e9e9e']);
+    const darks = ['#111', '#2a1a10', '#3b2414', '#5a3a22'];
+    const V = { female, age, build, skin: pick2(SKINS), shirt: pick2(SHIRTS), pants: pick2(PANTS), k: age === 'nino' ? 0.74 : 1,
+      speed: { nino: 1.1, joven: 1.05, adulto: 1, viejo: 0.7 }[age] };
+    if (female) {
+      V.hair = age === 'viejo' ? pick2(['chongo', 'corto']) : pick2(['largo', 'largo', 'cola', 'chongo', 'rizado']);
+      V.hairCol = age === 'viejo' ? gray : R() < 0.25 ? pick2(['#c9a227', '#8d3b1f', '#6a1b9a']) : pick2(darks); // a veces teñido
+      if (age !== 'nino' && R() < 0.45) V.skirt = pick2(['#c2185b', '#283593', '#4e342e', '#00796b', '#212121', V.shirt]);
+    } else {
+      V.hair = age === 'viejo' ? pick2(['calvo', 'corto', 'calvo']) : age === 'adulto' && R() < 0.2 ? 'calvo' : pick2(['corto', 'corto', 'rizado']);
+      V.hairCol = age === 'viejo' ? gray : pick2(darks);
+      if (age === 'joven' && R() < 0.5) { V.hat = 'gorra'; V.hatCol = pick2(['#c62828', '#1565c0', '#212121', '#2e7d32', '#f9a825']); }
+      if ((age === 'adulto' || age === 'viejo') && R() < 0.3) { V.hat = 'vaquero'; V.hatCol = pick2(['#d7b98a', '#3e2723', '#fafafa']); }
+    }
+    if (age === 'viejo' && R() < 0.5) V.cane = true;
+    if ((age === 'nino' || age === 'joven') && R() < 0.4) V.pack = pick2(['#e53935', '#1e88e5', '#43a047', '#8e24aa', '#fb8c00']);
+    out.push(V);
+  }
+  return out;
+})();
+const N_PEDS = PED_VARIANTS.length;
+const pedVariant = () => (Math.random() * N_PEDS) | 0;
+// una persona vista desde arriba mirando a la derecha (+x); sw entre -1 y 1 es el paso de la caminata
+function drawPerson(x, V, sw) {
+  x.save(); x.scale(V.k, V.k); x.lineCap = 'round';
+  const B = { delgado: [2.3, 4.4, 4.1], normal: [2.8, 5.2, 4.6], gordo: [3.3, 6.2, 5.5] }[V.build]; // [frente-espalda, hombros, brazos]
+  const tx = B[0], ty = B[1] * (V.female ? 0.9 : 1), arm = B[2] * (V.female ? 0.92 : 1), step = V.age === 'viejo' ? 4.5 : 6.5;
+  x.fillStyle = 'rgba(0,0,0,0.25)'; x.beginPath(); x.ellipse(1.2, 1.2, tx + 1.7, ty + 1.3, 0, 0, 7); x.fill();
+  // piernas con zapatos: una adelante y otra atras
+  for (const side of [-1, 1]) {
+    const off = sw * step * side;
+    x.strokeStyle = V.skirt ? V.skin : V.pants; x.lineWidth = V.build === 'gordo' ? 3.4 : V.build === 'delgado' ? 2.5 : 3;
+    x.beginPath(); x.moveTo(0, side * 2); x.lineTo(off, side * 2); x.stroke();
+    x.fillStyle = '#20160f'; x.beginPath(); x.ellipse(off + 0.8, side * 2, 1.9, 1.4, 0, 0, 7); x.fill();
+  }
+  // falda o vestido (tapa la cadera)
+  // desde arriba la falda asoma alrededor de la cadera, mas ancha que el torso
+  if (V.skirt) { x.fillStyle = V.skirt; x.beginPath(); x.ellipse(-0.6, 0, tx + 2.6, ty + 0.9, 0, 0, 7); x.fill(); x.strokeStyle = 'rgba(0,0,0,0.35)'; x.lineWidth = 0.6; x.stroke(); }
+  // brazos: se mueven al reves que las piernas; el viejito con baston lo lleva en la mano derecha
+  for (const side of [-1, 1]) {
+    const off = -sw * 4.5 * side * (V.age === 'viejo' ? 0.6 : 1);
+    x.strokeStyle = V.shirt; x.lineWidth = V.build === 'gordo' ? 2.8 : 2.4;
+    x.beginPath(); x.moveTo(0, side * (arm - 0.2)); x.lineTo(off * 0.7, side * (arm + 0.6)); x.stroke();
+    x.fillStyle = V.skin; x.beginPath(); x.arc(off, side * (arm + 0.7), 1.3, 0, 7); x.fill();
+    if (V.cane && side === 1) { x.strokeStyle = '#5d4037'; x.lineWidth = 0.9; x.beginPath(); x.moveTo(off, arm + 0.7); x.lineTo(off + 3.6, arm + 1.2); x.stroke(); }
+  }
+  // mochila en la espalda
+  if (V.pack) { x.fillStyle = V.pack; x.beginPath(); x.roundRect(-tx - 1.8, -2.6, 2.4, 5.2, 0.8); x.fill(); }
+  // torso (con panza si es gordo)
+  x.fillStyle = V.shirt; x.beginPath(); x.ellipse(-0.3, 0, tx, ty, 0, 0, 7); x.fill();
+  x.strokeStyle = 'rgba(0,0,0,0.4)'; x.lineWidth = 0.7; x.stroke();
+  if (V.build === 'gordo') { x.fillStyle = 'rgba(255,255,255,0.12)'; x.beginPath(); x.ellipse(1, 0, tx * 0.6, ty * 0.55, 0, 0, 7); x.fill(); }
+  // cabeza: cara hacia adelante (+x) y el peinado
+  const H = V.hairCol, face = () => { x.fillStyle = V.skin; x.beginPath(); x.arc(0.9, 0, 2.5, 0, 7); x.fill(); };
+  const back = () => { x.fillStyle = H; x.beginPath(); x.arc(0.5, 0, 2.6, Math.PI * 0.5, Math.PI * 1.5); x.closePath(); x.fill(); x.beginPath(); x.ellipse(0.6, 0, 1.2, 2.5, 0, 0, 7); x.fill(); };
+  if (V.hair === 'largo') { x.fillStyle = H; x.beginPath(); x.ellipse(-1.4, 0, 3.4, 2.9, 0, 0, 7); x.fill(); face(); x.fillStyle = H; x.beginPath(); x.arc(0.4, 0, 2.6, Math.PI * 0.55, Math.PI * 1.45); x.closePath(); x.fill(); }
+  else if (V.hair === 'rizado') { face(); x.fillStyle = H; for (let a = 0.6; a < 5.7; a += 0.55) { x.beginPath(); x.arc(0.3 + Math.cos(a + Math.PI / 2) * 2.2, Math.sin(a + Math.PI / 2) * 2.2, 1.2, 0, 7); x.fill(); } x.beginPath(); x.arc(0, 0, 2.2, Math.PI * 0.5, Math.PI * 1.5); x.fill(); }
+  else if (V.hair === 'calvo') { face(); x.strokeStyle = H; x.lineWidth = 1; x.beginPath(); x.arc(0.9, 0, 2.2, Math.PI * 0.7, Math.PI * 1.3); x.stroke(); x.fillStyle = 'rgba(255,255,255,0.25)'; x.beginPath(); x.arc(1.3, -0.6, 0.8, 0, 7); x.fill(); }
+  else { face(); back(); if (V.hair === 'cola') { x.fillStyle = H; x.beginPath(); x.ellipse(-2.8, 0, 1.8, 1.1, 0, 0, 7); x.fill(); } if (V.hair === 'chongo') { x.fillStyle = H; x.beginPath(); x.arc(-2.2, 0, 1.5, 0, 7); x.fill(); } }
+  // sombreros
+  if (V.hat === 'gorra') { x.fillStyle = V.hatCol; x.beginPath(); x.arc(0.4, 0, 2.7, Math.PI * 0.55, Math.PI * 1.45); x.closePath(); x.fill(); x.beginPath(); x.arc(0.6, 0, 2.6, 0, 7); x.fill(); x.fillRect(0.2, -1.6, 3.2, 3.2); }
+  if (V.hat === 'vaquero') {
+    x.fillStyle = V.hatCol; x.beginPath(); x.ellipse(0.7, 0, 4.4, 4.0, 0, 0, 7); x.fill(); x.strokeStyle = 'rgba(0,0,0,0.35)'; x.lineWidth = 0.5; x.stroke();
+    x.fillStyle = 'rgba(0,0,0,0.18)'; x.beginPath(); x.ellipse(0.5, 0, 2.4, 2.1, 0, 0, 7); x.fill();
+    x.strokeStyle = '#4e342e'; x.lineWidth = 0.6; x.beginPath(); x.ellipse(0.5, 0, 2.5, 2.2, 0, 0, 7); x.stroke();
+  }
+  x.restore();
+}
 function makeTextures(scene) {
   makeLights(scene); makeFiesta(scene); makeMoto(scene); makePerro(scene); makeLandmarkIcons(scene); makeTrocaTacos(scene); makeZonkey(scene); makeTaxi(scene); makePolice(scene); makeTacoStands(scene); makeCafes(scene); makeChinas(scene); makeEggs(scene); makeScorch(scene);
   // personas vistas desde arriba, mirando a la derecha; 8 cuadros de caminata (el cuadro 0 es parado).
+  // Una textura por variante de PED_VARIANTS ('ped0'...) y la del jugador ('pedP'); ver drawPerson.
   // Se dibujan a SPR veces la resolucion y el sprite se muestra a escala 1 / SPR para que se vean nitidas.
-  const PF = PED_FRAME * SPR, SKIN = ['#c68e5f', '#a8714a', '#e0b08a', '#8d5a36'], PANTS = ['#2c3e66', '#3b3b3b', '#5a4632', '#1f2a38'];
-  SHIRTS.concat(['#ffd23f']).forEach((c, i) => {
-    const player = i === SHIRTS.length;
-    const t = scene.textures.createCanvas('ped' + i, PF * 8, PF), x = t.getContext();
-    const skin = player ? '#c68e5f' : SKIN[i % 4], pants = player ? '#1d3f8f' : PANTS[(i * 3) % 4];
-    const hair = player ? '#111' : ['#3b2414', '#111', '#5a3a22', '#2a1a10'][i % 4];
-    x.lineCap = 'round';
+  const PF = PED_FRAME * SPR;
+  const sheet = (key, V) => {
+    const t = scene.textures.createCanvas('ped' + key, PF * 8, PF), x = t.getContext();
     for (let f = 0; f < 8; f++) {
-      const sw = Math.sin(f / 8 * Math.PI * 2);
       x.save(); x.translate(f * PF + PF / 2, PF / 2); x.scale(SPR, SPR);
-      x.fillStyle = 'rgba(0,0,0,0.25)'; x.beginPath(); x.ellipse(1.2, 1.2, 4.5, 6.5, 0, 0, 7); x.fill();
-      // piernas con zapatos: una adelante y otra atras
-      for (const side of [-1, 1]) {
-        const off = sw * 6.5 * side;
-        x.strokeStyle = pants; x.lineWidth = 3;
-        x.beginPath(); x.moveTo(0, side * 2); x.lineTo(off, side * 2); x.stroke();
-        x.fillStyle = '#20160f'; x.beginPath(); x.ellipse(off + 0.8, side * 2, 1.9, 1.4, 0, 0, 7); x.fill();
-      }
-      // brazos: se mueven al reves que las piernas
-      for (const side of [-1, 1]) {
-        const off = -sw * 4.5 * side;
-        x.strokeStyle = c; x.lineWidth = 2.4;
-        x.beginPath(); x.moveTo(0, side * 4.6); x.lineTo(off * 0.7, side * 5.2); x.stroke();
-        x.fillStyle = skin; x.beginPath(); x.arc(off, side * 5.3, 1.3, 0, 7); x.fill();
-      }
-      // torso
-      x.fillStyle = c; x.beginPath(); x.ellipse(-0.3, 0, 2.8, 5.2, 0, 0, 7); x.fill();
-      x.strokeStyle = 'rgba(0,0,0,0.4)'; x.lineWidth = 0.7; x.stroke();
-      // cabeza: cara hacia adelante, pelo atras
-      x.fillStyle = skin; x.beginPath(); x.arc(0.9, 0, 2.5, 0, 7); x.fill();
-      x.fillStyle = hair; x.beginPath(); x.arc(0.5, 0, 2.6, Math.PI * 0.5, Math.PI * 1.5); x.closePath(); x.fill();
-      x.beginPath(); x.ellipse(0.6, 0, 1.2, 2.5, 0, 0, 7); x.fill();
-      if (player) { x.fillStyle = '#c0392b'; x.beginPath(); x.arc(0.4, 0, 2.7, Math.PI * 0.55, Math.PI * 1.45); x.closePath(); x.fill(); x.fillRect(0.2, -1.6, 3, 3.2); }
+      drawPerson(x, V, Math.sin(f / 8 * Math.PI * 2));
       x.restore();
       t.add(f, 0, f * PF, 0, PF, PF);
     }
     t.refresh();
-    scene.anims.create({ key: 'walk' + i, frames: Array.from({ length: 8 }, (_, f) => ({ key: 'ped' + i, frame: f })), frameRate: 9, repeat: -1 });
-  });
+    scene.anims.create({ key: 'walk' + key, frames: Array.from({ length: 8 }, (_, f) => ({ key: 'ped' + key, frame: f })), frameRate: 9, repeat: -1 });
+  };
+  PED_VARIANTS.forEach((V, i) => sheet(i, V));
+  sheet(PLAYER_SHIRT, PLAYER_LOOK);
   // aro de los lugares y del destino: a SPR veces la resolucion (las escalas de abajo se dividen entre SPR)
   const r = scene.textures.createCanvas('ring', 64 * SPR, 64 * SPR), x = r.getContext();
   x.scale(SPR, SPR); x.strokeStyle = '#fff'; x.lineWidth = 5; x.beginPath(); x.arc(32, 32, 28, 0, 7); x.stroke(); r.refresh();
 }
-const PLAYER_SHIRT = SHIRTS.length;
+const PLAYER_SHIRT = 'P'; // textura 'pedP' y animacion 'walkP'
+// el jugador: camisa amarilla, pantalon de mezclilla y gorra roja (como siempre)
+const PLAYER_LOOK = { female: false, age: 'adulto', build: 'normal', skin: '#c68e5f', shirt: '#ffd23f', pants: '#1d3f8f', hair: 'corto', hairCol: '#111', hat: 'gorra', hatCol: '#c0392b', k: 1 };
 // taxi libre clasico de Tijuana: guayin roja con franjas negras y crema.
 // Se dibuja a SPR veces la resolucion y el sprite va a escala 1 / SPR.
 // moto de repartidor vista desde arriba con su caja termica, a SPR veces la resolucion
@@ -2189,9 +2246,10 @@ class Main extends Phaser.Scene {
   baseZoom() { return (Math.min(window.innerWidth, window.innerHeight) < 600 ? 1.45 : 1.8) * DPR; } // antes 1.15 y 1.4
 
   walker(x, y, rate) {
-    const i = (Math.random() * SHIRTS.length) | 0;
+    const i = pedVariant(), V = PED_VARIANTS[i];
     const s = this.add.sprite(x, y, 'ped' + i, 0).setDepth(5).setScale(1 / SPR);
-    s.play({ key: 'walk' + i, startFrame: (Math.random() * 8) | 0 }); s.anims.timeScale = rate;
+    s.play({ key: 'walk' + i, startFrame: (Math.random() * 8) | 0 }); s.anims.timeScale = rate * V.speed;
+    s.pace = V.speed; // los viejitos caminan mas despacio
     return s;
   }
 
@@ -2291,6 +2349,7 @@ class Main extends Phaser.Scene {
       edgePos(e, ped.s, ped.dir, ped.side, ped);
       if (blocked(ped.x, ped.y) || (!initial && inView(ped.x, ped.y))) continue;
       ped.sprite = this.walker(ped.x, ped.y, ped.speed / 20);
+      ped.speed *= ped.sprite.pace;
       this.peds.push(ped);
     }
     const far = R + 520;
@@ -2773,7 +2832,7 @@ class Main extends Phaser.Scene {
       const a = i / 16 * Math.PI * 2 + rnd(-0.15, 0.15); let r = rnd(85, 125), x, y;
       do { x = P.x + Math.cos(a) * r; y = P.y + Math.sin(a) * r; r -= 8; } while (blocked(x, y) && r > 50);
       if (blocked(x, y)) continue;
-      const sx = x + Math.cos(a) * 160, sy = y + Math.sin(a) * 160, k = (Math.random() * SHIRTS.length) | 0;
+      const sx = x + Math.cos(a) * 160, sy = y + Math.sin(a) * 160, k = pedVariant();
       const s = this.add.sprite(sx, sy, 'ped' + k, 0).setDepth(6).setScale(1 / SPR).setRotation(a + Math.PI).setAlpha(0);
       s.play('walk' + k);
       this.tweens.add({ targets: s, x, y, alpha: 1, duration: 2200 + Math.random() * 1500, onComplete: () => {
@@ -2963,7 +3022,7 @@ class Main extends Phaser.Scene {
     if (dog) {
       who = this.add.sprite(spot.x, spot.y, 'perro', 0).setDepth(6).setScale(1 / SPR).setRotation(face).play('cola');
     } else {
-      who = this.add.sprite(spot.x, spot.y, 'ped' + ((Math.random() * SHIRTS.length) | 0), 0).setDepth(6).setScale(1 / SPR).setRotation(face);
+      who = this.add.sprite(spot.x, spot.y, 'ped' + pedVariant(), 0).setDepth(6).setScale(1 / SPR).setRotation(face);
       this.tweens.add({ targets: who, angle: who.angle + 8, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
     }
     this.delivery = { x: spot.x, y: spot.y, street, order, time: d / 85 + 20, d, dog, who };
@@ -3483,7 +3542,7 @@ function start() {
     scene: [Main], fps: { target: 60, smoothStep: false },
   });
   window.addEventListener('resize', () => game.scale.resize(window.innerWidth * DPR, window.innerHeight * DPR));
-  window.TJGTA = game; game.dbg = { VTYPES, vehicleTexture, state, drawChunk, baches, landmarks, tacos, cafes, perks, blocked, inWater, onRoad, waterAreas, roads };
+  window.TJGTA = game; game.dbg = { VTYPES, vehicleTexture, state, drawChunk, baches, landmarks, tacos, cafes, perks, blocked, inWater, onRoad, waterAreas, roads, PED_VARIANTS };
 }
 $('go').addEventListener('click', start);
 // reiniciar la partida: borra dinero y lugares, tacos y cafes descubiertos (pide tocar dos veces)
