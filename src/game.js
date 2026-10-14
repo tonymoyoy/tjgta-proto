@@ -3534,10 +3534,43 @@ $('optacta').addEventListener('click', () => { toggleOptions(); openActa(); });
 
 // ---------- respaldo de la partida: exportar a un archivo e importarlo ----------
 function optMsg(t) { $('optmsg').textContent = t; clearTimeout(optMsg.t); optMsg.t = setTimeout(() => { $('optmsg').textContent = ''; }, 5000); }
+// El archivo va firmado (HMAC-SHA256) y con los datos revueltos para que no se pueda editar a mano:
+// si alguien cambia algo, la firma ya no coincide y no se importa. La clave vive en el codigo, asi que
+// esto frena a los curiosos, no a alguien decidido (para eso haria falta un servidor).
+const FIRMA_CLAVE = ['tj', 'rush', 'zonkey', 'santa-cecilia', '1889'].join('·');
+const enc = new TextEncoder(), dec = new TextDecoder();
+async function firmar(texto) {
+  const k = await crypto.subtle.importKey('raw', enc.encode(FIRMA_CLAVE), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  return [...new Uint8Array(await crypto.subtle.sign('HMAC', k, enc.encode(texto)))].map(v => v.toString(16).padStart(2, '0')).join('');
+}
+// revuelve con XOR contra la clave y pasa a base64 (y al reves)
+function revolver(bytes) { const k = enc.encode(FIRMA_CLAVE); return bytes.map((v, i) => v ^ k[i % k.length] ^ (i * 31 & 255)); }
+const aB64 = (bytes) => { let t = ''; for (const v of bytes) t += String.fromCharCode(v); return btoa(t); };
+const deB64 = (t) => Uint8Array.from(atob(t), ch => ch.charCodeAt(0));
+// que la partida tenga sentido: solo lugares, tacos, cafes y secretos que existen, y premios que corresponden
+function partidaValida(p) {
+  const subset = (a, valid) => Array.isArray(a) && a.every(x => valid.includes(x)) && new Set(a).size === a.length;
+  const num = (v, max) => Number.isInteger(v) && v >= 0 && v <= max;
+  if (!p || typeof p !== 'object' || !Number.isFinite(p.money) || Math.abs(p.money) > 1e7) return false;
+  if (!subset(p.found, landmarks.map(l => l.name)) || !subset(p.eaten || [], tacos.map(t => t.name)) ||
+      !subset(p.cafes || [], cafes.map(c => c.name)) || !subset(p.eggs || [], EGGS.map(e => e.k))) return false;
+  if (!num(p.deliveries || 0, 1e5) || !num(p.rides || 0, 1e5) || (p.name != null && (typeof p.name !== 'string' || p.name.length > 32))) return false;
+  const lleno = (a, all) => (a || []).length === all.length;
+  const ok = { cafe: lleno(p.cafes, cafes), taco: lleno(p.eaten, tacos), noche: lleno(p.found, landmarks) };
+  ok.final = ok.cafe && ok.taco && ok.noche;
+  const cel = p.celebrated || [];
+  if (!subset(cel, ['cafe', 'taco', 'noche', 'final', 'fiesta'])) return false;
+  if (cel.some(k => k !== 'fiesta' && !ok[k]) || (cel.includes('fiesta') && !cel.includes('final')) || (p.night && !ok.noche)) return false;
+  return true;
+}
 async function exportarPartida() {
   save();
   const hoy = new Date().toISOString().slice(0, 10), name = 'tjrush-partida-' + hoy + '.json', C = window.Capacitor;
-  const data = JSON.stringify({ juego: 'TJ Rush', fecha: hoy, partida: state }, null, 1);
+  let data;
+  try {
+    const datos = aB64(revolver(enc.encode(JSON.stringify(state))));
+    data = JSON.stringify({ juego: 'TJ Rush', v: 2, fecha: hoy, datos, firma: await firmar(datos) });
+  } catch (e) { optMsg('No se pudo exportar en este navegador.'); return; }
   // en la app: se comparte el archivo (Drive, WhatsApp, correo, Archivos...); en la web se descarga
   if (C && C.Plugins && C.Plugins.Filesystem && C.Plugins.Share) {
     try {
@@ -3552,9 +3585,15 @@ async function exportarPartida() {
   optMsg('Se descargó ' + name);
 }
 async function importarPartida(f) {
-  let p = null;
-  try { const j = JSON.parse(await f.text()); p = j.partida || j; } catch (e) { /* no es JSON */ }
-  if (!p || typeof p.money !== 'number' || !Array.isArray(p.found)) { optMsg('Ese archivo no es una partida de TJ Rush.'); return; }
+  let j = null, p = null;
+  try { j = JSON.parse(await f.text()); } catch (e) { /* no es JSON */ }
+  if (j && j.juego !== 'TJ Rush' && 'money' in j) { optMsg('Es un respaldo viejo sin firma; ya no se puede importar desde el juego.'); return; }
+  if (!j || j.juego !== 'TJ Rush') { optMsg('Ese archivo no es una partida de TJ Rush.'); return; }
+  try {
+    if (typeof j.datos !== 'string' || j.firma !== await firmar(j.datos)) throw new Error('firma');
+    p = JSON.parse(dec.decode(revolver(deB64(j.datos))));
+  } catch (e) { optMsg('Este archivo fue modificado o está dañado; no se puede importar.'); return; }
+  if (!partidaValida(p)) { optMsg('Esta partida no tiene sentido (¿la editaron?); no se puede importar.'); return; }
   const n = (a) => (Array.isArray(a) ? a.length : 0);
   if (!confirm('¿Cambiar tu partida por la del archivo?\n\n$' + p.money.toLocaleString('es-MX') + ' · ★ ' + n(p.found) + ' lugares · 🌮 ' + n(p.eaten) +
     ' tacos · ☕ ' + n(p.cafes) + ' cafés\n\nLa partida que tienes ahora se pierde (expórtala antes si la quieres).')) return;
