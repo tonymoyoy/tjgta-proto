@@ -98,6 +98,11 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); c
 .optrow { display: block; width: 100%; text-align: left; margin-bottom: 6px; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--line);
   background: #2a2a2d; color: var(--text); font-size: 14px; cursor: pointer; }
 .optrow:disabled { opacity: .55; cursor: default; }
+.optrow.seg { display: flex; align-items: center; gap: 6px; cursor: default; }
+.optrow.seg span { flex: 1; }
+.optrow.seg button { background: #2a2a2e; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; font-size: 13px; cursor: pointer; }
+.optrow.seg button.on { background: var(--accent); color: #1a1a1a; font-weight: bold; border-color: var(--accent); }
+#fps { display: none; top: 50px; left: max(10px, env(safe-area-inset-left)); font: bold 12px monospace; color: #9f9; background: rgba(0,0,0,.5); padding: 2px 6px; border-radius: 4px; }
 #optmsg { color: var(--accent); font-size: 12px; min-height: 1em; }
 #optver { color: var(--muted); font-size: 11px; margin-top: 10px; }
 #opts table.keys { border-collapse: collapse; font-size: 13px; width: 100%; }

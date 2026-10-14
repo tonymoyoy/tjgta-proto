@@ -11,15 +11,24 @@ const CHUNK = 256;
 const EXTRA_UP = 44; // lo mas que se eleva un techo (px)
 // nitidez: el lienzo usa los pixeles reales de la pantalla (hasta 3 por punto en celulares) y los trozos
 // del mapa y los textos se pintan a mas resolucion, porque la camara los amplia
-const DPR = Math.min(window.devicePixelRatio || 1, 3);
-const RES = DPR > 1.5 ? 3 : 2;            // pixeles de textura por pixel del mundo en los trozos
+// calidad grafica (Opciones): alta es lo de siempre; media y baja bajan la resolucion del lienzo, del mapa y de
+// los sprites, y la cantidad de autos y gente (se nota sobre todo en celulares; en PC casi no cambia)
+const CALIDADES = {
+  alta: { dpr: 3, res: 3, spr: 5, autos: 18, gente: 26 },
+  media: { dpr: 2, res: 2, spr: 3, autos: 15, gente: 20 },
+  baja: { dpr: 1.5, res: 2, spr: 2, autos: 12, gente: 14 },
+};
+const CALIDAD = (() => { try { const c = localStorage.getItem('tjrush-calidad'); return CALIDADES[c] ? c : 'alta'; } catch (e) { return 'alta'; } })();
+const Q = CALIDADES[CALIDAD];
+const DPR = Math.min(window.devicePixelRatio || 1, Q.dpr);
+const RES = DPR > 1.5 ? Q.res : 2;        // pixeles de textura por pixel del mundo en los trozos
 const KEEP = RES >= 3 ? 2 : 3;            // trozos que se guardan alrededor de la pantalla (a mas resolucion pesan mas)
 const CHUNK_BUDGET_MS = 4;                // tiempo por cuadro para ir pintando el siguiente trozo
 const CHUNK_BUDGET_SEEN_MS = 10;          // ... si ese trozo ya se ve en pantalla
 const PREFETCH = 320;                     // los trozos se empiezan a pintar a esta distancia de la orilla de la pantalla
 const TXT_RES = Math.ceil(DPR * 2);
 // autos y peatones: pixeles de textura por pixel del mundo (el sprite se muestra a escala 1 / SPR)
-const SPR = DPR > 1.5 ? 5 : 2;
+const SPR = DPR > 1.5 ? Q.spr : 2;
 
 // ---------- geometria ----------
 // clases: 0 autopista, 1 troncal, 2 primaria, 3 secundaria, 4 terciaria, 5 residencial,
@@ -2334,7 +2343,7 @@ class Main extends Phaser.Scene {
     const v = this.cameras.main.worldView, M0 = 70;
     const inView = (x, y) => x > v.x - M0 && x < v.right + M0 && y > v.y - M0 && y < v.bottom + M0;
     let n = 0;
-    while (this.cars.length < 18 && n++ < 6) {
+    while (this.cars.length < Q.autos && n++ < 6) {
       const e = randomEdgeNear(traffic, p.x, p.y, initial ? 80 : R + 40, R + 300); if (!e) break;
       const dir = e.one ? 1 : (Math.random() < 0.5 ? 1 : -1), s = rnd(0, e.len);
       const lane = (Math.random() * 4) | 0, lat = laneLat(e, lane);
@@ -2349,7 +2358,7 @@ class Main extends Phaser.Scene {
       this.cars.push(car);
     }
     n = 0;
-    while (this.peds.length < 26 && n++ < 6) {
+    while (this.peds.length < Q.gente && n++ < 6) {
       const e = randomEdgeNear(walkG, p.x, p.y, initial ? 60 : R + 20, R + 250); if (!e) break;
       const side = e.c >= 8 ? rnd(-3, 3) : (Math.random() < 0.5 ? 1 : -1) * (e.w / 2 + rnd(0.6, 2.2) * M);
       const ped = { e, dir: Math.random() < 0.5 ? 1 : -1, s: rnd(0, e.len), side, speed: rnd(14, 26), st: 'walk', t: 0, x: 0, y: 0, a: 0 };
@@ -3358,6 +3367,7 @@ function setupBigMap(scene) {
 function toggleBigMap() {
   bigOpen = !bigOpen;
   $('bigmap').style.display = bigOpen ? 'block' : 'none';
+  dormir();
   if (bigOpen) {
     // se abre centrado en ti, viendo unos 2600 px del mundo a lo ancho (varias cuadras, con nombres de calles)
     bmResize(); BM.s = BM.W / 2600; const f = bigScene.focus(); BM.cx = f.x; BM.cy = f.y; bmClamp(); bmDraw(true);
@@ -3515,6 +3525,8 @@ function renderOptions() {
   $('optsnd').textContent = (muted ? '🔇 Sonido: apagado' : '🔊 Sonido: encendido') + key('N');
   $('optnight').disabled = !p.noche;
   $('optnight').textContent = p.noche ? (state.night ? '☀️ Volver al día' : '🌙 Tijuana de noche') + key('L') : '🔒 Tijuana de noche · conoce los ' + landmarks.length + ' lugares';
+  for (const b of document.querySelectorAll('#optcal button')) b.classList.toggle('on', b.dataset.q === CALIDAD);
+  $('optfps').textContent = (verFps ? '📈 Ver cuadros por segundo: sí' : '📈 Ver cuadros por segundo: no');
   $('optacta').disabled = !p.final;
   $('optacta').textContent = p.final ? '📜 Ver mi Acta de Tijuanense' : '🔒 Acta de Tijuanense · completa todo';
 }
@@ -3525,7 +3537,31 @@ function toggleOptions() {
   if (optsOpen) { renderOptions(); if (window.SND && sc) SND.update(false, 0, 0); }
   // el juego se detiene mientras ves el menu
   if (sc) { if (optsOpen) sc.scene.pause(); else sc.scene.resume(); }
+  dormir();
 }
+// con el menu o el mapa grande abiertos el juego no se dibuja (ahorra bateria); al cerrarlos sigue
+function dormir() {
+  const g = window.TJGTA; if (!g) return;
+  if (optsOpen || bigOpen) g.loop.sleep(); else g.loop.wake();
+}
+// calidad grafica: se guarda y se recarga el juego con la nueva
+for (const b of document.querySelectorAll('#optcal button')) b.addEventListener('click', () => {
+  if (b.dataset.q === CALIDAD) return;
+  try { localStorage.setItem('tjrush-calidad', b.dataset.q); } catch (e) { /* sin almacenamiento */ }
+  save(); location.reload();
+});
+// contador de cuadros por segundo (para ver si el celular va fluido)
+let verFps = false;
+try { verFps = localStorage.getItem('tjrush-fps') === '1'; } catch (e) { /* sin almacenamiento */ }
+$('optfps').addEventListener('click', () => {
+  verFps = !verFps;
+  try { localStorage.setItem('tjrush-fps', verFps ? '1' : '0'); } catch (e) { /* sin almacenamiento */ }
+  $('fps').style.display = verFps && window.TJGTA ? 'block' : 'none'; renderOptions();
+});
+setInterval(() => {
+  const g = window.TJGTA; if (!verFps || !g || optsOpen || bigOpen) return;
+  $('fps').style.display = 'block'; $('fps').textContent = Math.round(g.loop.actualFps) + ' fps';
+}, 500);
 $('optbtn').addEventListener('click', toggleOptions);
 $('optclose').addEventListener('click', toggleOptions);
 $('optsnd').addEventListener('click', toggleSound);
