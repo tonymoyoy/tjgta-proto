@@ -152,8 +152,31 @@ function onRoad(x, y) {
   if (a) for (const g of a) if (segDist(x, y, g[0], g[1], g[2], g[3]) < g[4]) return true;
   return false;
 }
+// agua (el canal del rio Tijuana y demas): las areas de agua y la linea del rio. Como con los edificios,
+// la franja de una calle encima (los puentes) si se puede pasar
+const waterAreas = areas.filter(a => a.k === AREA_COL.length - 1);
+const waterGrid = gridIndex(waterAreas, BCELL, 'bb');
+const riverSegGrid = new Map();
+roads.forEach(r => {
+  if (r.c !== 11) return;
+  const half = ROAD_W[11] / 2 * M, p = r.p;
+  for (let q = 0; q < p.length - 2; q += 2) {
+    const seg = [p[q], p[q + 1], p[q + 2], p[q + 3], half];
+    for (let cx = Math.floor((Math.min(p[q], p[q + 2]) - half) / RCELL); cx <= Math.floor((Math.max(p[q], p[q + 2]) + half) / RCELL); cx++)
+      for (let cy = Math.floor((Math.min(p[q + 1], p[q + 3]) - half) / RCELL); cy <= Math.floor((Math.max(p[q + 1], p[q + 3]) + half) / RCELL); cy++) {
+        const k = cx + ',' + cy; let a = riverSegGrid.get(k); if (!a) riverSegGrid.set(k, a = []); a.push(seg);
+      }
+  }
+});
+function inWater(x, y) {
+  const a = waterGrid.get(Math.floor(x / BCELL) + ',' + Math.floor(y / BCELL));
+  if (a) for (const i of a) { const w = waterAreas[i]; if (x >= w.bb[0] && x <= w.bb[2] && y >= w.bb[1] && y <= w.bb[3] && pip(x, y, w.p)) return true; }
+  const s = riverSegGrid.get(Math.floor(x / RCELL) + ',' + Math.floor(y / RCELL));
+  if (s) for (const g of s) if (segDist(x, y, g[0], g[1], g[2], g[3]) < g[4]) return true;
+  return false;
+}
 function blocked(x, y) {
-  return x < 4 || y < 4 || x > WORLD_W - 4 || y > WORLD_H - 4 || y < borderY(x) + 6 || (inBuilding(x, y) && !onRoad(x, y));
+  return x < 4 || y < 4 || x > WORLD_W - 4 || y > WORLD_H - 4 || y < borderY(x) + 6 || ((inBuilding(x, y) || inWater(x, y)) && !onRoad(x, y));
 }
 function laneLat(e, k) {
   if (e.c <= MAJOR) return e.one ? [-3, -1, 1, 3][k & 3] * e.w / 8 : [1, 3][k & 1] * e.w / 8;
@@ -1993,6 +2016,11 @@ function onAsphalt(x, y, pad) {
   }
   return false;
 }
+// hay algun punto libre a menos de R de (x, y)? (se revisa en circulos cada 4 px)
+function reachable(x, y, R) {
+  for (let r = 0; r <= R; r += 4) for (let k = 0; k < 16; k++) { const a = k / 16 * Math.PI * 2; if (!blocked(x + Math.cos(a) * r, y + Math.sin(a) * r)) return true; }
+  return false;
+}
 function sidewalkSpot(x, y, extra = 17) {
   const cands = [];
   for (const r of roads) {
@@ -2035,6 +2063,9 @@ class Main extends Phaser.Scene {
     // marcadores de lugares y tacos
     this.marks = [];
     for (const l of landmarks) {
+      // si el lugar queda en medio de un edificio enorme o del agua (Palacio Municipal, Plaza Rio), su marca
+      // se pasa a la banqueta mas cercana; si no, nunca se podria descubrir (se descubre a menos de 110 px)
+      if (!reachable(l.x, l.y, 95)) { const [sx, sy] = sidewalkSpot(l.x, l.y, (SIDEWALK + 0.5) * M); l.x = sx; l.y = sy; }
       const ring = this.add.image(l.x, l.y, 'ring').setDepth(3).setTint(0xffd23f).setAlpha(0.8);
       // la insignia del lugar flota un poco (cada una a su ritmo)
       const star = this.add.image(l.x, l.y, l.icon).setDepth(20).setScale(0.62 / SPR);
@@ -3115,7 +3146,7 @@ function start() {
     scene: [Main], fps: { target: 60, smoothStep: false },
   });
   window.addEventListener('resize', () => game.scale.resize(window.innerWidth * DPR, window.innerHeight * DPR));
-  window.TJGTA = game; game.dbg = { VTYPES, vehicleTexture, state, drawChunk, baches, landmarks, tacos, cafes, perks };
+  window.TJGTA = game; game.dbg = { VTYPES, vehicleTexture, state, drawChunk, baches, landmarks, tacos, cafes, perks, blocked, inWater, onRoad, waterAreas, roads };
 }
 $('go').addEventListener('click', start);
 // reiniciar la partida: borra dinero y lugares, tacos y cafes descubiertos (pide tocar dos veces)
