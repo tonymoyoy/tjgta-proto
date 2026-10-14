@@ -3577,7 +3577,7 @@ for (const b of document.querySelectorAll('#optcal button')) b.addEventListener(
 });
 // orientacion de la pantalla: gira con el telefono, o fija horizontal o vertical (solo en la app;
 // es un plugin propio, OrientacionPlugin.java, que tambien la aplica al abrir)
-const ORI = window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform() ? Capacitor.registerPlugin('Orientacion') : null;
+const ORI = (window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.Orientacion) || null;
 let orientacion = 'auto';
 try { orientacion = localStorage.getItem('tjrush-orientacion') || 'auto'; } catch (e) { /* sin almacenamiento */ }
 if (!ORI) $('optori').style.display = 'none';
