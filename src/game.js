@@ -13,6 +13,10 @@ const EXTRA_UP = 44; // lo mas que se eleva un techo (px)
 // del mapa y los textos se pintan a mas resolucion, porque la camara los amplia
 const DPR = Math.min(window.devicePixelRatio || 1, 3);
 const RES = DPR > 1.5 ? 3 : 2;            // pixeles de textura por pixel del mundo en los trozos
+const KEEP = RES >= 3 ? 2 : 3;            // trozos que se guardan alrededor de la pantalla (a mas resolucion pesan mas)
+const CHUNK_BUDGET_MS = 4;                // tiempo por cuadro para ir pintando el siguiente trozo
+const CHUNK_BUDGET_SEEN_MS = 10;          // ... si ese trozo ya se ve en pantalla
+const PREFETCH = 320;                     // los trozos se empiezan a pintar a esta distancia de la orilla de la pantalla
 const TXT_RES = Math.ceil(DPR * 2);
 // autos y peatones: pixeles de textura por pixel del mundo (el sprite se muestra a escala 1 / SPR)
 const SPR = DPR > 1.5 ? 5 : 2;
@@ -485,7 +489,7 @@ for (const c of [bRoof, bWall, bWall2, bWin, bStack]) { c.width = BW * RES; c.he
 const blit = (dst, src, sx, sy, sw, sh, dx, dy, dw, dh) => dst.drawImage(src, sx * RES, sy * RES, sw * RES, sh * RES, dx, dy, dw, dh);
 // cada piso de la pared son 4 capas: linea de entrepiso, dos de ventanas y pared
 const wallLayer = (k) => { const m = k % 4; return m === 0 ? bWall2 : m === 3 ? bWall : bWin; };
-function drawBuildings(ctx, bl, rs, cx, cy) {
+function* drawBuildings(ctx, bl, rs, cx, cy) {
   const g = bRoof.getContext('2d');
   let lo = 0;
   for (const [hmax, L] of LIFTS) {
@@ -534,6 +538,7 @@ function drawBuildings(ctx, bl, rs, cx, cy) {
       trace(g, r.p); g.stroke();
     }
     g.globalCompositeOperation = 'source-over';
+    yield;
     // versiones oscuras para las paredes (una un poco mas oscura para marcar los pisos)
     for (const [cv, a] of [[bWall, 0.36], [bWall2, 0.16], [bWin, 0.36]]) {
       const w = cv.getContext('2d'); w.clearRect(rx0, ry0, rw, rh); cp(w, bRoof, 0, 0);
@@ -547,6 +552,7 @@ function drawBuildings(ctx, bl, rs, cx, cy) {
       }
       w.globalCompositeOperation = 'source-over';
     }
+    yield;
     // apilar la pared L veces: se arman 4 capas y se duplica la pila sobre si misma (4, 8, 16...)
     // en vez de pintar capa por capa; las que sobran se pintan una por una
     const st = bStack.getContext('2d');
@@ -561,6 +567,7 @@ function drawBuildings(ctx, bl, rs, cx, cy) {
     while (n * 2 <= top) { cps(lx(n), -n, n); n *= 2; }
     if (n < top) cps(lx(top - n), n - top, n); // lo que falta: la misma pila corrida (top - n es multiplo de 4)
     cp(st, bWall, lx(top), -top); cp(st, bWall2, lx(top + 1), -top - 1); // cornisa clara arriba
+    yield;
     ctx.save(); ctx.setTransform(RES, 0, 0, RES, 0, 0);
     const sy0 = Math.max(0, ry0 - L - 1), sw = Math.min(BW - rx0, rw + lx(L) + 1);
     blit(ctx, bStack, rx0, sy0, sw, ry1 - sy0, rx0 - LEAN_PAD, sy0, sw, ry1 - sy0);
@@ -568,7 +575,9 @@ function drawBuildings(ctx, bl, rs, cx, cy) {
     ctx.restore();
   }
 }
-function drawChunk(cx, cy) {
+// Un trozo se pinta por pasos (generador): asi se reparte en varios cuadros y no da tirones.
+// Las capas de los edificios (bRoof...) se comparten, asi que solo puede haber un trozo a medias a la vez.
+function* chunkSteps(cx, cy) {
   const cv = document.createElement('canvas'); cv.width = cv.height = (CHUNK + 2) * RES;
   const ctx = cv.getContext('2d');
   ctx.scale(RES, RES); ctx.translate(1 - cx * CHUNK, 1 - cy * CHUNK);
@@ -617,6 +626,7 @@ function drawChunk(cx, cy) {
   const bl = (chunkBlds.get(k) || []).map(i => blds[i]);
   ctx.fillStyle = 'rgba(0,0,0,0.26)';
   for (const b of bl) { ctx.save(); ctx.translate(b.sh, b.sh); trace(ctx, b.p, true); ctx.fill(); ctx.restore(); }
+  yield;
   over(ground);
   grime(ctx, ground, cx, cy);
   roadMarks(ctx, k);
@@ -624,7 +634,8 @@ function drawChunk(cx, cy) {
     pass(bridges, r => (ROAD_W[r.c] + 6) * M, 'rgba(0,0,0,0.35)', r => r.c <= 7);
     under(bridges); over(bridges); grime(ctx, bridges, cx, cy);
   }
-  drawBuildings(ctx, bl, rs, cx, cy);
+  yield;
+  yield* drawBuildings(ctx, bl, rs, cx, cy);
   // lado de Estados Unidos
   const x0 = cx * CHUNK, x1 = x0 + CHUNK;
   if (borderY(x0) > cy * CHUNK || borderY(x1) > cy * CHUNK) {
@@ -638,6 +649,8 @@ function drawChunk(cx, cy) {
   }
   return cv;
 }
+// el trozo completo de una vez (al arrancar y para pruebas)
+function drawChunk(cx, cy) { const it = chunkSteps(cx, cy); let r; while (!(r = it.next()).done); return r.value; }
 
 // ---------- minimapa ----------
 const MS = 0.08;
@@ -1794,23 +1807,40 @@ class Main extends Phaser.Scene {
   // ----- trozos -----
   updateChunks(all) {
     const v = this.cameras.main.worldView;
-    const cx0 = Math.max(0, Math.floor((v.x - 192) / CHUNK)), cy0 = Math.max(0, Math.floor((v.y - 192) / CHUNK));
-    const cx1 = Math.floor((v.right + 192) / CHUNK), cy1 = Math.floor((v.bottom + 192) / CHUNK);
-    // uno por cuadro; primero el que ya se ve (o el mas cercano al centro), luego los de reserva
+    const cx0 = Math.max(0, Math.floor((v.x - PREFETCH) / CHUNK)), cy0 = Math.max(0, Math.floor((v.y - PREFETCH) / CHUNK));
+    const cx1 = Math.floor((v.right + PREFETCH) / CHUNK), cy1 = Math.floor((v.bottom + PREFETCH) / CHUNK);
+    // primero el que ya se ve (o el mas cercano al centro), luego los de reserva
     const want = [];
     for (let cx = cx0; cx <= cx1; cx++) for (let cy = cy0; cy <= cy1; cy++) {
       if (cx * CHUNK >= WORLD_W || cy * CHUNK >= WORLD_H || this.chunks.has(cx + ',' + cy)) continue;
       want.push([cx, cy, Math.hypot((cx + 0.5) * CHUNK - v.centerX, (cy + 0.5) * CHUNK - v.centerY)]);
     }
-    if (!all) want.sort((a, b) => a[2] - b[2]).length = Math.min(1, want.length);
-    for (const [cx, cy] of want) {
+    const add = (cx, cy, cv) => {
       const k = cx + ',' + cy, tk = 'ch' + k;
-      this.textures.addCanvas(tk, drawChunk(cx, cy));
+      this.textures.addCanvas(tk, cv);
       this.chunks.set(k, this.add.image(cx * CHUNK - 1, cy * CHUNK - 1, tk).setOrigin(0).setDepth(0).setScale(1 / RES));
+    };
+    // todo de una vez: el trozo a medias se descarta (comparte las capas de los edificios) y se pinta completo con los demas
+    if (all) { this.chunkJob = null; for (const [cx, cy] of want) add(cx, cy, drawChunk(cx, cy)); }
+    else {
+      // se sigue con el trozo a medias o se empieza el mas cercano al centro; unos milisegundos por cuadro,
+      // y mas si el trozo ya se esta viendo (para tapar el hueco pronto sin dar un tiron)
+      if (!this.chunkJob && want.length) {
+        const [cx, cy] = want.sort((a, b) => a[2] - b[2])[0];
+        this.chunkJob = { cx, cy, k: cx + ',' + cy, it: chunkSteps(cx, cy) };
+      }
+      const job = this.chunkJob;
+      if (job) {
+        const seen = job.cx * CHUNK < v.right && (job.cx + 1) * CHUNK > v.x && job.cy * CHUNK < v.bottom && (job.cy + 1) * CHUNK > v.y;
+        const t0 = performance.now(); let r;
+        const budget = seen ? CHUNK_BUDGET_SEEN_MS : CHUNK_BUDGET_MS;
+        do r = job.it.next(); while (!r.done && performance.now() - t0 < budget);
+        if (r.done) { this.chunkJob = null; if (!this.chunks.has(job.k)) add(job.cx, job.cy, r.value); }
+      }
     }
     for (const [k, img] of this.chunks) {
       const [cx, cy] = k.split(',').map(Number);
-      if (cx < cx0 - 2 || cx > cx1 + 2 || cy < cy0 - 2 || cy > cy1 + 2) { img.destroy(); this.textures.remove('ch' + k); this.chunks.delete(k); }
+      if (cx < cx0 - KEEP || cx > cx1 + KEEP || cy < cy0 - KEEP || cy > cy1 + KEEP) { img.destroy(); this.textures.remove('ch' + k); this.chunks.delete(k); }
     }
   }
 
