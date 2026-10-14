@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>TJGTA Zona Centro</title>
 <link rel="stylesheet" href="src/style.css">
 </head>
@@ -15,9 +15,13 @@
   <div class="obj" id="obj"></div>
 </div>
 <canvas id="mini" class="hud" width="180" height="180"></canvas>
-<div id="street" class="hud"></div>
-<div id="toast" class="hud"></div>
-<div id="timer" class="hud"></div>
+<!-- avisos arriba al centro, uno debajo del otro (cada uno ocupa lugar solo mientras se ve) -->
+<div id="topmsg" class="hud">
+  <div id="timer"></div>
+  <div id="toast"></div>
+  <div id="street"></div>
+</div>
+<div id="bubble" class="hud bubble"></div>
 <div id="arrow" class="hud"></div>
 <div id="credit" class="hud"></div>
 <div id="snd" class="hud" title="Sonido (N)">🔊</div>

@@ -9,6 +9,13 @@ const WORLD_W = Math.ceil(D.w * M), WORLD_H = Math.ceil(D.h * M);
 // trozos chicos: cada uno se dibuja rapido y no se nota el tiron al irlos creando
 const CHUNK = 256;
 const EXTRA_UP = 44; // lo mas que se eleva un techo (px)
+// nitidez: el lienzo usa los pixeles reales de la pantalla (hasta 3 por punto en celulares) y los trozos
+// del mapa y los textos se pintan a mas resolucion, porque la camara los amplia
+const DPR = Math.min(window.devicePixelRatio || 1, 3);
+const RES = DPR > 1.5 ? 3 : 2;            // pixeles de textura por pixel del mundo en los trozos
+const TXT_RES = Math.ceil(DPR * 2);
+// autos y peatones: pixeles de textura por pixel del mundo (el sprite se muestra a escala 1 / SPR)
+const SPR = DPR > 1.5 ? 5 : 2;
 
 // ---------- geometria ----------
 // clases: 0 autopista, 1 troncal, 2 primaria, 3 secundaria, 4 terciaria, 5 residencial,
@@ -275,6 +282,74 @@ function nearestOnGraph(g, x, y) {
   return best;
 }
 
+// ---------- ruta al destino (la linea tenue de puntos de las entregas, el taxi y el destino marcado) ----------
+// se usa la red del trafico pero en los dos sentidos: en moto o a pie nadie respeta los sentidos
+const routeAdj = traffic.nodes.map(() => []);
+for (const e of traffic.edges) { routeAdj[e.a].push({ e, to: e.b, dir: 1 }); routeAdj[e.b].push({ e, to: e.a, dir: -1 }); }
+// el punto de la red mas cercano a (x, y): solo se buscan las celdas de alrededor
+function nearEdge(g, x, y) {
+  const cx = Math.floor(x / g.GC), cy = Math.floor(y / g.GC);
+  for (let r = 1; r <= 3; r++) {
+    let best = null, bd = 1e9;
+    for (let i = cx - r; i <= cx + r; i++) for (let j = cy - r; j <= cy + r; j++) for (const e of g.grid.get(i + ',' + j) || []) {
+      const p = e.p;
+      for (let q = 0; q < p.length - 2; q += 2) {
+        const dx = p[q + 2] - p[q], dy = p[q + 3] - p[q + 1], l2 = dx * dx + dy * dy || 1;
+        const t = Math.max(0, Math.min(1, ((x - p[q]) * dx + (y - p[q + 1]) * dy) / l2));
+        const d = Math.hypot(p[q] + dx * t - x, p[q + 1] + dy * t - y);
+        if (d < bd) { bd = d; best = { e, s: e.cum[q / 2] + t * Math.sqrt(l2), x: p[q] + dx * t, y: p[q + 1] + dy * t }; }
+      }
+    }
+    if (best) return best;
+  }
+  const n = nearestOnGraph(g, x, y); if (!n) return null;
+  const o = edgePos(n.e, n.s, 1, 0, {}); return { e: n.e, s: n.s, x: o.x, y: o.y };
+}
+// puntos del tramo e entre las distancias s0 y s1 (si s0 > s1 van al reves)
+function edgeSlice(e, s0, s1, out) {
+  const tmp = {}, cum = e.cum, p = e.p;
+  edgePos(e, s0, 1, 0, tmp); out.push(tmp.x, tmp.y);
+  if (s0 < s1) { for (let i = 0; i < cum.length; i++) if (cum[i] > s0 && cum[i] < s1) out.push(p[i * 2], p[i * 2 + 1]); }
+  else for (let i = cum.length - 1; i >= 0; i--) if (cum[i] < s0 && cum[i] > s1) out.push(p[i * 2], p[i * 2 + 1]);
+  edgePos(e, s1, 1, 0, tmp); out.push(tmp.x, tmp.y);
+}
+// camino mas corto por las calles de (x0, y0) a (x1, y1) con A*; devuelve [x, y, x, y, ...]
+function findRoute(x0, y0, x1, y1) {
+  const g = traffic, A = nearEdge(g, x0, y0), B = nearEdge(g, x1, y1);
+  if (!A || !B) return null;
+  const out = [x0, y0];
+  if (A.e === B.e) { edgeSlice(A.e, A.s, B.s, out); out.push(x1, y1); return out; }
+  const N = g.nodes.length, cost = new Float64Array(N).fill(Infinity), prev = new Array(N);
+  const h = (n) => Math.hypot(g.nodes[n][0] - B.x, g.nodes[n][1] - B.y);
+  const heap = []; // [f, nodo], monticulo binario por f
+  const push = (f, n) => { heap.push([f, n]); let i = heap.length - 1; while (i > 0) { const pi = (i - 1) >> 1; if (heap[pi][0] <= heap[i][0]) break; [heap[pi], heap[i]] = [heap[i], heap[pi]]; i = pi; } };
+  const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let i = 0; for (;;) { const l = i * 2 + 1, r = l + 1; let m = i; if (l < heap.length && heap[l][0] < heap[m][0]) m = l; if (r < heap.length && heap[r][0] < heap[m][0]) m = r; if (m === i) break; [heap[m], heap[i]] = [heap[i], heap[m]]; i = m; } } return top; };
+  cost[A.e.a] = A.s; push(A.s + h(A.e.a), A.e.a);
+  if (A.e.len - A.s < cost[A.e.b]) { cost[A.e.b] = A.e.len - A.s; push(cost[A.e.b] + h(A.e.b), A.e.b); }
+  let best = Infinity, end = -1;
+  while (heap.length) {
+    const [f, n] = pop();
+    if (f >= best) break;
+    if (f > cost[n] + h(n) + 1e-6) continue; // entrada vieja
+    const fin = n === B.e.a ? B.s : n === B.e.b ? B.e.len - B.s : -1;
+    if (fin >= 0 && cost[n] + fin < best) { best = cost[n] + fin; end = n; }
+    for (const o of routeAdj[n]) {
+      const c = cost[n] + o.e.len;
+      if (c < cost[o.to]) { cost[o.to] = c; prev[o.to] = o; push(c + h(o.to), o.to); }
+    }
+  }
+  if (end < 0) return null;
+  // hacia atras por prev (el costo siempre baja, asi que se termina en uno de los dos extremos del tramo A)
+  const steps = []; let n = end;
+  while (prev[n]) { const o = prev[n]; steps.push(o); n = o.dir > 0 ? o.e.a : o.e.b; }
+  steps.reverse();
+  edgeSlice(A.e, A.s, n === A.e.a ? 0 : A.e.len, out);
+  for (const o of steps) edgeSlice(o.e, o.dir > 0 ? 0 : o.e.len, o.dir > 0 ? o.e.len : 0, out);
+  edgeSlice(B.e, end === B.e.a ? 0 : B.e.len, B.s, out);
+  out.push(x1, y1);
+  return out;
+}
+
 // ---------- locales de "comida china" (ficticios) en la Calle Coahuila: aqui se pierde dinero ----------
 const CHINA_NAMES = ['Comida China Dragón Dorado', 'Comida China El Panda Feliz', 'Comida China Flor de Loto',
   'Comida China La Gran Muralla', 'Comida China Palacio Imperial', 'Comida China Fénix Rojo'];
@@ -403,7 +478,11 @@ const bRoof = document.createElement('canvas'), bWall = document.createElement('
 // las capas son EXTRA_UP px mas altas que el trozo: los techos de abajo se elevan y entran a este trozo
 // y LEAN_PAD px mas anchas a la izquierda: los techos se recargan un poco a la derecha (se ve la pared oeste)
 const LEAN = 0.25, LEAN_PAD = Math.ceil(EXTRA_UP * LEAN) + 2;
-for (const c of [bRoof, bWall, bWall2, bWin, bStack]) { c.width = CHUNK + 2 + LEAN_PAD; c.height = CHUNK + 2 + EXTRA_UP; }
+// las capas miden BW x BH pixeles del mundo pero tienen RES veces mas pixeles; sus contextos dibujan
+// escalados por RES, y al copiar entre capas el rectangulo de origen va en pixeles de la capa (x RES)
+const BW = CHUNK + 2 + LEAN_PAD, BH = CHUNK + 2 + EXTRA_UP;
+for (const c of [bRoof, bWall, bWall2, bWin, bStack]) { c.width = BW * RES; c.height = BH * RES; c.getContext('2d').setTransform(RES, 0, 0, RES, 0, 0); }
+const blit = (dst, src, sx, sy, sw, sh, dx, dy, dw, dh) => dst.drawImage(src, sx * RES, sy * RES, sw * RES, sh * RES, dx, dy, dw, dh);
 // cada piso de la pared son 4 capas: linea de entrepiso, dos de ventanas y pared
 const wallLayer = (k) => { const m = k % 4; return m === 0 ? bWall2 : m === 3 ? bWall : bWin; };
 function drawBuildings(ctx, bl, rs, cx, cy) {
@@ -415,12 +494,12 @@ function drawBuildings(ctx, bl, rs, cx, cy) {
     // solo se trabaja en el rectangulo que ocupan los edificios del grupo (en pixeles de la capa)
     let rx0 = 1e9, ry0 = 1e9, rx1 = -1e9, ry1 = -1e9;
     for (const b of group) { rx0 = Math.min(rx0, b.bb[0]); ry0 = Math.min(ry0, b.bb[1]); rx1 = Math.max(rx1, b.bb[2]); ry1 = Math.max(ry1, b.bb[3]); }
-    rx0 = Math.max(0, Math.floor(rx0 - cx * CHUNK + LEAN_PAD - 3)); rx1 = Math.min(bRoof.width, Math.ceil(rx1 - cx * CHUNK + LEAN_PAD + 4));
-    ry0 = Math.max(0, Math.floor(ry0 - cy * CHUNK - 3)); ry1 = Math.min(bRoof.height, Math.ceil(ry1 - cy * CHUNK + 4));
+    rx0 = Math.max(0, Math.floor(rx0 - cx * CHUNK + LEAN_PAD - 3)); rx1 = Math.min(BW, Math.ceil(rx1 - cx * CHUNK + LEAN_PAD + 4));
+    ry0 = Math.max(0, Math.floor(ry0 - cy * CHUNK - 3)); ry1 = Math.min(BH, Math.ceil(ry1 - cy * CHUNK + 4));
     if (rx1 <= rx0 || ry1 <= ry0) continue;
     const rw = rx1 - rx0, rh = ry1 - ry0;
-    const cp = (dst, src, dx, dy) => dst.drawImage(src, rx0, ry0, rw, rh, rx0 + dx, ry0 + dy, rw, rh);
-    g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, bRoof.width, bRoof.height);
+    const cp = (dst, src, dx, dy) => blit(dst, src, rx0, ry0, rw, rh, rx0 + dx, ry0 + dy, rw, rh);
+    g.setTransform(RES, 0, 0, RES, 0, 0); g.clearRect(0, 0, BW, BH);
     g.translate(1 + LEAN_PAD - cx * CHUNK, 1 - cy * CHUNK); g.lineJoin = 'round';
     for (const b of group) {
       trace(g, b.p, true); g.fillStyle = b.col; g.fill();
@@ -474,25 +553,25 @@ function drawBuildings(ctx, bl, rs, cx, cy) {
     // (el patron se repite cada 4 capas y 4*LEAN es entero, asi que duplicar la pila lo conserva)
     const lx = (k) => Math.round(k * LEAN);
     const top = L - 2, base = Math.min(top, 4);
-    st.clearRect(0, Math.max(0, ry0 - L - 1), bStack.width, rh + L + 2); cp(st, bWall2, 0, 0);
+    st.clearRect(0, Math.max(0, ry0 - L - 1), BW, rh + L + 2); cp(st, bWall2, 0, 0);
     for (let k = 1; k < base; k++) cp(st, wallLayer(k), lx(k), -k);
     // al duplicar, la pila ya mide n capas: se copia el rectangulo crecido hacia arriba
-    const cps = (dx, dy, n) => st.drawImage(bStack, rx0, ry0 - n, rw + lx(n), rh + n, rx0 + dx, ry0 - n + dy, rw + lx(n), rh + n);
+    const cps = (dx, dy, n) => blit(st, bStack, rx0, ry0 - n, rw + lx(n), rh + n, rx0 + dx, ry0 - n + dy, rw + lx(n), rh + n);
     let n = base;
     while (n * 2 <= top) { cps(lx(n), -n, n); n *= 2; }
     if (n < top) cps(lx(top - n), n - top, n); // lo que falta: la misma pila corrida (top - n es multiplo de 4)
     cp(st, bWall, lx(top), -top); cp(st, bWall2, lx(top + 1), -top - 1); // cornisa clara arriba
-    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
-    const sy0 = Math.max(0, ry0 - L - 1), sw = Math.min(bStack.width - rx0, rw + lx(L) + 1);
-    ctx.drawImage(bStack, rx0, sy0, sw, ry1 - sy0, rx0 - LEAN_PAD, sy0, sw, ry1 - sy0);
-    ctx.drawImage(bRoof, rx0, ry0, rw, rh, rx0 + lx(L) - LEAN_PAD, ry0 - L, rw, rh);
+    ctx.save(); ctx.setTransform(RES, 0, 0, RES, 0, 0);
+    const sy0 = Math.max(0, ry0 - L - 1), sw = Math.min(BW - rx0, rw + lx(L) + 1);
+    blit(ctx, bStack, rx0, sy0, sw, ry1 - sy0, rx0 - LEAN_PAD, sy0, sw, ry1 - sy0);
+    blit(ctx, bRoof, rx0, ry0, rw, rh, rx0 + lx(L) - LEAN_PAD, ry0 - L, rw, rh);
     ctx.restore();
   }
 }
 function drawChunk(cx, cy) {
-  const cv = document.createElement('canvas'); cv.width = cv.height = CHUNK + 2;
+  const cv = document.createElement('canvas'); cv.width = cv.height = (CHUNK + 2) * RES;
   const ctx = cv.getContext('2d');
-  ctx.translate(1 - cx * CHUNK, 1 - cy * CHUNK);
+  ctx.scale(RES, RES); ctx.translate(1 - cx * CHUNK, 1 - cy * CHUNK);
   ctx.fillStyle = COL.ground; ctx.fillRect(cx * CHUNK - 1, cy * CHUNK - 1, CHUNK + 2, CHUNK + 2);
   const k = cx + ',' + cy;
   for (const i of chunkAreas.get(k) || []) { const a = areas[i]; ctx.fillStyle = AREA_COL[a.k]; trace(ctx, a.p, true); ctx.fill(); }
@@ -645,40 +724,181 @@ const FRASES_BACHE = ['¡Ese bache tenía su propio código postal!', 'Ahí se f
   '¡Uy! Ese ya hasta paga predial.', 'Gracias, Ayuntamiento.', '¿Bache o alberca? Ni el gobierno sabe.', 'Se te cayó hasta la placa.',
   'Ese bache tiene más años que la Revu.', 'Directo a la vulcanizadora.', 'Ni el Mimo Moy se hace que no lo vio.',
   'Ahí vive una familia de tlacuaches.', 'Ese bache sale en Google Maps.'];
-// lo que te dice la gente cuando te le pegas caminando
-const FRASES_PEATON = [
-  // historia
-  'En 1911 los magonistas tomaron Tijuana. Y luego llegaron los gringos a tomar tequila.',
-  'Mi abuelo dice que vio a Rita Hayworth en el Agua Caliente. Mi abuelo dice muchas cosas.',
-  'La ensalada César se inventó aquí, no en Italia. Apúntalo.',
-  'En la Ley Seca los gringos venían a la Revu a echarse lo que allá no podían.',
-  'Antes la línea se cruzaba en diez minutos. Ahora llévate lonche y cobija.',
-  // Sinaloa
-  '¿Eres de Culiacán? Aquí todos tenemos un primo de Sinaloa.',
-  'Media Tijuana es de Sinaloa y la otra media está esperando su raite pa\'llá.',
-  'Si oyes tambora a las 3 de la mañana es el vecino de Mazatlán celebrando que es martes.',
-  '¿Aguachile? Lo trajeron los sinaloenses y aquí nos lo quedamos, compa.',
-  // pochos
-  'Órale bro, ¿where queda la Revu? Mi abuela me mandó por unos tacos.',
-  'Bro, mi outfit es todo de la Ross: diez dólares y me veo de Fashion Valley.',
-  'Cruzo la línea diario, bro: con mi sueldo en San Diego nomás me alcanza para rentar un clóset.',
-  'Hablo spanglish bien fluent: "voy a la marketa por unas groceries y regreso pronto, ¿okay?"',
-  // deporte
-  '¡Xolos campeón 2012! Todavía no me quito la playera.',
-  '¡Vamos Toros! El beisbol aquí se vive con carne asada en el estacionamiento.',
-  'El Terrible Morales es de aquí, ¿eh? Respeta el barrio.',
-  'Aquí hasta la abuelita se sabe la alineación de los Xolos... y la critica.',
-  // inseguridad
-  'No dejes nada a la vista en el carro, ni el cargador del cel.',
-  'Aquí cuando te dicen "cuídate" no es despedida, es consejo.',
-  'Aquí el que no tiene alarma tiene perro, y el que no tiene perro, reza.',
-  // comida
-  'Los mejores tacos de adobada son los de la esquina... de cualquier esquina.',
-  'Si no has desayunado birria, ¿qué estás haciendo con tu vida?',
-  'Hot dog de la Revu a las 2 de la mañana: ese es el verdadero monumento de Tijuana.',
-  'Pescado en la mañana, adobada en la noche y carne asada el domingo. Así se vive aquí.',
-  'Pide un ceviche de carreta, el de la esquina no falla... casi nunca.',
-];
+// lo que te dice la gente cuando te le pegas caminando, agrupado por tema:
+// cada tema tiene su propio globo (ver .bubble en style.css)
+const FRASES = {
+  historia: [
+    'En 1911 los magonistas tomaron Tijuana. Y luego llegaron los gringos a tomar tequila.',
+    'Mi abuelo dice que vio a Rita Hayworth en el Agua Caliente. Mi abuelo dice muchas cosas.',
+    'La ensalada César se inventó aquí, no en Italia. Apúntalo.',
+    'En la Ley Seca los gringos venían a la Revu a echarse lo que allá no podían.',
+    'Antes la línea se cruzaba en diez minutos. Ahora llévate lonche y cobija.',
+    'Tijuana se fundó en 1889. Desde entonces estamos esperando que alguien termine las obras del bulevar.',
+    'El Casino Agua Caliente era lo más elegante del mundo. Luego Cárdenas lo cerró y nos quedamos con la torre y la nostalgia.',
+    'Dicen que el nombre viene de una tal Tía Juana que tenía un rancho. Nadie la conoció, pero todos la mencionan.',
+    'El Jai Alai lleva más de setenta años parado en la Revu. Ha visto más cosas que un taxista de la Sexta.',
+    'Los burros pintados de cebra de la Revu llevan casi cien años posando. Más fotos que cualquier influencer.',
+    'Antes el río Tijuana era río. Luego lo canalizaron y le pusimos Zona Río para que no se sintiera mal.',
+    'El Arco del Reloj se inauguró en el 2000. Hasta la fecha nadie sabe para qué lado da la hora.',
+  ],
+  sinaloa: [
+    '¿Eres de Culiacán? Aquí todos tenemos un primo de Sinaloa.',
+    'Media Tijuana es de Sinaloa y la otra media está esperando su raite pa\'llá.',
+    'Si oyes tambora a las 3 de la mañana es el vecino de Mazatlán celebrando que es martes.',
+    '¿Aguachile? Lo trajeron los sinaloenses y aquí nos lo quedamos, compa.',
+    'Compa, si ves una troca con la tambora a todo volumen, no es fiesta, es un miércoles normal.',
+    'Mi apá llegó de Los Mochis en el 85 "nomás por un rato". Aquí seguimos.',
+    'Aquí le decimos "plebe" a todo: al niño, al perro, al jefe y al que te chocó.',
+    'En Culiacán hace un calor que derrite. Aquí hace un frío que no entiendo. Extraño sudar.',
+    'Si tu tía no te ha ofrecido un chilorio de Sinaloa, no eres de la familia todavía.',
+    'Pa\' los sinaloenses Tijuana es como Culiacán, pero con gringos y neblina.',
+  ],
+  pocho: [
+    'Órale bro, ¿where queda la Revu? Mi abuela me mandó por unos tacos.',
+    'Bro, mi outfit es todo de la Ross: diez dólares y me veo de Fashion Valley.',
+    'Cruzo la línea diario, bro: con mi sueldo en San Diego nomás me alcanza para rentar un clóset.',
+    'Hablo spanglish bien fluent: "voy a la marketa por unas groceries y regreso pronto, ¿okay?"',
+    'Bro, I\'m like, super mexicano. Mi playlist es puro Peso Pluma.',
+    'Mi abuela me dice pocho, mis primos de LA me dicen paisa. Soy un bug de dos países.',
+    'Vengo a Tijuana por el dentista, los tacos y que la farmacia no me pida receta. Pura vida, bro.',
+    'Pagué con dólares y me dieron cambio en pesos, centavos y un chicle. Best deal ever.',
+    'Mi Spanish es bien rusty, pero mi taco order es fluent: "dos de adobada con todo, porfa".',
+    'Bro, ¿la Revu es safe? Le pregunté a un zonkey y no me contestó.',
+    'Rento en Chula Vista, trabajo en Otay, como en Tijuana y duermo en la línea. Life is good.',
+    'Mi tía dice que el chipotle de Chipotle no es chipotle. Creo que tiene razón.',
+  ],
+  deporte: [
+    '¡Xolos campeón 2012! Todavía no me quito la playera.',
+    '¡Vamos Toros! El beisbol aquí se vive con carne asada en el estacionamiento.',
+    'El Terrible Morales es de aquí, ¿eh? Respeta el barrio.',
+    'Aquí hasta la abuelita se sabe la alineación de los Xolos... y la critica.',
+    'El Estadio Caliente tiene pasto artificial. Igual que mis promesas de ir al gimnasio.',
+    'Los Xolos se llaman así por un perro sin pelo. Representa al aficionado después de la quincena.',
+    'En la Perrera no se canta, se ladra. Y se ladra bonito.',
+    'Los Toros han sido campeones de la Liga Mexicana. Yo nomás he sido campeón de comer dogos.',
+    'Aquí salen buenos boxeadores porque desde morro aprendes a esquivar baches.',
+    'Fui a ver a los Zonkeys y salí más cansado que los jugadores. Puro gritar.',
+  ],
+  inseguridad: [
+    'No dejes nada a la vista en el carro, ni el cargador del cel.',
+    'Aquí cuando te dicen "cuídate" no es despedida, es consejo.',
+    'Aquí el que no tiene alarma tiene perro, y el que no tiene perro, reza.',
+    'Si te ofrecen un iPhone en 500 pesos en la Sexta, no es oferta, es examen de ética.',
+    'Mi carro tiene volante con candado, alarma, GPS y una estampita de San Judas. Por si acaso.',
+    'Aquí le pones el seguro a la puerta antes que el cinturón.',
+    'Mi vecino tiene tres perros, dos cámaras y una suegra en la ventana. Nadie se le acerca.',
+    'El viene-viene te cuida el carro. ¿De quién? No preguntes.',
+  ],
+  comida: [
+    'Los mejores tacos de adobada son los de la esquina... de cualquier esquina.',
+    'Si no has desayunado birria, ¿qué estás haciendo con tu vida?',
+    'Hot dog de la Revu a las 2 de la mañana: ese es el verdadero monumento de Tijuana.',
+    'Pescado en la mañana, adobada en la noche y carne asada el domingo. Así se vive aquí.',
+    'Pide un ceviche de carreta, el de la esquina no falla... casi nunca.',
+    'La dieta tijuanense: tacos de adobada, luego de asada, luego de tripa y luego arrepentimiento.',
+    '¿Que el taco de canasta te cayó mal? No, mijo, tú le caíste mal al taco.',
+    'En la Telefónica venden comida gourmet en contenedores. Tijuana es la única ciudad que recicla así.',
+    'Los dogos de la Revu a las tres de la mañana saben a gloria y a malas decisiones.',
+    'Si la taquería no tiene salsa de aguacate aguada, no es taquería, es restaurante.',
+    'Mi abuela le pone queso a todo. El otro día le puso queso al café.',
+    'Aquí al Baja Med lo inventaron chefs. Mi tía lo inventó antes, pero no le puso nombre.',
+    'El taquero me recuerda aunque nunca le he dicho mi nombre. "¿Lo de siempre, güero?" Es amor.',
+    'Las Ahumaderas: el único callejón donde quieres que te sigan. Con más tacos.',
+    'Me dijeron que comer en la calle es peligroso. Llevo treinta años de peligro y estoy feliz.',
+  ],
+  filosofia: [
+    'La línea es como la vida: larga, lenta, y al final te preguntan qué traes.',
+    'Nadie es de Tijuana, pero todos acabamos siendo de aquí. Así funciona la ciudad.',
+    'Somos la esquina de Latinoamérica. Todo lo que pasa en el continente termina aquí esperando el semáforo.',
+    'Si un bache se hace en la Vía Rápida y nadie lo reporta, ¿existe? Sí. Siempre existe.',
+    'La neblina de la mañana te enseña que el futuro no se ve, pero igual hay que manejar.',
+    '¿Ya te diste cuenta de que caminas en círculos? Yo también. Por eso me compré tenis.',
+    'El dinero va y viene. Sobre todo va. Pa\'l otro lado de la línea, generalmente.',
+    'Todos traemos una calafia por dentro: vamos llenos, rápido y sin saber dónde paramos.',
+    'El tiempo es relativo: cinco minutos en la línea son tres horas.',
+    'Uno no escoge Tijuana. Tijuana te escoge, te cobra la renta y te quedas.',
+    'La felicidad es un taco de adobada en una banqueta, sin prisa y con salsa que pica tantito.',
+    'Si la vida te da limones, pídele sal y un clamato.',
+    'El que nace pa\' tamal, del cielo le caen hojas. El que nace pa\' taco, igual pide uno.',
+    'Pienso, luego existo. Pienso en tacos, luego existo con hambre.',
+    'Nadie sabe para quién trabaja. Yo trabajo para el casero y la gasolinera.',
+    'Somos polvo de estrellas, o sea, polvo de la Libertad un día de Santa Ana.',
+    'El cerro Colorado está ahí desde antes que nosotros y seguirá después. Respeto.',
+    'Uno nunca termina de llegar a Tijuana. Siempre hay alguien que llegó después y te pregunta cómo llegar.',
+    'La vida es un semáforo en amarillo: todos aceleramos y nadie sabe por qué.',
+    'Los muros dividen, pero los tacos unen. Del otro lado también hay taquerías, pero no es lo mismo.',
+    'Dicen que el que se va de Tijuana siempre regresa. Yo nunca me fui y aquí sigo regresando.',
+    'Mi abuela dice que la paciencia es una virtud. Ella nunca cruzó por San Ysidro un domingo.',
+    'Somos lo que comemos. Por eso huelo a carbón.',
+    'La vida no tiene manual, pero tiene viene-viene que te dice "dale, dale, dale".',
+    'Cada bache es un recordatorio de que nada es perfecto, ni siquiera el pavimento recién hecho.',
+  ],
+  cuartapared: [
+    'Oye, ¿tú también sientes que alguien nos controla con un joystick?',
+    'Solo existo cuando estás cerca. Cuando te vas me borran de la memoria. Así que no te vayas.',
+    'Llevo caminando la misma cuadra desde que abriste el juego. Ayúdame.',
+    'Si me atropellas no tengo respawn, ¿eh? Bueno, sí tengo, pero duele igual.',
+    'Psst, la comida china te quita dinero. Lo sé porque me lo dijo el programador.',
+    '¿Por qué todos te hablan cuando te pegas? Porque así nos programaron, compa. No es personal.',
+    'Esa flecha verde que ves… yo no la veo. Pero te tengo envidia.',
+    'Mi diálogo son solo unas frases. Tú tienes un mapa entero. Qué injusto.',
+    'Corre a 60 cuadros por segundo. Yo a ocho cuadros de animación. Y aun así llego.',
+    'Te vi robarte ese taxi. No diré nada porque no tengo esa función.',
+    'Si cierras la app, ¿a dónde vamos todos? Nadie me ha contestado nunca.',
+    'Eres el único que tiene camisa amarilla. Sospechoso.',
+    'Dicen que antes el juego se veía borroso. Yo me veía horrible. Ahora tengo cinco veces más pixeles.',
+    'No me toques el globo de texto, que me tardaron en hacerlo bonito.',
+    'Juego de una ciudad real, con tacos reales, y yo… yo soy inventado. Ay.',
+    'Si me estás leyendo, ya caminaste demasiado cerca. Respeta mi espacio personal.',
+    'Cada vez que reinicias la partida, me olvido de todo. Es como un lunes.',
+    'El tráfico tiene un límite de autos. Por eso nunca hay tanto como en la vida real.',
+    'Hola, soy un NPC. Mi sueño es tener una misión. Aunque sea entregar tamales.',
+    'Me dijeron que estoy hecho de vectores y JavaScript. Mi mamá dice que de amor.',
+    'Si te sales del mapa no hay nada. Bueno, está San Diego, pero no lo cargaron.',
+    'El minimapa sabe dónde estás. Yo no sé ni dónde estoy yo.',
+    'Mira, si vas a seguir dando vueltas para escuchar todas las frases, son ciento cincuenta. Ánimo.',
+    'Ya sé que estás jugando en el celular. Se te nota en el pulgar.',
+    'Detrás de cada peatón hay un programador desvelado. Valóranos.',
+  ],
+  linea: [
+    'San Ysidro es la garita más transitada del hemisferio. Y yo siempre en el carril más lento.',
+    'En la línea venden churros, piñatas, Cristos de yeso y cobijas. Si tardas mucho, sales con casa amueblada.',
+    'Tengo SENTRI, pero igual me revisan. Será la cara.',
+    '¿Qué traes? Nada. ¿Nada? Nada. ¿Y esa piñata? Ah, eso sí.',
+    'La línea de los domingos es tan larga que te da tiempo de hacerte ciudadano… mexicano otra vez.',
+    'Crucé caminando por la PedWest y me sentí atleta olímpico. Tres horas de maratón.',
+    'Mi carro conoce la línea mejor que yo. Ya se apaga solo cuando llegamos.',
+    'Por el CBX cruzas a pie al aeropuerto. Es como teletransportarse, pero cobrando.',
+    'En la fila de Otay conocí a mi novia. Veníamos en el carril de al lado durante dos horas.',
+    'El oficial me preguntó a qué iba. Le dije "a Costco". Me dejó pasar con respeto.',
+    'La Ready Lane no es ready. Es "ya casi". Igual que todo en la vida.',
+    'Vivo aquí, trabajo allá, pago la gasolina en dos monedas. Soy un experto en tipo de cambio.',
+    'Hay gente que cruza diario a estudiar. Para mí ya eso cuenta como doctorado.',
+    'Si oyes "¡Agua, chicles, churros!" en tu cabeza al dormir, ya eres local.',
+    'La línea es el único lugar donde te alegras de ver a un vendedor de Cristos.',
+  ],
+  barrio: [
+    'Súbete a una calafia y aprendes geometría: cómo meter treinta personas en un espacio para quince.',
+    'El taxi de ruta no se para. Tú te subes en movimiento y rezas.',
+    'Cuando llueve en Tijuana, la Vía Rápida se vuelve el río que antes le quitamos.',
+    'Con los vientos de Santa Ana todo el mundo anda despeinado y de mal humor. Hasta los perros.',
+    'En el Mercado Hidalgo compras tamarindo, piñatas y te enteras de todos los chismes de la colonia.',
+    'El Pasaje Rodríguez antes estaba vacío. Ahora tiene galerías, café de especialidad y morros con lentes.',
+    '¿Que dónde vivo? Arriba del cerro, a la izquierda del otro cerro, enfrente del cerro.',
+    'En Playas de Tijuana puedes ver el mar y el muro al mismo tiempo. Postal agridulce.',
+    'Aquí todo está a quince minutos. Sin tráfico. O sea, a una hora.',
+    'Mi colonia tiene nombre de presidente, mi calle de poeta y mi bache de leyenda.',
+    'El que no ha ido a una carne asada en la cochera de un desconocido, no ha vivido Tijuana.',
+    'Aquí el "ahorita" puede ser en cinco minutos o en cinco años. Depende del humor.',
+    'En la Sexta los viernes hay más gente que en un concierto. Y mejor música.',
+    'Los perros callejeros de la Revu tienen más estilo que yo. Uno trae paliacate.',
+    'Cuando dices "voy al centro" en Tijuana, tu mamá te dice "cuídate" tres veces.',
+    'En el sobre ruedas encuentras desde un tornillo hasta un sillón de los setenta. Yo compré los dos.',
+    'Si escuchas a alguien decir "ahí nos vidrios", ya estás en confianza.',
+    'La Mona sigue en la colonia Aeropuerto, desnuda y feliz. Más feliz que yo, seguro.',
+  ],
+};
+const FRASES_PEATON = Object.entries(FRASES).flatMap(([k, list]) => list.map(t => ({ k, t })));
 const FRASES_TOPE = [
   '¡Tope!', '¡Ese tope no venía en el mapa!', '¡Aguas con el tope!', '¡Adiós suspensión!',
   '¡Ese tope lo puso el taller de enfrente!', '¡Se me salió el hígado!', '¡Uy, el escape se quedó atrás!',
@@ -725,7 +945,14 @@ const $ = (id) => document.getElementById(id);
 const hud = { money: $('money'), counts: $('counts'), obj: $('obj'), street: $('street'), toast: $('toast'), timer: $('timer'), arrow: $('arrow'), mini: $('mini') };
 $('credit').textContent = D.src;
 let toastT = 0, streetT = 0, lastStreet = '';
-function toast(title, body, secs) { hud.toast.innerHTML = '<b></b><span></span>'; hud.toast.firstChild.textContent = title; hud.toast.lastChild.textContent = body || ''; hud.toast.style.opacity = 1; toastT = secs || 3.5; }
+// la columna de avisos va entre el panel de dinero y el minimapa; si no cabe ahi (pantalla angosta), debajo de los dos.
+// Se recalcula cada vez que aparece un aviso porque el panel cambia de ancho con el texto
+function layoutTop() {
+  const t = $('topmsg').style, st = $('stats').getBoundingClientRect(), mi = hud.mini.getBoundingClientRect();
+  if (mi.left - st.right >= 220) { t.left = (st.right + 12) + 'px'; t.right = (window.innerWidth - mi.left + 12) + 'px'; t.top = '10px'; }
+  else { t.left = '12px'; t.right = '12px'; t.top = (Math.max(st.bottom, mi.bottom) + 8) + 'px'; }
+}
+function toast(title, body, secs) { layoutTop(); hud.toast.innerHTML = '<b></b><span></span>'; hud.toast.firstChild.textContent = title; hud.toast.lastChild.textContent = body || ''; hud.toast.classList.add('on'); toastT = secs || 3.5; }
 // sonido de dinero: se compara contra el ultimo saldo mostrado (bigSound = fanfarria en vez de monedas)
 let lastMoney = state.money, bigSound = false;
 function updateStats() {
@@ -916,8 +1143,8 @@ function vehicleTexture(scene, ti, ci, d) {
   const key = 'v' + ti + '_' + ci + '_' + d;
   if (scene.textures.exists(key)) return key;
   const T = VTYPES[ti], L = T.L, W = T.W;
-  const t = scene.textures.createCanvas(key, (L + 5) * 2, (W + 5) * 2), x = t.getContext();
-  x.scale(2, 2); x.translate(1, 1);
+  const t = scene.textures.createCanvas(key, (L + 5) * SPR, (W + 5) * SPR), x = t.getContext();
+  x.scale(SPR, SPR); x.translate(1, 1);
   const dirty = d > 0, base = T.cols[ci];
   // la pintura sucia se ve deslavada y opaca
   const col = dirty ? mixc(base, '#8a7d6a', 0.32) : base;
@@ -977,8 +1204,8 @@ const SHIRTS = ['#d35400', '#2980b9', '#27ae60', '#8e44ad', '#c0392b', '#ecf0f1'
 function makeTextures(scene) {
   makeMoto(scene); makeTaxi(scene); makePolice(scene); makeTacoStands(scene); makeCafes(scene); makeChinas(scene); makeEggs(scene); makeScorch(scene);
   // personas vistas desde arriba, mirando a la derecha; 8 cuadros de caminata (el cuadro 0 es parado).
-  // Se dibujan al doble de resolucion y el sprite se muestra a escala 0.5 para que se vean nitidas.
-  const PF = PED_FRAME * 2, SKIN = ['#c68e5f', '#a8714a', '#e0b08a', '#8d5a36'], PANTS = ['#2c3e66', '#3b3b3b', '#5a4632', '#1f2a38'];
+  // Se dibujan a SPR veces la resolucion y el sprite se muestra a escala 1 / SPR para que se vean nitidas.
+  const PF = PED_FRAME * SPR, SKIN = ['#c68e5f', '#a8714a', '#e0b08a', '#8d5a36'], PANTS = ['#2c3e66', '#3b3b3b', '#5a4632', '#1f2a38'];
   SHIRTS.concat(['#ffd23f']).forEach((c, i) => {
     const player = i === SHIRTS.length;
     const t = scene.textures.createCanvas('ped' + i, PF * 8, PF), x = t.getContext();
@@ -987,7 +1214,7 @@ function makeTextures(scene) {
     x.lineCap = 'round';
     for (let f = 0; f < 8; f++) {
       const sw = Math.sin(f / 8 * Math.PI * 2);
-      x.save(); x.translate(f * PF + PF / 2, PF / 2); x.scale(2, 2);
+      x.save(); x.translate(f * PF + PF / 2, PF / 2); x.scale(SPR, SPR);
       x.fillStyle = 'rgba(0,0,0,0.25)'; x.beginPath(); x.ellipse(1.2, 1.2, 4.5, 6.5, 0, 0, 7); x.fill();
       // piernas con zapatos: una adelante y otra atras
       for (const side of [-1, 1]) {
@@ -1022,11 +1249,11 @@ function makeTextures(scene) {
 }
 const PLAYER_SHIRT = SHIRTS.length;
 // taxi libre clasico de Tijuana: guayin roja con franjas negras y crema.
-// Se dibuja al doble de resolucion y el sprite va a escala 0.5.
-// moto de repartidor vista desde arriba con su caja termica, a doble resolucion
+// Se dibuja a SPR veces la resolucion y el sprite va a escala 1 / SPR.
+// moto de repartidor vista desde arriba con su caja termica, a SPR veces la resolucion
 function makeMoto(scene) {
-  const t = scene.textures.createCanvas('moto', 52, 28), x = t.getContext();
-  x.scale(2, 2);
+  const t = scene.textures.createCanvas('moto', 26 * SPR, 14 * SPR), x = t.getContext();
+  x.scale(SPR, SPR);
   x.fillStyle = 'rgba(0,0,0,0.3)'; x.beginPath(); x.ellipse(14, 8.5, 11, 4, 0, 0, 7); x.fill();
   // llantas y cuerpo
   x.fillStyle = '#111'; x.fillRect(19, 5.8, 5, 2.4); x.fillRect(1.5, 5.8, 5, 2.4);
@@ -1048,8 +1275,8 @@ const VT_POLI = { name: 'Patrulla', L: 38, W: 17, top: 245, acc: 125, steer: 2.4
 function makePolice(scene) {
   const L = 38, W = 17, NAVY = '#1b2f6b';
   for (const f of [0, 1]) {
-    const t = scene.textures.createCanvas('poli' + f, (L + 5) * 2, (W + 5) * 2), x = t.getContext();
-    x.scale(2, 2); x.translate(1, 1);
+    const t = scene.textures.createCanvas('poli' + f, (L + 5) * SPR, (W + 5) * SPR), x = t.getContext();
+    x.scale(SPR, SPR); x.translate(1, 1);
     drawVehicle(x, 2, '#f2f2f2', false);
     // cofre azul con franja blanca y compuerta azul
     x.fillStyle = NAVY; x.beginPath(); x.roundRect(29.6, 0, L - 29.6, W, [0, 3.5, 3.5, 0]); x.fill();
@@ -1068,8 +1295,8 @@ function makePolice(scene) {
   }
 }
 function makeTaxi(scene) {
-  const t = scene.textures.createCanvas('taxi', 80, 38), x = t.getContext();
-  x.scale(2, 2);
+  const t = scene.textures.createCanvas('taxi', 40 * SPR, 19 * SPR), x = t.getContext();
+  x.scale(SPR, SPR);
   const L = 37, W = 16, RED = '#c62828', CREAM = '#efe3c2', BLACK = '#151515';
   x.fillStyle = 'rgba(0,0,0,0.35)'; x.fillRect(3, 3, L, W);
   x.fillStyle = RED; x.beginPath(); x.roundRect(0, 0, L, W, 3.5); x.fill();
@@ -1467,22 +1694,22 @@ class Main extends Phaser.Scene {
     this.marks = [];
     for (const l of landmarks) {
       const ring = this.add.image(l.x, l.y, 'ring').setDepth(3).setTint(0xffd23f).setAlpha(0.8);
-      const star = this.add.text(l.x, l.y, '★', { fontSize: '30px', color: '#ffd23f', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5).setDepth(20);
-      const label = this.add.text(l.x, l.y - 34, l.name, { fontSize: '15px', fontStyle: 'bold', color: '#fff', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5).setDepth(20);
+      const star = this.add.text(l.x, l.y, '★', { fontSize: '30px', color: '#ffd23f', stroke: '#000', strokeThickness: 4, resolution: TXT_RES }).setOrigin(0.5).setDepth(20);
+      const label = this.add.text(l.x, l.y - 34, l.name, { fontSize: '15px', fontStyle: 'bold', color: '#fff', stroke: '#000', strokeThickness: 4, resolution: TXT_RES }).setOrigin(0.5).setDepth(20);
       this.marks.push({ l, ring, star, label });
     }
     for (const t of tacos) {
       const [sx, sy, rot] = sidewalkSpot(t.x, t.y);
       t.x = sx; t.y = sy;
       t.icon = this.add.image(t.x, t.y, 'puesto' + (hash(t.name.length * 31 + (t.x | 0)) % LONAS.length)).setScale(0.55).setRotation(rot).setDepth(6);
-      t.label = this.add.text(t.x, t.y - 26, t.name, { fontSize: '12px', color: '#ffe0a0', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5).setDepth(19);
+      t.label = this.add.text(t.x, t.y - 26, t.name, { fontSize: '12px', color: '#ffe0a0', stroke: '#000', strokeThickness: 3, resolution: TXT_RES }).setOrigin(0.5).setDepth(19);
     }
     for (const c of cafes) {
       // el toldo queda pegado a la fachada, del lado de la banqueta que da al edificio
       const [sx, sy, rot] = sidewalkSpot(c.x, c.y, (SIDEWALK + 0.5) * M + 2);
       c.x = sx; c.y = sy;
       c.icon = this.add.image(c.x, c.y, 'cafe' + (hash(c.name.length * 17 + (c.x | 0)) % TOLDOS.length)).setScale(0.55).setRotation(rot).setDepth(6);
-      c.label = this.add.text(c.x, c.y - 24, c.name, { fontSize: '12px', color: '#e8d2b5', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5).setDepth(19);
+      c.label = this.add.text(c.x, c.y - 24, c.name, { fontSize: '12px', color: '#e8d2b5', stroke: '#000', strokeThickness: 3, resolution: TXT_RES }).setOrigin(0.5).setDepth(19);
     }
     for (const c of chinas) {
       // la entrada (punta de la alfombra) queda en la banqueta; el local se mete hacia el edificio
@@ -1492,7 +1719,7 @@ class Main extends Phaser.Scene {
       c.up = Math.cos(rot) < -0.3 ? 'u' : '';
       c.icon = this.add.image(sx - bx * 30, sy - by * 30, 'antro0' + c.up).setScale(0.6).setRotation(rot).setDepth(6);
       const hh = Math.abs(Math.cos(rot)) * 40 + Math.abs(Math.sin(rot)) * 54;
-      c.label = this.add.text(c.icon.x, c.icon.y - hh - 8, c.name, { fontSize: '12px', color: '#ff8a80', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5).setDepth(19);
+      c.label = this.add.text(c.icon.x, c.icon.y - hh - 8, c.name, { fontSize: '12px', color: '#ff8a80', stroke: '#000', strokeThickness: 3, resolution: TXT_RES }).setOrigin(0.5).setDepth(19);
     }
     for (const e of EGGS) {
       const [sx, sy, rot] = sidewalkSpot(e.x, e.y, (SIDEWALK + 0.5) * M);
@@ -1501,11 +1728,10 @@ class Main extends Phaser.Scene {
     }
     this.stamina = STAMINA; this.tired = false; this.burning = [];
     this.chatDeck = []; this.chatCool = 0;
-    this.bubble = this.add.text(0, 0, '', { fontSize: '8px', fontFamily: 'Inter, system-ui, sans-serif', color: '#1a1a1a', backgroundColor: '#fffdf4', padding: { x: 4, y: 3 }, resolution: 3,
-      wordWrap: { width: 130 }, align: 'center' }).setOrigin(0.5, 1).setDepth(22).setVisible(false);
-    this.bubble.ped = null;
+    this.bubble = { el: $('bubble'), ped: null, t: 0 };
     this.staminaBar = this.add.graphics().setDepth(20);
     this.target = this.add.image(0, 0, 'ring').setDepth(4).setTint(0x57d16b).setVisible(false);
+    this.routeG = this.add.graphics().setDepth(3); this.route = null; this.routeT = 0;
 
     // el jugador aparece en una calle al azar, en la banqueta y con un auto estacionado al lado
     let pos, side;
@@ -1517,7 +1743,7 @@ class Main extends Phaser.Scene {
       pos = edgePos(e, sAt, 1, laneLat(e, e.one ? 3 : 1), {});
       if (!blocked(side.x, side.y) && side.y > borderY(side.x) + 150) break;
     }
-    this.player = { x: side.x, y: side.y, a: pos.a, sprite: this.add.sprite(side.x, side.y, 'ped' + PLAYER_SHIRT, 0).setDepth(12).setScale(0.5) };
+    this.player = { x: side.x, y: side.y, a: pos.a, sprite: this.add.sprite(side.x, side.y, 'ped' + PLAYER_SHIRT, 0).setDepth(12).setScale(1 / SPR) };
     const car = this.makeCar(pos.x, pos.y, pos.a, { taxi: true });
     this.parked.push(car);
     this.inCar = null;
@@ -1532,11 +1758,11 @@ class Main extends Phaser.Scene {
     setupBigMap(this);
   }
 
-  baseZoom() { return Math.min(window.innerWidth, window.innerHeight) < 600 ? 1.45 : 1.8; } // antes 1.15 y 1.4
+  baseZoom() { return (Math.min(window.innerWidth, window.innerHeight) < 600 ? 1.45 : 1.8) * DPR; } // antes 1.15 y 1.4
 
   walker(x, y, rate) {
     const i = (Math.random() * SHIRTS.length) | 0;
-    const s = this.add.sprite(x, y, 'ped' + i, 0).setDepth(5).setScale(0.5);
+    const s = this.add.sprite(x, y, 'ped' + i, 0).setDepth(5).setScale(1 / SPR);
     s.play({ key: 'walk' + i, startFrame: (Math.random() * 8) | 0 }); s.anims.timeScale = rate;
     return s;
   }
@@ -1554,7 +1780,15 @@ class Main extends Phaser.Scene {
     const sp = o && o.T ? o : this.carSpec(o), T = sp.T, f = sp.dirty ? 0.7 : 1;
     return { x, y, a, vx: 0, vy: 0, T, dirty: sp.dirty, moto: T === VT_MOTO, poli: T === VT_POLI, hp: Math.round(T.hp * f), maxHp: Math.round(T.hp * f),
       top: T.top * (sp.dirty ? 0.92 : 1), acc: T.acc * (sp.dirty ? 0.9 : 1), hl: T.L / 2 - 1, hw: T.W / 2 - 1,
-      sprite: this.add.image(x, y, sp.key).setOrigin(sp.ox, sp.oy).setRotation(a).setDepth(10).setScale(0.5) };
+      sprite: this.add.image(x, y, sp.key).setOrigin(sp.ox, sp.oy).setRotation(a).setDepth(10).setScale(1 / SPR) };
+  }
+
+  // golpe: en la PC se sacude la camara; en el celular el sacudon se ve raro y mejor vibra el telefono
+  jolt(ms, amount) {
+    if (!document.body.classList.contains('touch')) { this.cameras.main.shake(ms, amount); return; }
+    const H = window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.Haptics;
+    if (H) H.impact({ style: amount >= 0.01 ? 'HEAVY' : amount >= 0.005 ? 'MEDIUM' : 'LIGHT' }).catch(() => {});
+    else if (navigator.vibrate) navigator.vibrate(Math.round(ms * Math.min(1, amount * 120)));
   }
 
   // ----- trozos -----
@@ -1572,11 +1806,11 @@ class Main extends Phaser.Scene {
     for (const [cx, cy] of want) {
       const k = cx + ',' + cy, tk = 'ch' + k;
       this.textures.addCanvas(tk, drawChunk(cx, cy));
-      this.chunks.set(k, this.add.image(cx * CHUNK - 1, cy * CHUNK - 1, tk).setOrigin(0).setDepth(0));
+      this.chunks.set(k, this.add.image(cx * CHUNK - 1, cy * CHUNK - 1, tk).setOrigin(0).setDepth(0).setScale(1 / RES));
     }
     for (const [k, img] of this.chunks) {
       const [cx, cy] = k.split(',').map(Number);
-      if (cx < cx0 - 4 || cx > cx1 + 4 || cy < cy0 - 4 || cy > cy1 + 4) { img.destroy(); this.textures.remove('ch' + k); this.chunks.delete(k); }
+      if (cx < cx0 - 2 || cx > cx1 + 2 || cy < cy0 - 2 || cy > cy1 + 2) { img.destroy(); this.textures.remove('ch' + k); this.chunks.delete(k); }
     }
   }
 
@@ -1651,6 +1885,7 @@ class Main extends Phaser.Scene {
     this.spawnT -= dt; if (this.spawnT <= 0) { this.populate(false); this.spawnT = 0.25; }
     this.checkActivities(dt, f, sp);
     this.updateMarkers(time, f);
+    this.updateRoute(time, dt, f);
     this.updateHud(dt, f);
   }
 
@@ -1732,7 +1967,7 @@ class Main extends Phaser.Scene {
       else { car.vx *= -0.3; car.vy *= -0.3; }
       if (hitObj && hitObj.poli && car === this.inCar) this.hitPoli(speed);
       if (speed > 110) {
-        this.cameras.main.shake(120, Math.min(0.012, speed / 30000));
+        this.jolt(120, Math.min(0.012, speed / 30000));
         if (car === this.inCar && window.SND) SND.play('crash', speed / 250);
         car.hp -= speed / 14;
         if (car.hp <= 0 && !broken) { this.wreck(car); toast('¡Auto deshuesado!', 'Bájate con E y roba otro.'); }
@@ -1748,11 +1983,11 @@ class Main extends Phaser.Scene {
     if (onTope && !car.onTope) {
       const sp = Math.hypot(car.vx, car.vy);
       if (sp > 90) {
-        this.cameras.main.shake(180, Math.min(0.014, sp / 22000));
+        this.jolt(180, Math.min(0.014, sp / 22000));
         if (car === this.inCar && window.SND) SND.play('crash', 0.2);
         car.vx *= 0.55; car.vy *= 0.55; car.hp -= sp / 45;
         if (Math.random() < 0.6) toast(pick(FRASES_TOPE), '', 1.6);
-      } else if (sp > 25) this.cameras.main.shake(90, 0.003);
+      } else if (sp > 25) this.jolt(90, 0.003);
     }
     car.onTope = onTope;
     // baches: solo al jugador le duelen (los demas ya se los saben de memoria)
@@ -1764,7 +1999,7 @@ class Main extends Phaser.Scene {
         if (sp > 30) {
           const dmg = (car.moto ? 1.5 : 1) * (inB.r / 9) * (4 + sp / 18);
           car.hp -= dmg; car.vx *= 0.8; car.vy *= 0.8;
-          this.cameras.main.shake(160, Math.min(0.012, sp / 20000));
+          this.jolt(160, Math.min(0.012, sp / 20000));
           if (window.SND) SND.play('crash', 0.35);
           toast('🕳️ ' + pick(FRASES_BACHE), 'Tu auto: -' + Math.round(dmg) + ' de vida', 2);
           if (car.hp <= 0 && !broken) { this.wreck(car); toast('¡Auto deshuesado!', 'El bache ganó. Bájate con E y roba otro.'); }
@@ -1788,7 +2023,7 @@ class Main extends Phaser.Scene {
     const fx = this.add.circle(car.x, car.y, 10, 0xffb030, 0.9).setDepth(17).setBlendMode(Phaser.BlendModes.ADD);
     this.tweens.add({ targets: fx, scale: 4, alpha: 0, duration: 450, onComplete: () => fx.destroy() });
     for (let i = 0; i < 10; i++) this.flame(car.x + rnd(-8, 8), car.y + rnd(-8, 8), 1.8);
-    this.cameras.main.shake(300, 0.012);
+    this.jolt(300, 0.012);
     if (window.SND) SND.play('boom');
   }
   flame(x, y, big = 1) {
@@ -1931,7 +2166,7 @@ class Main extends Phaser.Scene {
           me.x += nx * (R - d); me.y += ny * (R - d);
           const vn = me.vx * nx + me.vy * ny; if (vn < 0) { me.vx -= 1.4 * vn * nx; me.vy -= 1.4 * vn * ny; }
           if (o.poli) this.hitPoli(sp);
-          if (sp > 120) { this.cameras.main.shake(100, 0.006); me.hp -= sp / 25; o.speed = 0; }
+          if (sp > 120) { this.jolt(100, 0.006); me.hp -= sp / 25; o.speed = 0; }
         }
       }
     }
@@ -1942,11 +2177,11 @@ class Main extends Phaser.Scene {
     const csp = car ? Math.hypot(car.vx, car.vy) : 0;
     for (const p of this.peds) {
       if (p.st === 'down') {
-        p.t -= dt; if (p.t <= 0) { p.st = 'flee'; p.t = 5; p.sprite.setScale(0.5).clearTint(); p.sprite.anims.resume(); p.sprite.anims.timeScale = 2.2; }
+        p.t -= dt; if (p.t <= 0) { p.st = 'flee'; p.t = 5; p.sprite.setScale(1 / SPR).clearTint(); p.sprite.anims.resume(); p.sprite.anims.timeScale = 2.2; }
         continue;
       }
       if (car && csp > 50 && axisDist(p.x, p.y, car) < car.hw + 3) {
-        p.st = 'down'; p.t = 2.5; p.sprite.setScale(0.6, 0.3).setTint(0xaaaaaa); p.sprite.anims.pause();
+        p.st = 'down'; p.t = 2.5; p.sprite.setScale(1.2 / SPR, 0.6 / SPR).setTint(0xaaaaaa); p.sprite.anims.pause();
         if (Math.random() < 0.7) toast(pick(FRASES_ATROPELLO), '', 1.8);
         continue;
       }
@@ -1972,8 +2207,8 @@ class Main extends Phaser.Scene {
     this.chatCool -= dt;
     if (b.ped) {
       b.t -= dt;
-      b.setPosition(b.ped.x, b.ped.y - 16);
-      if (b.t <= 0 || b.ped.st === 'down' || dist(b.ped.x, b.ped.y, this.player.x, this.player.y) > 140) { b.ped = null; b.setVisible(false); }
+      this.placeBubble();
+      if (b.t <= 0 || b.ped.st === 'down' || dist(b.ped.x, b.ped.y, this.player.x, this.player.y) > 140) { b.ped = null; b.el.classList.remove('on'); }
     }
     if (this.inCar || this.chatCool > 0) return;
     const pl = this.player;
@@ -1981,10 +2216,24 @@ class Main extends Phaser.Scene {
       if (p.st !== 'walk' || p.talked || dist(p.x, p.y, pl.x, pl.y) > 14) continue;
       if (!this.chatDeck.length) this.chatDeck = Phaser.Utils.Array.Shuffle(FRASES_PEATON.slice());
       p.talked = true; b.ped = p; b.t = 4.5; this.chatCool = 2.5;
-      b.setText(this.chatDeck.pop()).setPosition(p.x, p.y - 16).setVisible(true);
+      const fr = this.chatDeck.pop();
+      b.el.className = 'hud bubble ' + fr.k;
+      b.el.textContent = fr.t;
+      // cada globo sale un poco chueco, como de historieta
+      b.el.style.setProperty('--tilt', (Math.random() * 5 - 2.5).toFixed(1) + 'deg');
+      this.placeBubble();
+      void b.el.offsetWidth; b.el.classList.add('on'); // reinicia la animacion de entrada
       if (window.SND) SND.play('chat');
       break;
     }
+  }
+
+  // el globo es HTML: se coloca sobre la cabeza del peaton pasando de coordenadas del mundo a pixeles CSS
+  placeBubble() {
+    const b = this.bubble, cam = this.cameras.main, v = cam.worldView, k = cam.zoom / DPR;
+    const hw = b.el.offsetWidth / 2 + 8; // que no se salga por los lados
+    b.el.style.left = Math.max(hw, Math.min(window.innerWidth - hw, (b.ped.x - v.x) * k)) + 'px';
+    b.el.style.top = ((b.ped.y - 10 - v.y) * k) + 'px';
   }
 
   // ----- actividades -----
@@ -2090,7 +2339,7 @@ class Main extends Phaser.Scene {
       if (!blocked(q.x, q.y)) spot = q;
     }
     if (!spot) { toast('No hay pasaje por aquí', 'Intenta en otra calle.'); return; }
-    const ped = this.add.sprite(spot.x, spot.y, 'ped0', 0).setDepth(6).setScale(0.5);
+    const ped = this.add.sprite(spot.x, spot.y, 'ped0', 0).setDepth(6).setScale(1 / SPR);
     this.taxi = { phase: 'pick', x: spot.x, y: spot.y, ped };
     toast('Taxi libre', 'Recoge al pasajero marcado en verde.', 2.5);
     this.setObjective();
@@ -2117,6 +2366,32 @@ class Main extends Phaser.Scene {
     return null;
   }
 
+  // camino al objetivo: puntos verdes tenues sobre las calles que avanzan hacia el destino
+  updateRoute(time, dt, f) {
+    const g = this.goal(), gr = this.routeG;
+    gr.clear();
+    if (!g || dist(g.x, g.y, f.x, f.y) < 40) { this.route = null; return; }
+    // se recalcula seguido (te sales del camino, el pasajero ya subio...) pero no en cada cuadro
+    this.routeT -= dt;
+    if (this.routeT <= 0 || !this.route || this.routeGoal !== g || this.routeGX !== g.x || this.routeGY !== g.y) {
+      this.routeT = 0.5; this.routeGoal = g; this.routeGX = g.x; this.routeGY = g.y;
+      this.route = findRoute(f.x, f.y, g.x, g.y);
+    }
+    const r = this.route; if (!r) return;
+    const v = this.cameras.main.worldView, SP = 14, M0 = 20;
+    gr.fillStyle(0x57d16b, 0.32);
+    // los puntos se recorren hacia el destino; los primeros pixeles se saltan para no tapar al jugador
+    let d = 18 + (time / 1000 * 22) % SP, acc = 0;
+    for (let i = 0; i < r.length - 2; i += 2) {
+      const x0 = r[i], y0 = r[i + 1], dx = r[i + 2] - x0, dy = r[i + 3] - y0, l = Math.hypot(dx, dy);
+      for (; d < acc + l; d += SP) {
+        const t = (d - acc) / l, x = x0 + dx * t, y = y0 + dy * t;
+        if (x > v.x - M0 && x < v.right + M0 && y > v.y - M0 && y < v.bottom + M0) gr.fillCircle(x, y, 2.2);
+      }
+      acc += l;
+    }
+  }
+
   updateMarkers(time, f) {
     const pulse = 0.75 + Math.sin(time / 250) * 0.15;
     for (const m of this.marks) {
@@ -2135,16 +2410,16 @@ class Main extends Phaser.Scene {
   }
 
   updateHud(dt, f) {
-    if (toastT > 0) { toastT -= dt; if (toastT <= 0) hud.toast.style.opacity = 0; }
+    if (toastT > 0) { toastT -= dt; if (toastT <= 0) hud.toast.classList.remove('on'); }
     this.nameT -= dt;
     if (this.nameT <= 0) {
       this.nameT = 0.4;
       const n = streetAt(f.x, f.y);
-      if (n && n !== lastStreet) { lastStreet = n; hud.street.innerHTML = ''; hud.street.textContent = n; const sm = document.createElement('small'); sm.textContent = 'Zona Centro · Tijuana'; hud.street.appendChild(sm); hud.street.style.opacity = 1; streetT = 3; }
+      if (n && n !== lastStreet) { lastStreet = n; hud.street.innerHTML = ''; hud.street.textContent = n; const sm = document.createElement('small'); sm.textContent = 'Zona Centro · Tijuana'; hud.street.appendChild(sm); layoutTop(); hud.street.classList.add('on'); streetT = 3; }
     }
-    if (streetT > 0) { streetT -= dt; if (streetT <= 0) hud.street.style.opacity = 0; }
+    if (streetT > 0) { streetT -= dt; if (streetT <= 0) hud.street.classList.remove('on'); }
     const tt = this.taxi && this.taxi.phase === 'drop' ? Math.ceil(this.taxi.time) + 's' : this.delivery ? '🛵 ' + Math.ceil(this.delivery.time) + 's' : null;
-    if (tt && tt !== this.lastTimer) { this.lastTimer = tt; hud.timer.style.display = 'block'; hud.timer.textContent = tt; }
+    if (tt && tt !== this.lastTimer) { this.lastTimer = tt; if (hud.timer.style.display !== 'block') layoutTop(); hud.timer.style.display = 'block'; hud.timer.textContent = tt; }
     if (!tt) this.lastTimer = null;
     // flecha hacia el objetivo
     const g = this.goal(), cam = this.cameras.main;
@@ -2257,9 +2532,11 @@ function start() {
   setupTouch();
   const game = new Phaser.Game({
     type: Phaser.AUTO, parent: 'game', backgroundColor: '#2a2a2a',
-    scale: { mode: Phaser.Scale.RESIZE, width: window.innerWidth, height: window.innerHeight },
+    // el lienzo mide DPR veces la ventana y se muestra a 1/DPR (la camara compensa en baseZoom)
+    scale: { mode: Phaser.Scale.NONE, width: window.innerWidth * DPR, height: window.innerHeight * DPR, zoom: 1 / DPR },
     scene: [Main], fps: { target: 60, smoothStep: false },
   });
+  window.addEventListener('resize', () => game.scale.resize(window.innerWidth * DPR, window.innerHeight * DPR));
   window.TJGTA = game; game.dbg = { VTYPES, vehicleTexture, state, drawChunk, baches };
 }
 $('go').addEventListener('click', start);

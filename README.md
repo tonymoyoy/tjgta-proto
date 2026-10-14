@@ -8,6 +8,14 @@ Hecho con Phaser 3 (JavaScript); corre en el navegador.
 - Abre `dist/tjgta.html` en el navegador (un solo archivo, funciona sin internet).
 - Para desarrollar: abre `index.html` (carga `src/` y `data/` por separado).
 
+## Android
+La app se arma con Capacitor a partir de los mismos archivos (`index.html`, `src/`, `data/`).
+Requiere Node 22, JDK 21 y el Android SDK (`ANDROID_HOME`).
+- `npm install` la primera vez.
+- `npm run apk` copia el juego a `www/`, sincroniza `android/` y genera `android/app/build/outputs/apk/debug/app-debug.apk`.
+- `npm run android` lo instala y abre en el celular conectado (depuración USB) o en el emulador.
+- `npm run dev` sirve el juego en http://localhost:8080 para probar en el navegador.
+
 ## Controles
 Flechas/WASD mover o manejar · E robar auto / bajarte · Espacio freno de mano · Shift correr ·
 T trabajar de taxista · M mapa grande (toca para marcar destino). En celular hay joystick y botones.
