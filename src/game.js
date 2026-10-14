@@ -286,6 +286,19 @@ function nearestOnGraph(g, x, y) {
   return best;
 }
 
+// ---------- faroles para la noche ----------
+// cada ~90 px en calles de clase 0 a 5, a los dos lados; se guardan por celdas de 256 px para buscar solo los que se ven
+const FAROLES = new Map();
+for (const e of traffic.edges) {
+  if (e.c > 5) continue;
+  for (let s = 25; s < e.len - 10; s += 90) for (const side of [1, -1]) {
+    const q = edgePos(e, s, 1, side * (e.w / 2 + 1.2 * M), {}), k = Math.floor(q.x / 256) + ',' + Math.floor(q.y / 256);
+    let a = FAROLES.get(k); if (!a) FAROLES.set(k, a = []);
+    if (a.some(o => Math.abs(o.x - q.x) < 35 && Math.abs(o.y - q.y) < 35)) continue; // calles encimadas
+    a.push({ x: q.x, y: q.y });
+  }
+}
+
 // ---------- ruta al destino (la linea tenue de puntos de las entregas, el taxi y el destino marcado) ----------
 // se usa la red del trafico pero en los dos sentidos: en moto o a pie nadie respeta los sentidos
 const routeAdj = traffic.nodes.map(() => []);
@@ -683,6 +696,13 @@ state.cafes = state.cafes || [];
 cafes.forEach(c => { c.drunk = state.cafes.includes(c.name); });
 state.eggs = state.eggs || [];
 EGGS.forEach(e => { e.got = state.eggs.includes(e.k); });
+// premios por completar colecciones (ver checkPerks) y contadores para el Acta de Tijuanense
+state.celebrated = state.celebrated || []; state.deliveries = state.deliveries || 0; state.rides = state.rides || 0;
+const perks = () => {
+  const p = { cafe: cafes.every(c => c.drunk), taco: tacos.every(t => t.eaten), noche: landmarks.every(l => l.found) };
+  p.final = p.cafe && p.taco && p.noche;
+  return p;
+};
 function save() {
   state.found = landmarks.filter(l => l.found).map(l => l.name);
   state.eaten = tacos.filter(t => t.eaten).map(t => t.name);
@@ -1006,6 +1026,9 @@ const VTYPES = [
 ];
 const VT_TAXI = { name: 'Taxi libre', L: 37, W: 16, top: 230, acc: 115, steer: 2.6, hp: 100 };
 const VT_MOTO = { name: 'Moto de reparto', L: 19, W: 9.2, top: 210, acc: 150, steer: 3.4, hp: 60 };
+// premios: la troca de tacos (los 32 tacos) y el burro cebra dorado (todo completo, no se rompe)
+const VT_TROCA_TACOS = { name: 'Troca de tacos', L: 44, W: 18, top: 205, acc: 105, steer: 2.3, hp: 220 };
+const VT_ZONKEY = { name: 'Burro cebra dorado', L: 24, W: 11, top: 200, acc: 170, steer: 3.6, hp: 99999 };
 const VT_WSUM = VTYPES.reduce((s, t) => s + t.w, 0);
 const DIRTY_SEEDS = 3;
 const GLASS = '#1d2733';
@@ -1224,7 +1247,7 @@ function vehicleTexture(scene, ti, ci, d) {
 
 const SHIRTS = ['#d35400', '#2980b9', '#27ae60', '#8e44ad', '#c0392b', '#ecf0f1', '#16a085', '#7f8c8d', '#f39c12', '#2c3e50'];
 function makeTextures(scene) {
-  makeMoto(scene); makePerro(scene); makeLandmarkIcons(scene); makeTaxi(scene); makePolice(scene); makeTacoStands(scene); makeCafes(scene); makeChinas(scene); makeEggs(scene); makeScorch(scene);
+  makeLights(scene); makeMoto(scene); makePerro(scene); makeLandmarkIcons(scene); makeTrocaTacos(scene); makeZonkey(scene); makeTaxi(scene); makePolice(scene); makeTacoStands(scene); makeCafes(scene); makeChinas(scene); makeEggs(scene); makeScorch(scene);
   // personas vistas desde arriba, mirando a la derecha; 8 cuadros de caminata (el cuadro 0 es parado).
   // Se dibujan a SPR veces la resolucion y el sprite se muestra a escala 1 / SPR para que se vean nitidas.
   const PF = PED_FRAME * SPR, SKIN = ['#c68e5f', '#a8714a', '#e0b08a', '#8d5a36'], PANTS = ['#2c3e66', '#3b3b3b', '#5a4632', '#1f2a38'];
@@ -1302,6 +1325,72 @@ function makePerro(scene) {
   }
   t.refresh();
   scene.anims.create({ key: 'cola', frames: [{ key: 'perro', frame: 0 }, { key: 'perro', frame: 1 }], frameRate: 8, repeat: -1 });
+}
+// luces de la noche: 'luz' es un circulo que se desvanece hacia afuera (128 px) y 'cono' el haz de un faro
+// (256 x 128, nace en la orilla izquierda al centro). Se usan para borrar la oscuridad y, teñidas, como resplandor
+function makeLights(scene) {
+  let t = scene.textures.createCanvas('luz', 128, 128), x = t.getContext();
+  let g = x.createRadialGradient(64, 64, 0, 64, 64, 64);
+  g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.45, 'rgba(255,255,255,0.75)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = g; x.fillRect(0, 0, 128, 128); t.refresh();
+  t = scene.textures.createCanvas('cono', 256, 128); x = t.getContext();
+  g = x.createRadialGradient(0, 64, 0, 0, 64, 256);
+  g.addColorStop(0, 'rgba(255,255,255,0.95)'); g.addColorStop(0.6, 'rgba(255,255,255,0.45)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = g; x.beginPath(); x.moveTo(0, 56); x.lineTo(256, 0); x.lineTo(256, 128); x.lineTo(0, 72); x.closePath(); x.fill();
+  t.refresh();
+}
+// troca de tacos vista desde arriba: caja blanca con letrero en el techo, toldo a rayas del lado derecho
+// (el del servicio) y su chimenea del trompo. Lienzo (L + 6) x (W + 6); la troca empieza en (3, 3)
+function makeTrocaTacos(scene) {
+  const { L, W } = VT_TROCA_TACOS, t = scene.textures.createCanvas('troca_tacos', (L + 6) * SPR, (W + 6) * SPR), x = t.getContext();
+  x.scale(SPR, SPR); x.translate(3, 3);
+  x.fillStyle = 'rgba(0,0,0,0.35)'; x.fillRect(2.5, 2.5, L, W);
+  // caja y cabina
+  x.fillStyle = '#f4f1ea'; x.beginPath(); x.roundRect(0, 0, 33, W, 2); x.fill();
+  x.fillStyle = '#e9e4d8'; x.beginPath(); x.roundRect(32, 1, L - 32, W - 2, 3); x.fill();
+  x.strokeStyle = 'rgba(0,0,0,0.45)'; x.lineWidth = 0.7; x.beginPath(); x.roundRect(0, 0, 33, W, 2); x.stroke(); x.beginPath(); x.roundRect(32, 1, L - 32, W - 2, 3); x.stroke();
+  x.fillStyle = GLASS; x.fillRect(37, 2.5, 3, W - 5); x.fillStyle = 'rgba(255,255,255,0.25)'; x.fillRect(37.5, 3, 0.8, W - 6);
+  // franjas de colores a lo largo de la caja
+  ['#c62828', '#f9a825', '#2e7d32'].forEach((c, i) => { x.fillStyle = c; x.fillRect(1, 1.2 + i * 1.2, 31, 1); x.fillRect(1, W - 2.2 - i * 1.2, 31, 1); });
+  // letrero de TACOS en el techo
+  x.fillStyle = '#c62828'; x.beginPath(); x.roundRect(7, W / 2 - 3.2, 18, 6.4, 1.5); x.fill();
+  x.fillStyle = '#fff'; x.font = 'bold 4.6px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('TACOS', 16, W / 2 + 0.3);
+  // chimenea del trompo con humito y un aire acondicionado
+  x.fillStyle = '#9e9e9e'; x.beginPath(); x.arc(28.5, 4.5, 1.7, 0, 7); x.fill(); x.fillStyle = '#424242'; x.beginPath(); x.arc(28.5, 4.5, 0.9, 0, 7); x.fill();
+  x.fillStyle = 'rgba(230,230,230,0.6)'; x.beginPath(); x.arc(27, 3, 1.4, 0, 7); x.arc(25.4, 2.4, 1.1, 0, 7); x.fill();
+  x.fillStyle = '#cfd8dc'; x.fillRect(2.5, W / 2 - 2.5, 3.5, 5);
+  // toldo a rayas del lado de servicio (asoma por la derecha)
+  for (let i = 0; i < 6; i++) { x.fillStyle = i % 2 ? '#fafafa' : '#e53935'; x.fillRect(5 + i * 4, W - 0.5, 4, 2.6); }
+  // faros y calaveras
+  x.fillStyle = '#fff6b0'; x.fillRect(L - 1.6, 2.5, 1.6, 2.6); x.fillRect(L - 1.6, W - 5.1, 1.6, 2.6);
+  x.fillStyle = '#ff3b30'; x.fillRect(0, 1.5, 1.2, 2.6); x.fillRect(0, W - 4.1, 1.2, 2.6);
+  t.refresh();
+}
+// burro cebra dorado con sarape, visto desde arriba mirando a la derecha. Lienzo (L + 6) x (W + 6)
+function makeZonkey(scene) {
+  const { L, W } = VT_ZONKEY, t = scene.textures.createCanvas('zonkey', (L + 6) * SPR, (W + 6) * SPR), x = t.getContext();
+  x.scale(SPR, SPR); x.translate(3, 3);
+  const cy = W / 2, ell = (c, ex, ey, rx, ry, a) => { x.fillStyle = c; x.beginPath(); x.ellipse(ex, ey, rx, ry, a || 0, 0, 7); x.fill(); };
+  ell('rgba(0,0,0,0.3)', L / 2 + 1.5, cy + 1.5, 11, 5);
+  // cola, patas y orejas
+  x.strokeStyle = '#7a5a12'; x.lineWidth = 1.2; x.lineCap = 'round'; x.beginPath(); x.moveTo(3, cy); x.quadraticCurveTo(0.5, cy + 1.5, -1.5, cy + 3); x.stroke();
+  for (const [px, py] of [[6, cy - 4.3], [6, cy + 4.3], [15.5, cy - 4], [15.5, cy + 4]]) ell('#8d6e1e', px, py, 1.6, 1.1);
+  // cuerpo dorado con rayas de cebra
+  const g = x.createLinearGradient(0, 0, 0, W); g.addColorStop(0, '#fff3b0'); g.addColorStop(0.5, '#ffd54f'); g.addColorStop(1, '#c9a227');
+  x.fillStyle = g; x.beginPath(); x.ellipse(10.5, cy, 8.5, 4.6, 0, 0, 7); x.fill();
+  x.save(); x.clip(); x.strokeStyle = '#3e2f05'; x.lineWidth = 0.75;
+  for (let i = 3.5; i <= 18; i += 1.9) { x.beginPath(); x.moveTo(i, cy - 5); x.quadraticCurveTo(i + 0.8, cy, i, cy + 5); x.stroke(); }
+  x.restore();
+  // sarape en el lomo
+  x.fillStyle = '#e53935'; x.fillRect(8, cy - 3.6, 5, 7.2);
+  ['#fdd835', '#43a047', '#1e88e5', '#8e24aa'].forEach((c, i) => { x.fillStyle = c; x.fillRect(8.4 + i * 1.15, cy - 3.6, 0.5, 7.2); });
+  // cuello, cabeza y orejas
+  x.fillStyle = g; x.beginPath(); x.ellipse(19.5, cy, 3.3, 2.4, 0, 0, 7); x.fill();
+  ell('#ffe082', 22.3, cy, 2.6, 2.1); ell('#5d4a12', 24.2, cy, 0.9, 1.4);
+  ell('#c9a227', 19.6, cy - 2.6, 2, 0.9, -0.5); ell('#c9a227', 19.6, cy + 2.6, 2, 0.9, 0.5);
+  // destellos
+  x.fillStyle = '#fffde7'; for (const [px, py] of [[6, cy - 2], [13, cy + 2.6], [17, cy - 1.8]]) { x.beginPath(); x.arc(px, py, 0.5, 0, 7); x.fill(); }
+  t.refresh();
 }
 function makeMoto(scene) {
   const t = scene.textures.createCanvas('moto', 26 * SPR, 14 * SPR), x = t.getContext();
@@ -1940,7 +2029,7 @@ class Main extends Phaser.Scene {
     this.tmp = {};
     this.cameras.main.setBounds(0, 0, WORLD_W, WORLD_H);
     this.cameras.main.setBackgroundColor('#2a2a2a');
-    this.keys = this.input.keyboard.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,SHIFT,SPACE,E,ENTER,F,T,M,R,N');
+    this.keys = this.input.keyboard.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,SHIFT,SPACE,E,ENTER,F,T,M,R,N,L');
     this.input.keyboard.addCapture('SPACE,UP,DOWN,LEFT,RIGHT');
 
     // marcadores de lugares y tacos
@@ -2006,6 +2095,10 @@ class Main extends Phaser.Scene {
     this.cameras.main.setZoom(this.baseZoom());
 
     this.taxi = null; this.waypoint = null;
+    this.perk = perks();
+    this.night = { a: state.night && this.perk.noche ? 1 : 0, rt: null, cut: [], glow: [] };
+    if (state.celebrated.includes('taco')) this.spawnSpecial('troca', 60);
+    if (state.celebrated.includes('final')) this.spawnSpecial('zonkey', 110);
     this.populate(true);
     updateStats();
     this.setObjective();
@@ -2026,6 +2119,8 @@ class Main extends Phaser.Scene {
   carSpec(o = {}) {
     if (o.moto) return { T: VT_MOTO, key: 'moto', ox: 0.5, oy: 0.5, dirty: false };
     if (o.taxi) return { T: VT_TAXI, key: 'taxi', ox: 0.5, oy: 0.5, dirty: false };
+    if (o.troca) return { T: VT_TROCA_TACOS, key: 'troca_tacos', ox: (VT_TROCA_TACOS.L / 2 + 3) / (VT_TROCA_TACOS.L + 6), oy: 0.5, dirty: false };
+    if (o.zonkey) return { T: VT_ZONKEY, key: 'zonkey', ox: (VT_ZONKEY.L / 2 + 3) / (VT_ZONKEY.L + 6), oy: 0.5, dirty: false };
     if (o.poli) return { T: VT_POLI, key: 'poli0', ox: (VT_POLI.L / 2 + 1) / (VT_POLI.L + 5), oy: (VT_POLI.W / 2 + 1) / (VT_POLI.W + 5), dirty: false };
     const ti = o.ti ?? randomVType(), T = VTYPES[ti], ci = o.ci ?? (Math.random() * T.cols.length) | 0;
     const dirty = o.dirty ?? Math.random() < 0.45, d = dirty ? 1 + ((Math.random() * DIRTY_SEEDS) | 0) : 0;
@@ -2134,6 +2229,7 @@ class Main extends Phaser.Scene {
     if (J(k.T) || touch.pressed.T) this.startTaxi();
     if (J(k.M) || touch.pressed.M) toggleBigMap();
     if (J(k.N)) toggleSound();
+    if (J(k.L)) toggleNight();
     touch.pressed = {};
 
     if (this.inCar) this.driveCar(this.inCar, ctl, dt); else this.walk(ctl, dt);
@@ -2158,6 +2254,7 @@ class Main extends Phaser.Scene {
     this.checkActivities(dt, f, sp);
     this.updateMarkers(time, f);
     this.updateRoute(time, dt, f);
+    this.updateNight(time, dt, f);
     this.updateHud(dt, f);
   }
 
@@ -2168,11 +2265,11 @@ class Main extends Phaser.Scene {
     if (m > 0.1) {
       // correr gasta aire; si se acaba, solo caminas hasta recuperarlo completo
       const running = c.run && !this.tired;
-      if (running) {
+      if (running && !this.perk.cafe) { // con los 43 cafes ya no se acaba el aire
         this.stamina -= dt;
         if (this.stamina <= 0) { this.stamina = 0; this.tired = true; toast('😮‍💨 ' + pick(FRASES_CANSADO), 'Camina un rato para recuperar el aire.', 2.4); if (window.SND) SND.play('tired'); }
       } else this.stamina = Math.min(STAMINA, this.stamina + dt * 0.8);
-      const run = running ? 1.8 : 1, sp = 62 * run * Math.min(1, m);
+      const run = running ? 1.8 : 1, sp = (this.perk.cafe ? 70 : 62) * run * Math.min(1, m);
       mx /= m; my /= m;
       const nx = p.x + mx * sp * dt, ny = p.y + my * sp * dt;
       if (!blocked(nx, p.y)) p.x = nx;
@@ -2508,6 +2605,97 @@ class Main extends Phaser.Scene {
     b.el.style.top = ((b.ped.y - 10 - v.y) * k) + 'px';
   }
 
+  // ----- Tijuana de noche (premio de los 25 lugares) -----
+  // Una capa oscura del tamaño de la pantalla (RenderTexture fija a la camara) a la que cada cuadro se le "borran"
+  // las luces con texturas suaves; encima, resplandores de color en el mundo con mezcla aditiva.
+  updateNight(time, dt, f) {
+    const n = this.night, want = state.night && this.perk.noche ? 1 : 0;
+    n.a += Math.max(-dt * 1.2, Math.min(dt * 1.2, want - n.a));
+    let gi = 0;
+    if (n.a > 0.001) {
+      // la capa sobra un 10% por cada lado: mientras cambia el zoom (al subir o bajar del carro) no se ve la orilla
+      const P = 0.1;
+      if (!n.rt) {
+        n.rt = this.add.renderTexture(0, 0, this.scale.width * (1 + 2 * P), this.scale.height * (1 + 2 * P)).setOrigin(0).setScrollFactor(0).setDepth(19);
+        this.scale.on('resize', (gs) => n.rt.resize(gs.width * (1 + 2 * P), gs.height * (1 + 2 * P)));
+      }
+      const cam = this.cameras.main, z = cam.zoom, v = cam.worldView, rt = n.rt, W = this.scale.width, H = this.scale.height, ox = W * P, oy = H * P;
+      // los objetos fijos a la camara tambien se amplian con el zoom: se compensa para que la capa empiece en (-ox, -oy) de la pantalla
+      rt.setVisible(true).setScale(1 / z).setPosition(W / 2 - (W / 2 + ox) / z, H / 2 - (H / 2 + oy) / z);
+      rt.clear(); rt.fill(0x0b1030, 0.64 * n.a);
+      let ci = 0;
+      const vis = (x, y, r) => x > v.x - r && x < v.right + r && y > v.y - r && y < v.bottom + r;
+      // luz que aclara la oscuridad (coordenadas de pantalla); r = radio en el mundo
+      const cut = (key, x, y, r, a) => {
+        if (!vis(x, y, r) || ci >= 180) return;
+        let im = n.cut[ci]; if (!im) im = n.cut[ci] = this.make.image({ key, add: false });
+        ci++;
+        im.setTexture(key).setPosition((x - v.x) * z + ox, (y - v.y) * z + oy).setRotation(a || 0);
+        if (key === 'cono') im.setOrigin(0, 0.5).setScale(r * z / 256); else im.setOrigin(0.5).setScale(2 * r * z / 128);
+      };
+      // resplandor de color en el mundo (encima de la oscuridad)
+      const glow = (x, y, r, tint, alpha) => {
+        if (!vis(x, y, r) || gi >= 120) return;
+        let im = n.glow[gi]; if (!im) im = n.glow[gi] = this.add.image(0, 0, 'luz').setDepth(19.5).setBlendMode(Phaser.BlendModes.ADD);
+        gi++;
+        im.setVisible(true).setPosition(x, y).setScale(2 * r / 128).setTint(tint).setAlpha(alpha * n.a);
+      };
+      // faroles
+      const c0 = Math.floor((v.x - 60) / 256), c1 = Math.floor((v.right + 60) / 256), r0 = Math.floor((v.y - 60) / 256), r1 = Math.floor((v.bottom + 60) / 256);
+      for (let cx = c0; cx <= c1; cx++) for (let cy = r0; cy <= r1; cy++) for (const o of FAROLES.get(cx + ',' + cy) || []) { cut('luz', o.x, o.y, 38); glow(o.x, o.y, 22, 0xffb347, 0.28); }
+      // lugares, taquerias y cafes
+      for (const l of landmarks) { cut('luz', l.x, l.y, 75); glow(l.x, l.y, 45, 0xffe08a, 0.25); }
+      for (const t of tacos) cut('luz', t.x, t.y, 30);
+      for (const c of cafes) cut('luz', c.x, c.y, 26);
+      // vehiculos: haz de los faros, calaveras rojas y la torreta de las patrullas
+      const lights = (c) => {
+        const fx = Math.cos(c.a), fy = Math.sin(c.a);
+        cut('cono', c.x + fx * c.hl, c.y + fy * c.hl, c.moto ? 70 : 95, c.a);
+        glow(c.x - fx * c.hl, c.y - fy * c.hl, c.moto ? 6 : 9, 0xff2020, 0.55);
+        if (c.poli) glow(c.x, c.y, 16, Math.floor(time / 220) % 2 ? 0xff1a1a : 0x2a5bff, 0.75);
+      };
+      for (const c of this.cars) lights(c);
+      if (this.inCar) lights(this.inCar);
+      else cut('luz', this.player.x, this.player.y, 42);
+      rt.erase(n.cut.slice(0, ci));
+    } else if (n.rt) n.rt.setVisible(false);
+    for (let i = gi; i < n.glow.length; i++) n.glow[i].setVisible(false);
+  }
+
+  // ----- premios por completar colecciones -----
+  // se revisa despues de cada lugar, taco o cafe; cada premio se festeja una sola vez (state.celebrated)
+  checkPerks() {
+    const p = perks(), news = ['cafe', 'taco', 'noche', 'final'].filter(k => p[k] && !state.celebrated.includes(k));
+    this.perk = p;
+    if (!news.length) return;
+    state.celebrated.push(...news); save();
+    // si se ganan varios a la vez, los avisos salen uno tras otro
+    news.forEach((k, i) => this.time.delayedCall(i * 6500 + 1500, () => this.celebrate(k)));
+  }
+  celebrate(k) {
+    if (window.SND) SND.play('fanfare');
+    if (k === 'cafe') toast('☕ ¡Barista de la Revu!', 'Te tomaste los ' + cafes.length + ' cafés. Ya puedes correr sin cansarte.', 6);
+    if (k === 'taco') {
+      this.spawnSpecial('troca', 40);
+      toast('🌮 ¡Taquero honorario!', 'Te comiste los ' + tacos.length + ' tacos. Cualquier taquería te repara el carro, y aquí cerca te dejaron una troca de tacos.', 6.5);
+    }
+    if (k === 'noche') { showPerkButtons(); toast('★ ¡Cronista de Tijuana!', 'Conoces los ' + landmarks.length + ' lugares. Se desbloqueó Tijuana de noche: toca 🌙.', 6.5); }
+    if (k === 'final') {
+      this.spawnSpecial('zonkey', 40); showPerkButtons();
+      toast('🏆 ¡Ya eres tijuanense!', 'Completaste todo. Aquí cerca te espera un burro cebra dorado. Toca 📜 para ver tu Acta de Tijuanense.', 7);
+    }
+  }
+  // estaciona la troca o el burro en la calle mas cercana, a `ahead` px de donde estas
+  spawnSpecial(kind, ahead) {
+    const f = this.inCar || this.player, n = nearEdge(traffic, f.x, f.y);
+    if (!n) return;
+    const e = n.e, s = Math.max(5, Math.min(e.len - 5, n.s + (n.s + ahead < e.len ? ahead : -ahead)));
+    const pos = edgePos(e, s, 1, laneLat(e, e.one ? 3 : 1), {});
+    const car = this.makeCar(pos.x, pos.y, pos.a, { [kind]: true });
+    car.special = kind; this.parked.push(car);
+    return car;
+  }
+
   // ----- actividades -----
   checkActivities(dt, f, sp) {
     for (const l of landmarks) {
@@ -2518,6 +2706,13 @@ class Main extends Phaser.Scene {
       this.setObjective();
     }
     for (const t of tacos) {
+      // taquero honorario: cualquier taqueria te deja el carro como nuevo (cada una una vez por minuto)
+      if (this.perk.taco && this.inCar && this.inCar.hp < this.inCar.maxHp && !(t.cool > 0) && sp < 70 && dist(t.x, t.y, f.x, f.y) < 45) {
+        t.cool = 60; this.inCar.hp = this.inCar.maxHp;
+        toast('🌮 ' + t.name, pick(['"¿Lo de siempre, jefe?" Te dejaron el carro como nuevo.', 'El taquero le dio una pasadita al motor con el trapo del comal. Quedó al cien.',
+          '"Para el taquero honorario, servicio completo." Carro reparado.']), 3);
+      }
+      if (t.cool > 0) t.cool -= dt;
       if (t.eaten || dist(t.x, t.y, f.x, f.y) > 40 || sp > 70) continue;
       t.eaten = true; state.money += 25; save(); updateStats();
       if (this.inCar) this.inCar.hp = Math.min(this.inCar.maxHp, this.inCar.hp + 30);
@@ -2528,6 +2723,7 @@ class Main extends Phaser.Scene {
       c.drunk = true; state.money += 20; save(); updateStats();
       toast('☕ ' + c.name, pick(FRASES_CAFE) + '  (+$20)', 3);
     }
+    this.checkPerks();
     for (const e of EGGS) {
       if (e.got || dist(e.x, e.y, f.x, f.y) > 45 || sp > 90) continue;
       e.got = true; state.money += e.pay; save(); bigSound = true; updateStats();
@@ -2603,6 +2799,7 @@ class Main extends Phaser.Scene {
     const dl = this.delivery; this.delivery = null; hud.timer.style.display = 'none';
     if (ok) {
       const pay = Math.round(50 + dl.d / 10 + dl.time * 2), tip = Math.random() < 0.5 ? Math.round(rnd(5, 60)) : 0;
+      state.deliveries++;
       state.money += pay + tip; save(); updateStats();
       const msg = dl.order === PERRO_PEDIDO ? CLIENTES_PERRO_BIRRIA : pick(dl.dog ? CLIENTES_PERRO : CLIENTES);
       toast('¡Pedido entregado!', msg + ' (+$' + pay + (tip ? ' y $' + tip + ' de propina' : '') + ')', 4.5);
@@ -2634,6 +2831,7 @@ class Main extends Phaser.Scene {
   endTaxi(ok, msg) {
     if (this.taxi && this.taxi.ped && this.taxi.phase === 'pick') this.taxi.ped.destroy();
     this.taxi = null; hud.timer.style.display = 'none';
+    if (ok) { state.rides++; save(); }
     toast(ok ? '¡Viaje completado!' : 'Viaje cancelado', msg + (ok ? ' Presiona T para otro.' : ''), 3.5);
     this.setObjective();
   }
@@ -2812,11 +3010,104 @@ function setupTouch() {
 }
 
 // ---------- arranque ----------
+// ---------- Acta de Tijuanense (premio por completar todo) ----------
+// Un certificado dibujado en un lienzo de 1600 x 1100 con tus numeros; se descarga (web) o se comparte (Android)
+function drawActa() {
+  const cv = $('actac'), x = cv.getContext('2d'), W = cv.width, H = cv.height, sc = window.TJGTA && TJGTA.scene.scenes[0];
+  const name = (state.name || '').trim() || 'Tijuanense de corazón';
+  // papel y marco
+  const bg = x.createRadialGradient(W / 2, H / 2, 100, W / 2, H / 2, W * 0.7); bg.addColorStop(0, '#fbf3df'); bg.addColorStop(1, '#ead9b2');
+  x.fillStyle = bg; x.fillRect(0, 0, W, H);
+  x.strokeStyle = '#7a5a2a'; x.lineWidth = 10; x.strokeRect(30, 30, W - 60, H - 60);
+  x.strokeStyle = '#b8954f'; x.lineWidth = 3; x.strokeRect(48, 48, W - 96, H - 96);
+  // papel picado colgando arriba
+  const cols = ['#e91e63', '#ff9800', '#4caf50', '#2196f3', '#9c27b0', '#ffeb3b', '#f44336'];
+  x.strokeStyle = '#5d4037'; x.lineWidth = 2; x.beginPath(); x.moveTo(60, 70); x.quadraticCurveTo(W / 2, 100, W - 60, 70); x.stroke();
+  for (let i = 0; i < 13; i++) {
+    const px = 70 + i * ((W - 220) / 12), t = (px + 40 - 60) / (W - 120), py = 70 + 4 * 30 * t * (1 - t);
+    x.fillStyle = cols[i % cols.length]; x.beginPath(); x.moveTo(px, py); x.lineTo(px + 80, py); x.lineTo(px + 80, py + 70);
+    for (let k = 0; k < 5; k++) x.lineTo(px + 80 - k * 16 - 8, py + (k % 2 ? 70 : 60));
+    x.lineTo(px, py + 70); x.closePath(); x.fill();
+    x.save(); x.globalCompositeOperation = 'destination-out'; x.beginPath(); x.arc(px + 40, py + 32, 12, 0, 7); x.fill();
+    for (const [dx, dy] of [[-22, 18], [22, 18], [-22, 48], [22, 48]]) { x.beginPath(); x.arc(px + 40 + dx, py + dy, 5, 0, 7); x.fill(); }
+    x.restore();
+  }
+  // vuelve a pintar el papel donde el papel picado hizo agujeros (destination-out tambien borra el fondo)
+  x.save(); x.globalCompositeOperation = 'destination-over'; x.fillStyle = bg; x.fillRect(0, 0, W, H); x.restore();
+  const txt = (s, y, font, c, al = 'center', xx = W / 2) => { x.font = font; x.fillStyle = c; x.textAlign = al; x.textBaseline = 'alphabetic'; x.fillText(s, xx, y); };
+  txt('ACTA DE TIJUANENSE', 250, 'bold 92px Georgia, serif', '#7b1f2b');
+  txt('ZONA CENTRO · ZONA RÍO · TIJUANA, BAJA CALIFORNIA', 300, 'bold 26px sans-serif', '#7a5a2a');
+  txt('Se hace constar que', 380, 'italic 36px Georgia, serif', '#3b2a17');
+  txt(name, 470, 'bold 76px Georgia, serif', '#1a237e');
+  x.strokeStyle = '#7a5a2a'; x.lineWidth = 2; x.beginPath(); x.moveTo(380, 492); x.lineTo(W - 380, 492); x.stroke();
+  txt('conoce los ' + landmarks.length + ' lugares, se comió los ' + tacos.length + ' tacos de la ruta y se tomó los ' + cafes.length + ' cafés.', 560, '32px Georgia, serif', '#3b2a17');
+  txt('Por lo tanto, y con todas las de la ley (y del taquero), es oficialmente tijuanense.', 605, 'italic 30px Georgia, serif', '#3b2a17');
+  // numeros
+  const stats = [['$' + state.money.toLocaleString('es-MX'), 'en la bolsa'], [state.deliveries, 'entregas'], [state.rides, 'viajes de taxi'], [EGGS.filter(e => e.got).length + '/' + EGGS.length, 'secretos']];
+  stats.forEach(([v, l], i) => { const cx = 330 + i * 313;
+    x.fillStyle = 'rgba(122,90,42,0.12)'; x.beginPath(); x.roundRect(cx - 130, 650, 260, 130, 16); x.fill();
+    txt(String(v), 725, 'bold 54px sans-serif', '#2e7d32', 'center', cx); txt(l, 765, '24px sans-serif', '#5d4037', 'center', cx); });
+  // frase de la calle
+  const fr = pick(FRASES_PEATON).t;
+  x.font = 'italic 28px Georgia, serif'; const words = ('"' + fr + '"').split(' '); let line = '', y = 850; const lines = [];
+  for (const w of words) { if (x.measureText(line + w).width > 880) { lines.push(line); line = ''; } line += w + ' '; } lines.push(line);
+  lines.slice(0, 2).forEach((l, i) => txt(l.trim(), y + i * 38, 'italic 28px Georgia, serif', '#4e342e'));
+  txt('— un peatón cualquiera', y + Math.min(2, lines.length) * 38 + 6, '22px sans-serif', '#7a5a2a');
+  // fecha y firma
+  txt(new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }), 1010, '26px sans-serif', '#3b2a17', 'left', 110);
+  x.strokeStyle = '#3b2a17'; x.lineWidth = 2; x.beginPath(); x.moveTo(110, 1020); x.lineTo(470, 1020); x.stroke();
+  txt('Fecha de expedición', 1048, '20px sans-serif', '#7a5a2a', 'left', 110);
+  // sello rojo con el burro cebra dorado
+  const sx = W - 215, sy = 925;
+  x.strokeStyle = 'rgba(183,28,28,0.85)'; x.lineWidth = 6; x.beginPath(); x.arc(sx, sy, 110, 0, 7); x.stroke(); x.lineWidth = 2; x.beginPath(); x.arc(sx, sy, 92, 0, 7); x.stroke();
+  x.save(); x.translate(sx, sy); x.font = 'bold 22px sans-serif'; x.fillStyle = 'rgba(183,28,28,0.9)'; x.textAlign = 'center';
+  const label = 'H. CONSEJO DEL TACO · TJGTA · ';
+  for (let i = 0; i < label.length; i++) { x.save(); x.rotate(-Math.PI / 2 + i / label.length * Math.PI * 2); x.fillText(label[i], 0, -98); x.restore(); }
+  x.restore();
+  if (sc && sc.textures.exists('zonkey')) { const im = sc.textures.get('zonkey').getSourceImage(); x.save(); x.translate(sx, sy); x.rotate(-0.5); x.drawImage(im, -75, -75 * im.height / im.width, 150, 150 * im.height / im.width); x.restore(); }
+}
+function openActa() {
+  if (!perks().final) return;
+  $('actaname').value = state.name || '';
+  drawActa(); $('actabox').style.display = 'flex';
+}
+$('acta').addEventListener('click', openActa);
+$('actaclose').addEventListener('click', () => { $('actabox').style.display = 'none'; });
+$('actaname').addEventListener('input', () => { state.name = $('actaname').value; save(); drawActa(); });
+// el teclado del juego no debe mover al jugador mientras escribes tu nombre
+$('actaname').addEventListener('keydown', (ev) => ev.stopPropagation());
+$('actasave').addEventListener('click', async () => {
+  const url = $('actac').toDataURL('image/png'), C = window.Capacitor;
+  if (C && C.isNativePlatform && C.isNativePlatform() && C.Plugins.Filesystem && C.Plugins.Share) {
+    // Android: se guarda en la cache de la app y se abre el menu de compartir del telefono
+    try {
+      const r = await C.Plugins.Filesystem.writeFile({ path: 'acta-tijuanense.png', data: url.split(',')[1], directory: 'CACHE' });
+      await C.Plugins.Share.share({ title: 'Mi Acta de Tijuanense', text: '¡Ya soy tijuanense! #TJGTA', files: [r.uri] });
+    } catch (e) { if (!/cancel/i.test(String(e && e.message))) toast('No se pudo compartir', String(e && e.message || e), 3); }
+  } else {
+    const a = document.createElement('a'); a.href = url; a.download = 'acta-tijuanense.png'; document.body.appendChild(a); a.click(); a.remove();
+  }
+});
+
+// la noche se prende y apaga con el boton 🌙 o la tecla L (solo si ya conoces los 25 lugares)
+function toggleNight() {
+  if (!perks().noche) return;
+  state.night = !state.night; save();
+  $('night').textContent = state.night ? '☀️' : '🌙';
+}
+// los botones de premios aparecen cuando se ganan
+function showPerkButtons() {
+  const p = perks();
+  $('night').style.display = p.noche ? 'block' : 'none'; $('night').textContent = state.night ? '☀️' : '🌙';
+  $('acta').style.display = p.final ? 'block' : 'none';
+}
+$('night').addEventListener('click', toggleNight);
 function toggleSound() { const m = SND.toggle(); $('snd').textContent = m ? '🔇' : '🔊'; }
 function start() {
   $('intro').style.display = 'none';
   if (window.SND) { SND.init(); $('snd').style.display = 'block'; $('snd').textContent = SND.muted ? '🔇' : '🔊'; $('snd').addEventListener('click', toggleSound); }
   setupTouch();
+  showPerkButtons();
   const game = new Phaser.Game({
     type: Phaser.AUTO, parent: 'game', backgroundColor: '#2a2a2a',
     // el lienzo mide DPR veces la ventana y se muestra a 1/DPR (la camara compensa en baseZoom)
@@ -2824,7 +3115,7 @@ function start() {
     scene: [Main], fps: { target: 60, smoothStep: false },
   });
   window.addEventListener('resize', () => game.scale.resize(window.innerWidth * DPR, window.innerHeight * DPR));
-  window.TJGTA = game; game.dbg = { VTYPES, vehicleTexture, state, drawChunk, baches };
+  window.TJGTA = game; game.dbg = { VTYPES, vehicleTexture, state, drawChunk, baches, landmarks, tacos, cafes, perks };
 }
 $('go').addEventListener('click', start);
 // reiniciar la partida: borra dinero y lugares, tacos y cafes descubiertos (pide tocar dos veces)
