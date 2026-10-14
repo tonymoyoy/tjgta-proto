@@ -3515,7 +3515,7 @@ function toggleOptions() {
   const sc = window.TJGTA && TJGTA.scene.scenes[0];
   optsOpen = !optsOpen;
   $('opts').style.display = optsOpen ? 'flex' : 'none';
-  if (optsOpen) renderOptions();
+  if (optsOpen) { renderOptions(); if (window.SND && sc) SND.update(false, 0, 0); }
   // el juego se detiene mientras ves el menu
   if (sc) { if (optsOpen) sc.scene.pause(); else sc.scene.resume(); }
 }
@@ -3526,10 +3526,12 @@ $('optnight').addEventListener('click', toggleNight);
 $('optacta').addEventListener('click', () => { toggleOptions(); openActa(); });
 // O o Esc abren y cierran el menu (con el juego en pausa Phaser no lee el teclado, por eso va aqui)
 window.addEventListener('keydown', (ev) => {
-  if ($('intro').style.display !== 'none' || $('actabox').style.display === 'flex' || ev.target.tagName === 'INPUT') return;
+  if (($('intro').style.display !== 'none' && !optsOpen) || $('actabox').style.display === 'flex' || ev.target.tagName === 'INPUT') return;
   if (ev.key === 'o' || ev.key === 'O' || (ev.key === 'Escape' && optsOpen)) toggleOptions();
 });
 function start() {
+  if (window.TJGTA) return;
+  if (optsOpen) toggleOptions();
   $('intro').style.display = 'none';
   if (window.SND) SND.init();
   $('optbtn').style.display = 'block';
@@ -3545,20 +3547,70 @@ function start() {
   window.TJGTA = game; game.dbg = { VTYPES, vehicleTexture, state, drawChunk, baches, landmarks, tacos, cafes, perks, blocked, inWater, onRoad, waterAreas, roads, PED_VARIANTS };
 }
 $('go').addEventListener('click', start);
-// reiniciar la partida: borra dinero y lugares, tacos y cafes descubiertos (pide tocar dos veces)
+
+// ---------- portada: continuar, partida nueva y opciones ----------
+const hayPartida = () => state.money > 0 || landmarks.some(l => l.found) || tacos.some(t => t.eaten) || cafes.some(c => c.drunk) ||
+  EGGS.some(e => e.got) || state.deliveries > 0 || state.rides > 0;
+function renderIntro() {
+  const n = (a, k) => a.filter(o => o[k]).length, hay = hayPartida();
+  $('go').textContent = hay ? '▶ CONTINUAR' : '▶ JUGAR';
+  $('reset').style.display = hay ? '' : 'none';
+  $('resumen').innerHTML = hay ? '<b>$' + state.money.toLocaleString('es-MX') + '</b> · ★ ' + n(landmarks, 'found') + '/' + landmarks.length +
+    ' · 🌮 ' + n(tacos, 'eaten') + '/' + tacos.length + ' · ☕ ' + n(cafes, 'drunk') + '/' + cafes.length : '';
+}
+// partida nueva: borra dinero, colecciones, premios y contadores (pide tocar dos veces) y entra a jugar
 (() => {
   const b = $('reset');
-  if (state.money > 0 || landmarks.some(l => l.found) || tacos.some(t => t.eaten) || cafes.some(c => c.drunk) || EGGS.some(e => e.got)) b.style.display = 'inline-block';
   b.addEventListener('click', () => {
     if (!b.classList.contains('confirm')) { b.classList.add('confirm'); b.textContent = '¿Seguro? Toca otra vez para borrar todo'; return; }
-    state.money = 0;
+    Object.assign(state, { money: 0, celebrated: [], deliveries: 0, rides: 0, night: false });
     landmarks.forEach(l => { l.found = false; }); tacos.forEach(t => { t.eaten = false; }); cafes.forEach(c => { c.drunk = false; }); EGGS.forEach(e => { e.got = false; });
-    save();
-    b.classList.remove('confirm'); b.textContent = 'Partida reiniciada ✓'; b.disabled = true;
+    save(); updateStats();
+    start();
   });
 })();
+$('introopts').addEventListener('click', toggleOptions);
 window.addEventListener('keydown', function onKey(e) {
-  if (e.key === 'Enter' && $('intro').style.display !== 'none') { window.removeEventListener('keydown', onKey); start(); }
+  if (e.key === 'Enter' && $('intro').style.display !== 'none' && !optsOpen) { window.removeEventListener('keydown', onKey); start(); }
 });
+
+// ---------- como app de Android: boton Atras y pausa al salir ----------
+const APP = window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.App;
+let lastBack = 0;
+function aviso(t) {
+  const a = $('introaviso'); a.textContent = t;
+  clearTimeout(aviso.t); aviso.t = setTimeout(() => { a.textContent = ''; }, 2000);
+}
+// Atras cierra lo que este abierto (acta, mapa, opciones); jugando abre la pausa; en la portada, dos veces para salir
+function onBack() {
+  if ($('actabox').style.display === 'flex') { $('actabox').style.display = 'none'; return; }
+  if (optsOpen) { toggleOptions(); return; }
+  if (bigOpen) { toggleBigMap(); return; }
+  if (window.TJGTA) { toggleOptions(); return; }
+  if (Date.now() - lastBack < 2000) { save(); APP.exitApp(); return; }
+  lastBack = Date.now(); aviso('Toca Atrás otra vez para salir');
+}
+// al cambiar de app, apagar la pantalla o recibir una llamada: se guarda, se pausa con el menu abierto y se calla
+function onHide() {
+  save();
+  if (window.TJGTA && !optsOpen) toggleOptions();
+  if (window.SND) SND.suspend();
+}
+function onShow() { if (window.SND) SND.resume(); }
+document.addEventListener('visibilitychange', () => { if (document.hidden) onHide(); else onShow(); });
+if (APP) {
+  APP.addListener('backButton', onBack);
+  APP.addListener('pause', onHide);
+  APP.addListener('resume', onShow);
+  // en la app se puede salir desde Opciones (en la web no hace falta)
+  $('optexit').style.display = '';
+  $('optexit').addEventListener('click', () => { save(); APP.exitApp(); });
+}
+
+// en celular las Opciones de la portada ya muestran los controles tactiles
+if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) document.body.classList.add('touch');
+renderIntro();
+$('intro').style.display = 'flex';
+$('cargando').remove();
 updateStats();
 })();

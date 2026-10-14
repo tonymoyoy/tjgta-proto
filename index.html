@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>TJGTA Zona Centro</title>
 <link rel="stylesheet" href="src/style.css">
+<link rel="icon" href="src/img/icono.png">
+<meta name="theme-color" content="#121212">
 </head>
 <body>
 <div id="game"></div>
@@ -34,6 +36,7 @@
       <button class="optrow" id="optsnd"></button>
       <button class="optrow" id="optnight"></button>
       <button class="optrow" id="optacta"></button>
+      <button class="optrow" id="optexit" style="display:none">🚪 Guardar y salir</button>
       <h4>Tu avance</h4>
       <div id="optprog"></div>
     </section>
@@ -84,28 +87,62 @@
   <div class="tbtn" id="bT">TAXI</div>
 </div>
 
-<div id="intro"><div class="card">
-  <h1>TJGTA</h1>
-  <h2>ZONA CENTRO · TIJUANA</h2>
-  <table>
-    <tr><td>Flechas / WASD</td><td>Caminar o manejar</td></tr>
-    <tr><td>E</td><td>Robar un auto / bajarte</td></tr>
-    <tr><td>Espacio</td><td>Freno de mano (derrapes)</td></tr>
-    <tr><td>R / Flecha abajo</td><td>Reversa (para desatorarte)</td></tr>
-    <tr><td>Shift</td><td>Correr a pie (unos 5 segundos, luego hay que descansar)</td></tr>
-    <tr><td>T</td><td>Trabajar de taxista (en auto)</td></tr>
-    <tr><td>M</td><td>Mapa grande y marcar destino</td></tr>
-    <tr><td>N</td><td>Prender o apagar el sonido</td></tr>
-  </table>
-  <p style="color:var(--muted);font-size:14px;margin:0 0 18px">Descubre los lugares reales del Centro ★, prueba la ruta del taco 🌮, colecciona los cafés ☕, gana pesos como taxista o róbale la moto a un repartidor 🛵 y entrega su pedido. Cuidado con la comida china 🏮: ahí se te va el dinero.</p>
-  <button class="go" id="go">JUGAR</button>
-  <div><button class="reset" id="reset">Reiniciar partida</button></div>
-  <div class="note">Calles y edificios reales de OpenStreetMap / Overture Maps.</div>
+<div id="intro" style="display:none"><div class="card">
+  <div class="brand">
+    <img class="logo" src="src/img/icono.png" alt="">
+    <h1>TJGTA</h1>
+    <h2>ZONA CENTRO · TIJUANA</h2>
+    <div id="resumen"></div>
+  </div>
+  <div class="menu">
+    <button class="go" id="go">▶ JUGAR</button>
+    <button class="sec" id="reset">Partida nueva</button>
+    <button class="sec" id="introopts">⚙️ Opciones</button>
+    <div id="introaviso"></div>
+    <table>
+      <tr><td>Flechas / WASD</td><td>Caminar o manejar</td></tr>
+      <tr><td>E</td><td>Robar un auto / bajarte</td></tr>
+      <tr><td>Espacio</td><td>Freno de mano (derrapes)</td></tr>
+      <tr><td>R / Flecha abajo</td><td>Reversa (para desatorarte)</td></tr>
+      <tr><td>Shift</td><td>Correr a pie (unos 5 segundos, luego hay que descansar)</td></tr>
+      <tr><td>T</td><td>Trabajar de taxista (en auto)</td></tr>
+      <tr><td>M</td><td>Mapa grande y marcar destino</td></tr>
+      <tr><td>N</td><td>Prender o apagar el sonido</td></tr>
+    </table>
+    <p class="desc">Descubre los lugares reales del Centro ★, prueba la ruta del taco 🌮, colecciona los cafés ☕, gana pesos como taxista o róbale la moto a un repartidor 🛵 y entrega su pedido. Cuidado con la comida china 🏮: ahí se te va el dinero.</p>
+    <div class="note">Calles y edificios reales de OpenStreetMap / Overture Maps.</div>
+  </div>
 </div></div>
 
-<script src="src/phaser-3.90.0.min.js"></script>
-<script src="data/centro.js"></script>
-<script src="src/audio.js"></script>
-<script src="src/game.js"></script>
+<!-- pantalla de carga: se ve mientras se leen el mapa y el juego (unos segundos en el celular) -->
+<div id="cargando">
+  <img src="src/img/icono.png" alt="">
+  <div class="t">TJGTA</div>
+  <div class="barra"><i id="cargabarra"></i></div>
+  <div class="msg" id="cargamsg">Calentando el motor…</div>
+</div>
+
+<!-- los scripts se cargan uno por uno despues de pintar la pantalla de carga (si no, se ve en blanco) -->
+<script>
+(() => {
+  const S = [['src/phaser-3.90.0.min.js', 'Calentando el motor…'], ['data/centro.js', 'Cargando las calles del Centro…'],
+    ['src/audio.js', 'Afinando el mariachi…'], ['src/game.js', 'Sacando los taxis…']];
+  let i = 0;
+  const next = () => {
+    if (i >= S.length) return;
+    const [src, msg] = S[i++], el = document.createElement('script');
+    document.getElementById('cargamsg').textContent = msg;
+    el.src = src;
+    el.onload = () => {
+      const bar = document.getElementById('cargabarra'); // al terminar game.js ya no existe
+      if (bar) bar.style.width = (i / S.length * 100) + '%';
+      setTimeout(next, 16);
+    };
+    el.onerror = () => { document.getElementById('cargamsg').textContent = 'No se pudo cargar ' + src; };
+    document.body.appendChild(el);
+  };
+  requestAnimationFrame(() => setTimeout(next, 30));
+})();
+</script>
 </body>
 </html>

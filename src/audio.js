@@ -222,6 +222,9 @@ window.SND = {
     traffic.gain.setTargetAtTime(0.18 + Math.min(cars / 8, 1) * 0.35, t, 0.5);
   },
   get muted() { return muted; },
+  // la app se va a segundo plano (o vuelve): se calla todo y se reanuda si el sonido estaba prendido
+  suspend() { if (ctx) ctx.suspend(); },
+  resume() { if (ctx && !muted) ctx.resume(); },
   toggle() {
     muted = !muted;
     try { localStorage.setItem('tjgta-mute', muted ? '1' : '0'); } catch (e) { /* sin almacenamiento */ }

@@ -1,0 +1,97 @@
+<!doctype html>
+<!-- Arte de la app Android: icono (capas del icono adaptable) y pantalla de arranque.
+     Lo genera scripts/arte-app.mjs (abre esta pagina en Chromium y guarda los PNG).
+     Tambien se puede abrir a mano en el navegador para ver como quedan. -->
+<html lang="es"><head><meta charset="utf-8"><title>Arte TJGTA</title>
+<style>body { background: #444; color: #eee; font-family: sans-serif; } canvas { margin: 6px; vertical-align: top; }</style>
+</head><body>
+<script>
+const ASFALTO = '#2c2c31', AMARILLO = '#ffd23f', FONDO = '#121212';
+
+// taxi libre clasico de Tijuana (guayin roja con franjas), mismo dibujo que makeTaxi en src/game.js,
+// mirando a la derecha y centrado en el origen; mide 37 x 16 unidades
+function taxi(x) {
+  const L = 37, W = 16, RED = '#c62828', CREAM = '#efe3c2', BLACK = '#151515';
+  x.save(); x.translate(-L / 2, -W / 2);
+  x.fillStyle = 'rgba(0,0,0,0.4)'; x.beginPath(); x.roundRect(2.5, 2.5, L, W, 3.5); x.fill();
+  x.fillStyle = RED; x.beginPath(); x.roundRect(0, 0, L, W, 3.5); x.fill();
+  x.strokeStyle = 'rgba(0,0,0,0.5)'; x.lineWidth = 0.8; x.stroke();
+  for (const y of [1.2, W - 4.2]) {
+    x.fillStyle = BLACK; x.fillRect(1.5, y, L - 3, 3);
+    x.fillStyle = CREAM; x.fillRect(1.5, y + 0.7, L - 3, 1.6);
+  }
+  x.fillStyle = '#a61f1f'; x.fillRect(4, 3.5, 20, W - 7);
+  x.fillStyle = '#1d2733'; x.fillRect(4, 3.2, 20, 1.3); x.fillRect(4, W - 4.5, 20, 1.3);
+  x.fillStyle = 'rgba(255,255,255,0.15)'; x.fillRect(7, 5, 14, W - 10);
+  x.fillStyle = '#1d2733'; x.fillRect(24, 3.5, 4.5, W - 7); x.fillRect(1.6, 4, 2.4, W - 8);
+  x.fillStyle = CREAM; x.fillRect(29, W / 2 - 1, L - 30.5, 2);
+  x.fillStyle = BLACK; x.fillRect(29, W / 2 - 1.6, L - 30.5, 0.6); x.fillRect(29, W / 2 + 1, L - 30.5, 0.6);
+  x.fillStyle = CREAM; x.fillRect(13, W / 2 - 2.5, 4, 5); x.strokeStyle = BLACK; x.lineWidth = 0.5; x.strokeRect(13, W / 2 - 2.5, 4, 5);
+  x.fillStyle = '#fff6b0'; x.fillRect(L - 1.8, 1.5, 1.8, 3); x.fillRect(L - 1.8, W - 4.5, 1.8, 3);
+  x.fillStyle = '#ff3b30'; x.fillRect(0, 1.5, 1.4, 3); x.fillRect(0, W - 4.5, 1.4, 3);
+  x.restore();
+}
+
+// ruido fijo (siempre el mismo grano de asfalto)
+let semilla = 7;
+const azar = () => (semilla = (semilla * 16807) % 2147483647) / 2147483647;
+
+// capa de fondo del icono adaptable: asfalto con banqueta, linea amarilla doble y paso de cebra.
+// Espacio de 108 x 108 unidades (la parte visible es el circulo central de ~72)
+function fondo(x) {
+  semilla = 7;
+  x.fillStyle = ASFALTO; x.fillRect(0, 0, 108, 108);
+  for (let i = 0; i < 900; i++) { x.fillStyle = azar() < 0.5 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.18)'; x.fillRect(azar() * 108, azar() * 108, 0.8, 0.8); }
+  x.save(); x.translate(54, 54); x.rotate(-Math.PI / 4);
+  // linea amarilla doble a lo largo de la calle (bajo el taxi)
+  x.fillStyle = AMARILLO; x.fillRect(-80, -9.5, 160, 1.6); x.fillRect(-80, -6.6, 160, 1.6);
+  // carriles punteados blancos
+  x.fillStyle = 'rgba(255,255,255,0.75)';
+  for (let s = -80; s < 80; s += 12) { x.fillRect(s, 12, 6, 1.4); x.fillRect(s, -26, 6, 1.4); }
+  x.restore();
+}
+// capa de frente: el taxi en diagonal, subiendo hacia la derecha
+function frente(x) {
+  x.save(); x.translate(54, 56); x.rotate(-Math.PI / 4); x.scale(1.55, 1.55); taxi(x); x.restore();
+}
+// icono completo (para Android viejito y la web): fondo + frente recortado en cuadro redondeado o circulo
+function completo(x, redondo) {
+  x.save(); x.beginPath();
+  if (redondo) x.arc(54, 54, 54, 0, 7); else x.roundRect(0, 0, 108, 108, 20);
+  x.clip();
+  // se recorta como el icono adaptable (se ve el centro de 72 de 108) para que se vea igual de grande
+  x.translate(54, 54); x.scale(1.4, 1.4); x.translate(-54, -54);
+  fondo(x); frente(x); x.restore();
+}
+
+// pantalla de arranque: fondo oscuro, icono y el titulo
+function arranque(x, w, h) {
+  x.fillStyle = FONDO; x.fillRect(0, 0, w, h);
+  const s = Math.min(w, h) * 0.32, cy = h * 0.42;
+  x.save(); x.translate(w / 2 - s / 2, cy - s / 2); x.scale(s / 108, s / 108); completo(x, false); x.restore();
+  const f = Math.min(w, h) * 0.11;
+  x.textAlign = 'center'; x.textBaseline = 'top';
+  x.font = '900 ' + f + 'px "DejaVu Sans", sans-serif'; x.fillStyle = AMARILLO;
+  x.shadowColor = '#000'; x.shadowOffsetY = f * 0.06;
+  x.fillText('TJGTA', w / 2, cy + s / 2 + f * 0.35);
+  x.shadowColor = 'transparent';
+  x.font = 'bold ' + f * 0.3 + 'px "DejaVu Sans", sans-serif'; x.fillStyle = '#f4efe6';
+  x.fillText('Z O N A   C E N T R O  ·  T I J U A N A', w / 2, cy + s / 2 + f * 1.55);
+}
+
+// lienzo de tamano n con el dibujo en espacio de 108 unidades
+function lienzo(n, fn) {
+  const c = document.createElement('canvas'); c.width = c.height = n;
+  const x = c.getContext('2d'); x.scale(n / 108, n / 108); fn(x); return c;
+}
+window.ARTE = {
+  fondo: (n) => lienzo(n, fondo).toDataURL(),
+  frente: (n) => lienzo(n, frente).toDataURL(),
+  icono: (n, redondo) => lienzo(n, (x) => completo(x, redondo)).toDataURL(),
+  arranque: (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; arranque(c.getContext('2d'), w, h); return c.toDataURL(); },
+};
+// vista previa al abrir la pagina a mano
+for (const c of [lienzo(216, fondo), lienzo(216, frente), lienzo(216, (x) => completo(x, false)), lienzo(216, (x) => completo(x, true))]) document.body.appendChild(c);
+const a = document.createElement('canvas'); a.width = 800; a.height = 480; arranque(a.getContext('2d'), 800, 480); document.body.appendChild(a);
+</script>
+</body></html>
