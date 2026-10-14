@@ -39,6 +39,12 @@
       <button class="optrow" id="optexit" style="display:none">🚪 Guardar y salir</button>
       <h4>Tu avance</h4>
       <div id="optprog"></div>
+      <h4>Tu partida</h4>
+      <button class="optrow" id="optexport">💾 Exportar partida (respaldo)</button>
+      <button class="optrow" id="optimport">📂 Importar partida</button>
+      <input type="file" id="optimpfile" accept="application/json,.json" style="display:none">
+      <div id="optmsg"></div>
+      <div id="optver"></div>
     </section>
     <section>
       <h4>Controles</h4>
@@ -128,8 +134,20 @@
   const S = [['src/phaser-3.90.0.min.js', 'Calentando el motor…'], ['data/centro.js', 'Cargando las calles del Centro…'],
     ['src/audio.js', 'Afinando el mariachi…'], ['src/game.js', 'Sacando los taxis…']];
   let i = 0;
-  const next = () => {
+  // en la app la partida tambien vive en el almacen nativo (Preferences), que Android no borra al limpiar cache;
+  // antes de arrancar el juego se usa la mas reciente de las dos
+  const partidaNativa = async () => {
+    const P = window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.Preferences, K = 'tjgta-centro-v1';
+    if (!P) return;
+    const t = (v) => { try { return JSON.parse(v).t || 0; } catch (e) { return -1; } };
+    try {
+      const { value } = await P.get({ key: K }), local = localStorage.getItem(K);
+      if (value && (!local || t(value) > t(local))) localStorage.setItem(K, value);
+    } catch (e) { /* sin almacen nativo */ }
+  };
+  const next = async () => {
     if (i >= S.length) return;
+    if (S[i][0] === 'src/game.js') await partidaNativa();
     const [src, msg] = S[i++], el = document.createElement('script');
     document.getElementById('cargamsg').textContent = msg;
     el.src = src;

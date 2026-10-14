@@ -726,12 +726,19 @@ const perks = () => {
   p.final = p.cafe && p.taco && p.noche;
   return p;
 };
+// en la app tambien se guarda en el almacen nativo (ver partidaNativa en index.html)
+const PREFS = window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.Preferences;
+let noGuardar = false; // al importar una partida se recarga sin pisarla con la de memoria
 function save() {
+  if (noGuardar) return;
   state.found = landmarks.filter(l => l.found).map(l => l.name);
   state.eaten = tacos.filter(t => t.eaten).map(t => t.name);
   state.cafes = cafes.filter(c => c.drunk).map(c => c.name);
   state.eggs = EGGS.filter(e => e.got).map(e => e.k);
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch (e) { /* sin almacenamiento */ }
+  state.t = Date.now();
+  const json = JSON.stringify(state);
+  try { localStorage.setItem(SAVE_KEY, json); } catch (e) { /* sin almacenamiento */ }
+  if (PREFS) PREFS.set({ key: SAVE_KEY, value: json }).catch(() => {});
 }
 
 // ---------- frases ----------
@@ -3524,6 +3531,48 @@ $('optclose').addEventListener('click', toggleOptions);
 $('optsnd').addEventListener('click', toggleSound);
 $('optnight').addEventListener('click', toggleNight);
 $('optacta').addEventListener('click', () => { toggleOptions(); openActa(); });
+
+// ---------- respaldo de la partida: exportar a un archivo e importarlo ----------
+function optMsg(t) { $('optmsg').textContent = t; clearTimeout(optMsg.t); optMsg.t = setTimeout(() => { $('optmsg').textContent = ''; }, 5000); }
+async function exportarPartida() {
+  save();
+  const hoy = new Date().toISOString().slice(0, 10), name = 'tjrush-partida-' + hoy + '.json', C = window.Capacitor;
+  const data = JSON.stringify({ juego: 'TJ Rush', fecha: hoy, partida: state }, null, 1);
+  // en la app: se comparte el archivo (Drive, WhatsApp, correo, Archivos...); en la web se descarga
+  if (C && C.Plugins && C.Plugins.Filesystem && C.Plugins.Share) {
+    try {
+      const r = await C.Plugins.Filesystem.writeFile({ path: name, data, directory: 'CACHE', encoding: 'utf8' });
+      await C.Plugins.Share.share({ title: 'Mi partida de TJ Rush', files: [r.uri] });
+      optMsg('Guarda el archivo en Drive, Archivos o mándatelo por WhatsApp.');
+    } catch (e) { if (!/cancel/i.test(String(e && e.message))) optMsg('No se pudo exportar: ' + (e && e.message)); }
+    return;
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([data], { type: 'application/json' }));
+  a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  optMsg('Se descargó ' + name);
+}
+async function importarPartida(f) {
+  let p = null;
+  try { const j = JSON.parse(await f.text()); p = j.partida || j; } catch (e) { /* no es JSON */ }
+  if (!p || typeof p.money !== 'number' || !Array.isArray(p.found)) { optMsg('Ese archivo no es una partida de TJ Rush.'); return; }
+  const n = (a) => (Array.isArray(a) ? a.length : 0);
+  if (!confirm('¿Cambiar tu partida por la del archivo?\n\n$' + p.money.toLocaleString('es-MX') + ' · ★ ' + n(p.found) + ' lugares · 🌮 ' + n(p.eaten) +
+    ' tacos · ☕ ' + n(p.cafes) + ' cafés\n\nLa partida que tienes ahora se pierde (expórtala antes si la quieres).')) return;
+  p.t = Date.now();
+  const json = JSON.stringify(p);
+  try { localStorage.setItem(SAVE_KEY, json); } catch (e) { /* sin almacenamiento */ }
+  if (PREFS) await PREFS.set({ key: SAVE_KEY, value: json }).catch(() => {});
+  noGuardar = true; location.reload();
+}
+$('optexport').addEventListener('click', exportarPartida);
+$('optimport').addEventListener('click', () => $('optimpfile').click());
+$('optimpfile').addEventListener('change', (ev) => { const f = ev.target.files[0]; ev.target.value = ''; if (f) importarPartida(f); });
+// version: en la app la del paquete de Android; en la web no hay numero
+(() => {
+  const A = window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.App;
+  $('optver').textContent = 'TJ Rush · versión web';
+  if (A) A.getInfo().then(i => { $('optver').textContent = 'TJ Rush ' + i.version + ' (compilación ' + i.build + ')'; }).catch(() => {});
+})();
 // O o Esc abren y cierran el menu (con el juego en pausa Phaser no lee el teclado, por eso va aqui)
 window.addEventListener('keydown', (ev) => {
   if (($('intro').style.display !== 'none' && !optsOpen) || $('actabox').style.display === 'flex' || ev.target.tagName === 'INPUT') return;
@@ -3607,6 +3656,8 @@ if (APP) {
   $('optexit').addEventListener('click', () => { save(); APP.exitApp(); });
 }
 
+// la primera vez en la app, la partida pasa tambien al almacen nativo
+if (PREFS && hayPartida()) save();
 // en celular las Opciones de la portada ya muestran los controles tactiles
 if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) document.body.classList.add('touch');
 renderIntro();

@@ -98,6 +98,8 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); c
 .optrow { display: block; width: 100%; text-align: left; margin-bottom: 6px; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--line);
   background: #2a2a2d; color: var(--text); font-size: 14px; cursor: pointer; }
 .optrow:disabled { opacity: .55; cursor: default; }
+#optmsg { color: var(--accent); font-size: 12px; min-height: 1em; }
+#optver { color: var(--muted); font-size: 11px; margin-top: 10px; }
 #opts table.keys { border-collapse: collapse; font-size: 13px; width: 100%; }
 #opts table.keys td { padding: 3px 6px; color: var(--muted); vertical-align: top; }
 #opts table.keys td:first-child { color: var(--text); font-weight: bold; white-space: nowrap; }
