@@ -26,6 +26,13 @@ const KEEP = RES >= 3 ? 2 : 3;            // trozos que se guardan alrededor de 
 const CHUNK_BUDGET_MS = 4;                // tiempo por cuadro para ir pintando el siguiente trozo
 const CHUNK_BUDGET_SEEN_MS = 10;          // ... si ese trozo ya se ve en pantalla
 const PREFETCH = 320;                     // los trozos se empiezan a pintar a esta distancia de la orilla de la pantalla
+const LOOKAHEAD_S = 0.9;                  // ... y ademas hacia donde vas: lo que recorres en este tiempo (hasta LOOKAHEAD_MAX px)
+const LOOKAHEAD_MAX = 700;
+// los lienzos del mapa se pintan en memoria normal (CPU) y no en la tarjeta de video: en el celular el dibujo
+// en la tarjeta se acumula y se cobra todo junto al subir la textura (un tiron); en CPU cada paso cuesta lo que
+// cuesta y cabe en el presupuesto del cuadro. (localStorage tjrush-lienzo = 'gpu' vuelve a lo de antes, para comparar)
+const LIENZO_CPU = (() => { try { return localStorage.getItem('tjrush-lienzo') !== 'gpu'; } catch (e) { return true; } })();
+const CTX2D = LIENZO_CPU ? { willReadFrequently: true } : undefined;
 const TXT_RES = Math.ceil(DPR * 2);
 // autos y peatones: pixeles de textura por pixel del mundo (el sprite se muestra a escala 1 / SPR)
 const SPR = DPR > 1.5 ? Q.spr : 2;
@@ -530,7 +537,7 @@ const LEAN = 0.25, LEAN_PAD = Math.ceil(EXTRA_UP * LEAN) + 2;
 // las capas miden BW x BH pixeles del mundo pero tienen RES veces mas pixeles; sus contextos dibujan
 // escalados por RES, y al copiar entre capas el rectangulo de origen va en pixeles de la capa (x RES)
 const BW = CHUNK + 2 + LEAN_PAD, BH = CHUNK + 2 + EXTRA_UP;
-for (const c of [bRoof, bWall, bWall2, bWin, bStack]) { c.width = BW * RES; c.height = BH * RES; c.getContext('2d').setTransform(RES, 0, 0, RES, 0, 0); }
+for (const c of [bRoof, bWall, bWall2, bWin, bStack]) { c.width = BW * RES; c.height = BH * RES; c.getContext('2d', CTX2D).setTransform(RES, 0, 0, RES, 0, 0); }
 const blit = (dst, src, sx, sy, sw, sh, dx, dy, dw, dh) => dst.drawImage(src, sx * RES, sy * RES, sw * RES, sh * RES, dx, dy, dw, dh);
 // cada piso de la pared son 4 capas: linea de entrepiso, dos de ventanas y pared
 const wallLayer = (k) => { const m = k % 4; return m === 0 ? bWall2 : m === 3 ? bWall : bWin; };
@@ -624,7 +631,7 @@ function* drawBuildings(ctx, bl, rs, cx, cy) {
 // Las capas de los edificios (bRoof...) se comparten, asi que solo puede haber un trozo a medias a la vez.
 function* chunkSteps(cx, cy) {
   const cv = document.createElement('canvas'); cv.width = cv.height = (CHUNK + 2) * RES;
-  const ctx = cv.getContext('2d');
+  const ctx = cv.getContext('2d', CTX2D);
   ctx.scale(RES, RES); ctx.translate(1 - cx * CHUNK, 1 - cy * CHUNK);
   ctx.fillStyle = COL.ground; ctx.fillRect(cx * CHUNK - 1, cy * CHUNK - 1, CHUNK + 2, CHUNK + 2);
   const k = cx + ',' + cy;
@@ -2298,13 +2305,22 @@ class Main extends Phaser.Scene {
   // ----- trozos -----
   updateChunks(all) {
     const v = this.cameras.main.worldView;
-    const cx0 = Math.max(0, Math.floor((v.x - PREFETCH) / CHUNK)), cy0 = Math.max(0, Math.floor((v.y - PREFETCH) / CHUNK));
-    const cx1 = Math.floor((v.right + PREFETCH) / CHUNK), cy1 = Math.floor((v.bottom + PREFETCH) / CHUNK);
-    // primero el que ya se ve (o el mas cercano al centro), luego los de reserva
+    // velocidad de la camara (suavizada) para pedir antes los trozos de adelante
+    const dt = Math.max(1, this.game.loop.delta) / 1000, lv = this.lastView || { x: v.centerX, y: v.centerY };
+    const sm = (o, n) => o + (n - o) * Math.min(1, dt * 4);
+    this.camVX = sm(this.camVX || 0, (v.centerX - lv.x) / dt); this.camVY = sm(this.camVY || 0, (v.centerY - lv.y) / dt);
+    this.lastView = { x: v.centerX, y: v.centerY };
+    const cl = (a) => Math.max(-LOOKAHEAD_MAX, Math.min(LOOKAHEAD_MAX, a * LOOKAHEAD_S));
+    const ax = cl(this.camVX), ay = cl(this.camVY);
+    const cx0 = Math.max(0, Math.floor((v.x + Math.min(0, ax) - PREFETCH) / CHUNK)), cy0 = Math.max(0, Math.floor((v.y + Math.min(0, ay) - PREFETCH) / CHUNK));
+    const cx1 = Math.floor((v.right + Math.max(0, ax) + PREFETCH) / CHUNK), cy1 = Math.floor((v.bottom + Math.max(0, ay) + PREFETCH) / CHUNK);
+    // primero el que ya se ve, luego los mas cercanos a donde vas a estar en un rato
+    const px = v.centerX + ax * 0.6, py = v.centerY + ay * 0.6;
     const want = [];
     for (let cx = cx0; cx <= cx1; cx++) for (let cy = cy0; cy <= cy1; cy++) {
       if (cx * CHUNK >= WORLD_W || cy * CHUNK >= WORLD_H || this.chunks.has(cx + ',' + cy)) continue;
-      want.push([cx, cy, Math.hypot((cx + 0.5) * CHUNK - v.centerX, (cy + 0.5) * CHUNK - v.centerY)]);
+      const seen = cx * CHUNK < v.right && (cx + 1) * CHUNK > v.x && cy * CHUNK < v.bottom && (cy + 1) * CHUNK > v.y;
+      want.push([cx, cy, Math.hypot((cx + 0.5) * CHUNK - px, (cy + 0.5) * CHUNK - py) - (seen ? 1e6 : 0)]);
     }
     const add = (cx, cy, cv) => {
       const k = cx + ',' + cy, tk = 'ch' + k;
@@ -2312,10 +2328,14 @@ class Main extends Phaser.Scene {
       this.chunks.set(k, this.add.image(cx * CHUNK - 1, cy * CHUNK - 1, tk).setOrigin(0).setDepth(0).setScale(1 / RES));
     };
     // todo de una vez: el trozo a medias se descarta (comparte las capas de los edificios) y se pinta completo con los demas
-    if (all) { this.chunkJob = null; for (const [cx, cy] of want) add(cx, cy, drawChunk(cx, cy)); }
-    else {
-      // se sigue con el trozo a medias o se empieza el mas cercano al centro; unos milisegundos por cuadro,
-      // y mas si el trozo ya se esta viendo (para tapar el hueco pronto sin dar un tiron)
+    if (all) { this.chunkJob = null; this.chunkDone = null; for (const [cx, cy] of want) add(cx, cy, drawChunk(cx, cy)); }
+    else if (this.chunkDone) {
+      // el trozo terminado se sube a la tarjeta de video en su propio cuadro (subirlo tambien cuesta)
+      const d = this.chunkDone; this.chunkDone = null;
+      if (!this.chunks.has(d.k)) add(d.cx, d.cy, d.cv);
+    } else {
+      // se sigue con el trozo a medias o se empieza el mas urgente; unos milisegundos por cuadro,
+      // y mas si el trozo ya se esta viendo (para tapar el hueco pronto)
       if (!this.chunkJob && want.length) {
         const [cx, cy] = want.sort((a, b) => a[2] - b[2])[0];
         this.chunkJob = { cx, cy, k: cx + ',' + cy, it: chunkSteps(cx, cy) };
@@ -2326,7 +2346,7 @@ class Main extends Phaser.Scene {
         const t0 = performance.now(); let r;
         const budget = seen ? CHUNK_BUDGET_SEEN_MS : CHUNK_BUDGET_MS;
         do r = job.it.next(); while (!r.done && performance.now() - t0 < budget);
-        if (r.done) { this.chunkJob = null; if (!this.chunks.has(job.k)) add(job.cx, job.cy, r.value); }
+        if (r.done) { this.chunkJob = null; this.chunkDone = { cx: job.cx, cy: job.cy, k: job.k, cv: r.value }; }
       }
     }
     for (const [k, img] of this.chunks) {
