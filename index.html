@@ -34,7 +34,11 @@
   <button id="actasave">Guardar / compartir</button><button id="actaclose">Cerrar</button></div>
 </div></div>
 
-<div id="bigmap"><canvas id="bigc"></canvas><p>Toca el mapa para marcar un destino. M o toca fuera para cerrar.</p></div>
+<div id="bigmap"><canvas id="bigc"></canvas>
+  <div class="mapbtns"><button id="mzin" title="Acercar">＋</button><button id="mzout" title="Alejar">−</button><button id="mzme" title="Centrar en mí">◎</button><button id="mzclose" title="Cerrar (M)">✕</button></div>
+  <div id="mlegend"></div>
+  <p class="maphint">Arrastra para moverte · pellizca o usa la rueda para acercar · toca para marcar destino</p>
+</div>
 
 <div id="touch">
   <div id="stick"><div id="knob"></div></div>

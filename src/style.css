@@ -84,9 +84,15 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); c
 .touch .hudbtn { top: 140px; }
 #credit { bottom: 4px; right: 8px; font-size: 10px; color: var(--muted); opacity: .8; }
 
-#bigmap { position: fixed; inset: 0; z-index: 8; background: rgba(0,0,0,.82); display: none; align-items: center;
-  justify-content: center; flex-direction: column; gap: 8px; }
-#bigmap canvas { max-width: 94vw; max-height: 84vh; border: 2px solid var(--line); cursor: crosshair; }
+/* mapa grande a pantalla completa: se arrastra y se acerca (ver renderBig en game.js) */
+#bigmap { position: fixed; inset: 0; z-index: 8; background: #4d493e; display: none; touch-action: none; }
+#bigmap canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab; touch-action: none; }
+#bigmap .mapbtns { position: absolute; top: 12px; right: 12px; display: flex; flex-direction: column; gap: 8px; }
+#bigmap .mapbtns button { width: 44px; height: 44px; border-radius: 50%; border: 2px solid rgba(255,255,255,.35); background: rgba(0,0,0,.65);
+  color: #fff; font-size: 22px; line-height: 1; cursor: pointer; }
+#mzclose { background: rgba(160,30,30,.8) !important; }
+#mlegend { position: absolute; left: 12px; top: 12px; padding: 6px 10px; border-radius: 8px; background: var(--panel); border: 1px solid var(--line);
+  color: var(--text); font-size: 13px; pointer-events: none; }
 /* Acta de Tijuanense (premio final) */
 #actabox { display: none; position: fixed; inset: 0; z-index: 9; background: rgba(0,0,0,.82); align-items: center; justify-content: center; padding: 10px; }
 #actabox .card { display: flex; flex-direction: column; align-items: center; gap: 8px; max-width: 100%; }
@@ -96,7 +102,8 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); c
 #actabox button { padding: 8px 14px; border-radius: 8px; border: 0; font-weight: bold; font-size: 14px; cursor: pointer; }
 #actasave { background: var(--accent); color: #1a1a1a; }
 #actaclose { background: #333; color: var(--text); }
-#bigmap p { margin: 0; color: var(--muted); font-size: 14px; text-align: center; padding: 0 16px; }
+#bigmap .maphint { position: absolute; left: 0; right: 70px; bottom: 8px; margin: 0; color: #eee; font-size: 12px; text-align: center;
+  text-shadow: 0 1px 2px #000; pointer-events: none; }
 
 #intro { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center;
   background: radial-gradient(circle at 50% 40%, rgba(40,30,10,.85), rgba(0,0,0,.95)); padding: 16px; }

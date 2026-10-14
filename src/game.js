@@ -3124,29 +3124,177 @@ function drawMini(scene, f) {
   if (sw > 0 && sh > 0) c.drawImage(miniFull, sx, sy, sw, sh, sx - ox * MS, sy - oy * MS, sw, sh);
   drawMarkers(c, MS, MS, ox, oy, scene, f, false);
 }
+// ---------- mapa grande: pantalla completa, se arrastra, se acerca y se marca el destino ----------
+// La vista es un centro (cx, cy) en el mundo y una escala s (puntos de pantalla por pixel del mundo).
+// De lejos se dibuja miniFull (todo el mapa, chico); de cerca se dibujan calles, edificios y nombres solo de lo
+// que se ve. Mientras arrastras o pellizcas va la version rapida y al soltar se pinta el detalle.
 let bigOpen = false, bigScene = null;
+const BM = { cx: 0, cy: 0, s: 0.3, W: 0, H: 0, dpr: 1, pts: new Map(), gesture: null, detailT: 0, raf: 0 };
+const BM_DETAIL = 0.16, BM_NAMES = 0.3, BM_ICONS = 0.22, BM_MAX = 1.4;
+const bmMin = () => Math.min(BM.W / WORLD_W, BM.H / WORLD_H) * 0.95;
+function bmClamp() {
+  BM.s = Math.max(bmMin(), Math.min(BM_MAX, BM.s));
+  const hw = BM.W / 2 / BM.s, hh = BM.H / 2 / BM.s;
+  BM.cx = hw * 2 >= WORLD_W ? WORLD_W / 2 : Math.max(hw, Math.min(WORLD_W - hw, BM.cx));
+  BM.cy = hh * 2 >= WORLD_H ? WORLD_H / 2 : Math.max(hh, Math.min(WORLD_H - hh, BM.cy));
+}
+const bmX = (x) => (x - BM.cx) * BM.s + BM.W / 2, bmY = (y) => (y - BM.cy) * BM.s + BM.H / 2;
+function bmResize() {
+  const cv = $('bigc'); BM.W = window.innerWidth; BM.H = window.innerHeight; BM.dpr = Math.min(window.devicePixelRatio || 1, 2);
+  cv.width = Math.round(BM.W * BM.dpr); cv.height = Math.round(BM.H * BM.dpr);
+}
+// pinta en el siguiente cuadro; el detalle espera a que dejes de mover el mapa
+function bmDraw(detail) {
+  cancelAnimationFrame(BM.raf); clearTimeout(BM.detailT);
+  BM.raf = requestAnimationFrame(() => renderBig(detail));
+  if (!detail) BM.detailT = setTimeout(() => bmDraw(true), 140);
+}
+function renderBig(detail) {
+  if (!bigOpen || !bigScene) return;
+  const c = $('bigc').getContext('2d'), s = BM.s, f = bigScene.focus();
+  c.setTransform(BM.dpr, 0, 0, BM.dpr, 0, 0);
+  c.lineJoin = 'round'; // si no, el contorno de las letras como la M deja picos negros
+  c.fillStyle = '#4d493e'; c.fillRect(0, 0, BM.W, BM.H);
+  c.drawImage(miniFull, bmX(0), bmY(0), WORLD_W * s, WORLD_H * s);
+  // --- detalle de lo que se ve (al soltar y ya de cerca) ---
+  if (detail && s >= BM_DETAIL) {
+    const x0 = BM.cx - BM.W / 2 / s, y0 = BM.cy - BM.H / 2 / s, x1 = BM.cx + BM.W / 2 / s, y1 = BM.cy + BM.H / 2 / s;
+    const A = new Set(), B = new Set(), R = new Set();
+    for (let cx = Math.floor(x0 / CHUNK); cx <= Math.floor(x1 / CHUNK); cx++) for (let cy = Math.floor(y0 / CHUNK); cy <= Math.floor(y1 / CHUNK); cy++) {
+      const k = cx + ',' + cy;
+      (chunkAreas.get(k) || []).forEach(i => A.add(i)); (chunkBlds.get(k) || []).forEach(i => B.add(i)); (chunkRoads.get(k) || []).forEach(i => R.add(i));
+    }
+    c.save(); c.setTransform(BM.dpr * s, 0, 0, BM.dpr * s, BM.dpr * (BM.W / 2 - BM.cx * s), BM.dpr * (BM.H / 2 - BM.cy * s));
+    c.fillStyle = '#6d6858'; c.fillRect(x0, y0, x1 - x0, y1 - y0);
+    for (const i of A) { const a = areas[i]; c.fillStyle = AREA_COL[a.k]; trace(c, a.p, true); c.fill(); }
+    c.fillStyle = '#9a917e'; c.strokeStyle = 'rgba(0,0,0,0.25)'; c.lineWidth = 1 / s;
+    for (const i of B) { trace(c, blds[i].p, true); c.fill(); if (s > 0.45) c.stroke(); }
+    c.lineCap = 'round'; c.lineJoin = 'round';
+    const rs = [...R].map(i => roads[i]).sort((a, b) => b.c - a.c); // las grandes encima
+    for (const r of rs) {
+      if (r.c > 9) { if (r.c === 11) { c.strokeStyle = COL.water; c.lineWidth = ROAD_W[11] * M; trace(c, r.p); c.stroke(); } continue; }
+      c.strokeStyle = r.c <= 2 ? '#f2d16b' : r.c <= 6 ? '#2e2e33' : r.c === 7 ? '#55555a' : '#c8bda4';
+      c.lineWidth = Math.max(ROAD_W[r.c] * M, (r.c <= 2 ? 5 : r.c <= 6 ? 3.5 : 2) / s); trace(c, r.p); c.stroke();
+    }
+    c.fillStyle = 'rgba(30,36,30,0.85)';
+    c.beginPath(); c.moveTo(x0, 0); c.lineTo(x1, 0); c.lineTo(x1, borderY(x1)); c.lineTo(x0, borderY(x0)); c.closePath(); c.fill();
+    c.restore();
+    // nombres de calles: uno por nombre, en el tramo visible mas largo, sin encimarse
+    if (s >= BM_NAMES) {
+      const best = new Map();
+      for (const r of rs) {
+        if (r.n < 0 || r.c > 6) continue;
+        const p = r.p;
+        for (let q = 0; q < p.length - 2; q += 2) {
+          const ax = bmX(p[q]), ay = bmY(p[q + 1]), bx = bmX(p[q + 2]), by = bmY(p[q + 3]), L = Math.hypot(bx - ax, by - ay);
+          if (L < 60 || Math.min(ax, bx) < 10 || Math.max(ax, bx) > BM.W - 10 || Math.min(ay, by) < 10 || Math.max(ay, by) > BM.H - 10) continue;
+          const nm = D.names[r.n], o = best.get(nm);
+          if (!o || L > o.L) best.set(nm, { L, x: (ax + bx) / 2, y: (ay + by) / 2, a: Math.atan2(by - ay, bx - ax), major: r.c <= 3 });
+        }
+      }
+      const placed = [];
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      for (const [nm, o] of [...best].sort((a, b) => (b[1].major - a[1].major) || (b[1].L - a[1].L))) {
+        c.font = 'bold ' + (o.major ? 12 : 11) + 'px sans-serif';
+        const w = Math.min(c.measureText(nm).width, o.L - 6), box = [o.x - w / 2 - 4, o.y - w / 2 - 4, o.x + w / 2 + 4, o.y + w / 2 + 4];
+        if (w < c.measureText(nm).width * 0.98 || placed.some(b => b[0] < box[2] && b[2] > box[0] && b[1] < box[3] && b[3] > box[1])) continue;
+        placed.push(box);
+        let a = o.a; if (a > Math.PI / 2) a -= Math.PI; if (a < -Math.PI / 2) a += Math.PI;
+        c.save(); c.translate(o.x, o.y); c.rotate(a);
+        c.lineJoin = 'round'; c.lineWidth = 3; c.strokeStyle = 'rgba(0,0,0,0.75)'; c.strokeText(nm, 0, 0); c.fillStyle = o.major ? '#fff3c4' : '#f2f2f2'; c.fillText(nm, 0, 0);
+        c.restore();
+      }
+    }
+  }
+  // --- ruta al destino ---
+  const r = bigScene.route, g = bigScene.goal();
+  if (g && r) {
+    c.save(); c.strokeStyle = 'rgba(87,209,107,0.95)'; c.lineWidth = 4; c.setLineDash([8, 6]); c.lineCap = 'round';
+    c.beginPath(); for (let i = 0; i < r.length; i += 2) { const X = bmX(r[i]), Y = bmY(r[i + 1]); if (i) c.lineTo(X, Y); else c.moveTo(X, Y); } c.stroke(); c.restore();
+  }
+  // --- lugares, tacos, cafes y comida china ---
+  const icons = s >= BM_ICONS, on = (X, Y) => X > -30 && X < BM.W + 30 && Y > -30 && Y < BM.H + 30;
+  c.textAlign = 'center'; c.textBaseline = 'middle';
+  const emoji = (e, X, Y, done) => { c.globalAlpha = done ? 0.35 : 1; c.font = (icons ? 15 : 10) + 'px sans-serif'; c.fillText(e, X, Y); c.globalAlpha = 1; };
+  // la comida china es un farolito rojo dibujado (el emoji 🏮 no sale en color en todos los lienzos)
+  const farol = (X, Y, k) => { c.fillStyle = '#c62828'; c.beginPath(); c.ellipse(X, Y, 5 * k, 6 * k, 0, 0, 7); c.fill(); c.fillStyle = '#ffd23f';
+    c.fillRect(X - 3 * k, Y - 7 * k, 6 * k, 2 * k); c.fillRect(X - 3 * k, Y + 5 * k, 6 * k, 2 * k); c.strokeStyle = 'rgba(0,0,0,0.5)'; c.lineWidth = 1; c.beginPath(); c.moveTo(X, Y - 6 * k); c.lineTo(X, Y + 6 * k); c.stroke(); };
+  for (const k of chinas) { const X = bmX(k.x), Y = bmY(k.y); if (on(X, Y)) farol(X, Y, icons ? 1.1 : 0.6); }
+  for (const t of tacos) { const X = bmX(t.x), Y = bmY(t.y); if (on(X, Y)) { if (icons) emoji('🌮', X, Y, t.eaten); else if (!t.eaten) { c.fillStyle = '#ff9f1c'; c.beginPath(); c.arc(X, Y, 3, 0, 7); c.fill(); } } }
+  for (const k of cafes) { const X = bmX(k.x), Y = bmY(k.y); if (on(X, Y)) { if (icons) emoji('☕', X, Y, k.drunk); else if (!k.drunk) { c.fillStyle = '#a0662f'; c.beginPath(); c.arc(X, Y, 3, 0, 7); c.fill(); } } }
+  const lsz = icons ? 30 : 20;
+  for (const l of landmarks) {
+    const X = bmX(l.x), Y = bmY(l.y); if (!on(X, Y)) continue;
+    const img = bigScene.textures.exists(l.icon) && bigScene.textures.get(l.icon).getSourceImage();
+    c.save(); if (l.found) { c.globalAlpha = 0.6; c.filter = 'grayscale(1)'; }
+    if (img) c.drawImage(img, X - lsz / 2, Y - lsz / 2, lsz, lsz); else { c.font = '18px sans-serif'; c.fillStyle = '#ffd23f'; c.fillText('★', X, Y); }
+    c.restore();
+    if (s >= 0.12) { c.font = 'bold 12px sans-serif'; c.lineWidth = 3; c.strokeStyle = '#000'; c.strokeText(l.name, X, Y + lsz / 2 + 9); c.fillStyle = l.found ? '#bbb' : '#fff'; c.fillText(l.name, X, Y + lsz / 2 + 9); }
+  }
+  // --- destino y tu posicion ---
+  if (g) { const X = bmX(g.x), Y = bmY(g.y); c.fillStyle = '#57d16b'; c.strokeStyle = '#000'; c.lineWidth = 2; c.beginPath(); c.arc(X, Y, 8, 0, 7); c.fill(); c.stroke(); c.fillStyle = '#fff'; c.beginPath(); c.arc(X, Y, 3, 0, 7); c.fill(); }
+  const PX = bmX(f.x), PY = bmY(f.y);
+  c.save(); c.translate(PX, PY); c.rotate(f.a); c.fillStyle = '#ffd23f'; c.strokeStyle = '#000'; c.lineWidth = 2;
+  c.beginPath(); c.moveTo(13, 0); c.lineTo(-8, 8); c.lineTo(-3, 0); c.lineTo(-8, -8); c.closePath(); c.fill(); c.stroke(); c.restore();
+  // leyenda con lo que llevas
+  $('mlegend').textContent = `📍 Tú · ★ ${landmarks.filter(l => l.found).length}/${landmarks.length} · 🌮 ${tacos.filter(t => t.eaten).length}/${tacos.length} · ☕ ${cafes.filter(k => k.drunk).length}/${cafes.length} · 🏮 cuidado`;
+}
+function bmZoomAt(factor, sx, sy) {
+  const wx = BM.cx + (sx - BM.W / 2) / BM.s, wy = BM.cy + (sy - BM.H / 2) / BM.s;
+  BM.s *= factor; bmClamp();
+  BM.cx = wx - (sx - BM.W / 2) / BM.s; BM.cy = wy - (sy - BM.H / 2) / BM.s; bmClamp();
+  bmDraw(false);
+}
+function bmCenterMe() { const f = bigScene.focus(); BM.cx = f.x; BM.cy = f.y; bmClamp(); bmDraw(false); }
 function setupBigMap(scene) {
   bigScene = scene;
-  const wrap = $('bigmap'), cv = $('bigc');
-  cv.width = miniFull.width; cv.height = miniFull.height;
-  wrap.addEventListener('pointerdown', (ev) => {
-    if (ev.target === cv) {
-      const r = cv.getBoundingClientRect();
-      const x = (ev.clientX - r.left) / r.width * WORLD_W, y = (ev.clientY - r.top) / r.height * WORLD_H;
-      scene.waypoint = { x, y }; renderBig(); toast('Destino marcado', 'Sigue la flecha verde.', 2);
-      setTimeout(toggleBigMap, 350);
-    } else toggleBigMap();
+  const cv = $('bigc');
+  // arrastrar con un dedo (o el raton), pellizcar con dos; un toque sin moverse marca el destino
+  cv.addEventListener('pointerdown', (ev) => {
+    cv.setPointerCapture(ev.pointerId); BM.pts.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+    if (BM.pts.size === 1) BM.gesture = { tap: true, x0: ev.clientX, y0: ev.clientY, t0: performance.now() };
+    else { BM.gesture.tap = false; const [a, b] = [...BM.pts.values()]; BM.gesture.d0 = Math.hypot(a.x - b.x, a.y - b.y); BM.gesture.s0 = BM.s; }
   });
-}
-function renderBig() {
-  const cv = $('bigc'), c = cv.getContext('2d');
-  c.drawImage(miniFull, 0, 0);
-  drawMarkers(c, MS, MS, 0, 0, bigScene, bigScene.focus(), true);
+  cv.addEventListener('pointermove', (ev) => {
+    const p = BM.pts.get(ev.pointerId); if (!p) return;
+    const g = BM.gesture, dx = ev.clientX - p.x, dy = ev.clientY - p.y;
+    p.x = ev.clientX; p.y = ev.clientY;
+    if (BM.pts.size === 1) {
+      if (Math.hypot(ev.clientX - g.x0, ev.clientY - g.y0) > 8) g.tap = false;
+      if (!g.tap) { BM.cx -= dx / BM.s; BM.cy -= dy / BM.s; bmClamp(); bmDraw(false); }
+    } else if (BM.pts.size === 2) {
+      const [a, b] = [...BM.pts.values()], d = Math.hypot(a.x - b.x, a.y - b.y);
+      bmZoomAt(g.s0 * d / g.d0 / BM.s, (a.x + b.x) / 2, (a.y + b.y) / 2);
+    }
+  });
+  const up = (ev) => {
+    if (!BM.pts.has(ev.pointerId)) return;
+    BM.pts.delete(ev.pointerId);
+    const g = BM.gesture;
+    if (BM.pts.size === 0 && g && g.tap && performance.now() - g.t0 < 500) {
+      const x = BM.cx + (ev.clientX - BM.W / 2) / BM.s, y = BM.cy + (ev.clientY - BM.H / 2) / BM.s;
+      if (x > 0 && y > 0 && x < WORLD_W && y < WORLD_H) {
+        const f = scene.focus();
+        scene.waypoint = { x, y }; scene.route = findRoute(f.x, f.y, x, y); scene.routeGoal = scene.waypoint; scene.routeGX = x; scene.routeGY = y; scene.routeT = 0.5;
+        scene.setObjective(); toast('Destino marcado', 'Sigue la ruta verde. Cierra el mapa con ✕ o M.', 2.5); bmDraw(true);
+      }
+    }
+  };
+  cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+  cv.addEventListener('wheel', (ev) => { ev.preventDefault(); bmZoomAt(ev.deltaY < 0 ? 1.18 : 1 / 1.18, ev.clientX, ev.clientY); }, { passive: false });
+  $('mzin').addEventListener('click', () => bmZoomAt(1.5, BM.W / 2, BM.H / 2));
+  $('mzout').addEventListener('click', () => bmZoomAt(1 / 1.5, BM.W / 2, BM.H / 2));
+  $('mzme').addEventListener('click', bmCenterMe);
+  $('mzclose').addEventListener('click', toggleBigMap);
+  window.addEventListener('resize', () => { if (bigOpen) { bmResize(); bmClamp(); bmDraw(true); } });
 }
 function toggleBigMap() {
   bigOpen = !bigOpen;
-  $('bigmap').style.display = bigOpen ? 'flex' : 'none';
-  if (bigOpen) renderBig();
+  $('bigmap').style.display = bigOpen ? 'block' : 'none';
+  if (bigOpen) {
+    // se abre centrado en ti, viendo unos 2600 px del mundo a lo ancho (varias cuadras, con nombres de calles)
+    bmResize(); BM.s = BM.W / 2600; const f = bigScene.focus(); BM.cx = f.x; BM.cy = f.y; bmClamp(); bmDraw(true);
+  }
 }
 
 // ---------- controles ----------
