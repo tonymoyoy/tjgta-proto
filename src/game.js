@@ -2307,7 +2307,7 @@ class Main extends Phaser.Scene {
     const ctl = readControls(k);
     if (J(k.E) || J(k.ENTER) || J(k.F) || touch.pressed.E) this.toggleCar();
     if (J(k.T) || touch.pressed.T) this.startTaxi();
-    if (J(k.M) || touch.pressed.M) toggleBigMap();
+    if (J(k.M)) toggleBigMap();
     if (J(k.N)) toggleSound();
     if (J(k.L)) toggleNight();
     touch.pressed = {};
@@ -3017,6 +3017,7 @@ class Main extends Phaser.Scene {
     else if (this.waypoint && this.waypoint.fiesta) t = '🎉 Ve a la fiesta en la Plaza Santa Cecilia';
     else if (this.waypoint) t = '📍 Sigue la ruta verde a tu destino';
     hud.obj.textContent = t; // vacio = no se muestra (las instrucciones estan en Opciones)
+    $('bE').textContent = this.inCar ? 'BAJAR' : 'SUBIR'; // el boton tactil dice lo que va a hacer
   }
   goal() {
     if (this.taxi) return this.taxi;
@@ -3247,6 +3248,8 @@ function bmCenterMe() { const f = bigScene.focus(); BM.cx = f.x; BM.cy = f.y; bm
 function setupBigMap(scene) {
   bigScene = scene;
   const cv = $('bigc');
+  // el mapa grande se abre tocando (o con clic en) el minimapa
+  $('mini').addEventListener('click', () => { if (!bigOpen) toggleBigMap(); });
   // arrastrar con un dedo (o el raton), pellizcar con dos; un toque sin moverse marca el destino
   cv.addEventListener('pointerdown', (ev) => {
     cv.setPointerCapture(ev.pointerId); BM.pts.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
@@ -3321,7 +3324,7 @@ function setupTouch() {
   stick.addEventListener('pointerup', up); stick.addEventListener('pointercancel', up);
   touch.active = true;
   const btn = (el, key) => $(el).addEventListener('pointerdown', (e) => { e.preventDefault(); touch.pressed[key] = true; });
-  btn('bE', 'E'); btn('bT', 'T'); btn('bM', 'M');
+  btn('bE', 'E'); btn('bT', 'T');
   const bB = $('bB');
   bB.addEventListener('pointerdown', () => { touch.brake = true; });
   bB.addEventListener('pointerup', () => { touch.brake = false; });

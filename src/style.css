@@ -162,10 +162,12 @@ body:not(.touch) #keystouch { display: none; }
   border: 2px solid rgba(255,255,255,.35); color: var(--text); font-weight: bold; font-size: 13px;
   display: flex; align-items: center; justify-content: center; text-align: center; }
 #bE { right: 24px; bottom: 100px; background: rgba(255,210,63,.35); }
-#bB { right: 100px; bottom: 30px; }
-#bR { right: 176px; bottom: 30px; font-size: 10px; background: rgba(90,140,255,.3); }
-#bT { right: 24px; bottom: 24px; width: 56px; height: 56px; }
-#bM { right: 110px; bottom: 110px; width: 50px; height: 50px; }
+/* abajo a la derecha, en cuadricula: FRENO y SUBIR/BAJAR arriba, REVERSA y TAXI abajo */
+#bB { right: 100px; bottom: 100px; }
+#bR { right: 100px; bottom: 24px; font-size: 10px; background: rgba(90,140,255,.3); }
+#bT { right: 28px; bottom: 28px; width: 56px; height: 56px; }
+/* el minimapa se toca para abrir el mapa grande */
+#mini { pointer-events: auto; cursor: pointer; }
 .touch #mini { width: 120px; height: 120px; }
 .touch #street { font-size: 16px; }
 .touch #toast { font-size: 13px; }
