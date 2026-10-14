@@ -1224,7 +1224,7 @@ function vehicleTexture(scene, ti, ci, d) {
 
 const SHIRTS = ['#d35400', '#2980b9', '#27ae60', '#8e44ad', '#c0392b', '#ecf0f1', '#16a085', '#7f8c8d', '#f39c12', '#2c3e50'];
 function makeTextures(scene) {
-  makeMoto(scene); makePerro(scene); makeTaxi(scene); makePolice(scene); makeTacoStands(scene); makeCafes(scene); makeChinas(scene); makeEggs(scene); makeScorch(scene);
+  makeMoto(scene); makePerro(scene); makeLandmarkIcons(scene); makeTaxi(scene); makePolice(scene); makeTacoStands(scene); makeCafes(scene); makeChinas(scene); makeEggs(scene); makeScorch(scene);
   // personas vistas desde arriba, mirando a la derecha; 8 cuadros de caminata (el cuadro 0 es parado).
   // Se dibujan a SPR veces la resolucion y el sprite se muestra a escala 1 / SPR para que se vean nitidas.
   const PF = PED_FRAME * SPR, SKIN = ['#c68e5f', '#a8714a', '#e0b08a', '#8d5a36'], PANTS = ['#2c3e66', '#3b3b3b', '#5a4632', '#1f2a38'];
@@ -1501,6 +1501,207 @@ function makeScorch(scene) {
   t.refresh();
 }
 // easter eggs vistos desde arriba: lienzo de 32x32 unidades dibujado a 5x para que tengan detalle
+// insignias de los lugares ★: un circulo con borde dorado y un dibujo propio de cada lugar.
+// Se dibujan centradas en (0, 0) dentro de un radio de ~22; la textura mide LM_SIZE a SPR veces la resolucion
+const LM_SIZE = 72;
+function makeLandmarkIcons(scene) {
+  let x;
+  const fill = (c) => { x.fillStyle = c; x.fill(); };
+  const ell = (c, cx, cy, rx, ry, a) => { x.beginPath(); x.ellipse(cx, cy, rx, ry, a || 0, 0, 7); fill(c); };
+  const circ = (c, cx, cy, r) => ell(c, cx, cy, r, r);
+  const rect = (c, x0, y0, w, h) => { x.fillStyle = c; x.fillRect(x0, y0, w, h); };
+  const poly = (c, pts) => { x.beginPath(); pts.forEach(([a, b], i) => i ? x.lineTo(a, b) : x.moveTo(a, b)); x.closePath(); fill(c); };
+  const line = (c, w, pts) => { x.strokeStyle = c; x.lineWidth = w; x.lineCap = 'round'; x.lineJoin = 'round'; x.beginPath(); pts.forEach(([a, b], i) => i ? x.lineTo(a, b) : x.moveTo(a, b)); x.stroke(); };
+  const ring = (c, w, cx, cy, r, a0 = 0, a1 = 7) => { x.strokeStyle = c; x.lineWidth = w; x.lineCap = 'round'; x.beginPath(); x.arc(cx, cy, r, a0, a1); x.stroke(); };
+  const txt = (c, size, s, cx, cy) => { x.fillStyle = c; x.font = 'bold ' + size + 'px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(s, cx, cy); };
+  const flagMx = (x0, y0, w, h) => { rect('#006847', x0, y0, w / 3, h); rect('#fff', x0 + w / 3, y0, w / 3, h); rect('#ce1126', x0 + w * 2 / 3, y0, w / 3, h); circ('#8b5a2b', x0 + w / 2, y0 + h / 2, h * 0.15); };
+  const icons = {
+    'Arco Monumental': ['#1f4e79', () => { // arco metalico con el reloj colgando
+      rect('rgba(255,255,255,0.18)', -22, 17, 44, 3);
+      x.save(); x.translate(0, 18); x.scale(1, 1.35);
+      ring('#9aa3ad', 4.4, 0, 0, 18, Math.PI, 0); ring('#e3e7ec', 1.6, 0, 0, 18, Math.PI + 0.1, -0.1); x.restore();
+      line('#c9ced5', 1.2, [[0, -6], [0, -2]]);
+      circ('#2b2b2b', 0, 4, 7.5); circ('#fdf8e7', 0, 4, 6.2);
+      for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; circ('#2b2b2b', Math.cos(a) * 5, 4 + Math.sin(a) * 5, 0.45); }
+      line('#2b2b2b', 1.1, [[0, 4], [0, 0.2]]); line('#c62828', 0.8, [[0, 4], [3.6, 5.4]]);
+    }],
+    'Plaza Santa Cecilia': ['#7b1f2b', () => { // sombrero de charro con notas de mariachi
+      ell('#1a1a1a', 0, 7, 20, 6.5); x.beginPath(); x.ellipse(0, 7, 18.5, 5.4, 0, 0, 7); x.strokeStyle = '#e3b341'; x.lineWidth = 1.2; x.stroke();
+      x.beginPath(); x.moveTo(-8, 6); x.bezierCurveTo(-8, -9, 8, -9, 8, 6); fill('#222');
+      rect('#e3b341', -8, 2, 16, 2.2);
+      for (const [nx, ny] of [[11, -12], [16, -7]]) { circ('#fff', nx, ny, 1.8); line('#fff', 1, [[nx + 1.6, ny], [nx + 1.6, ny - 7], [nx + 4, ny - 5.5]]); }
+    }],
+    'Catedral de Guadalupe': ['#3b6ea5', () => { // fachada de dos torres
+      rect('#efe2c4', -11, -4, 22, 22); poly('#efe2c4', [[-11, -4], [0, -12], [11, -4]]);
+      for (const tx of [-17, 10]) { rect('#e4d3ae', tx, -10, 7, 28); x.beginPath(); x.arc(tx + 3.5, -10, 3.5, Math.PI, 0); fill('#c9a464'); line('#5a4632', 1, [[tx + 3.5, -14], [tx + 3.5, -19]]); line('#5a4632', 1, [[tx + 1.8, -17], [tx + 5.2, -17]]); rect('#6b5a45', tx + 2.3, -5, 2.4, 4); }
+      circ('#6fa8dc', 0, -3, 2.6); ring('#8a6d45', 0.8, 0, -3, 2.6);
+      x.beginPath(); x.moveTo(-4, 18); x.lineTo(-4, 8); x.arc(0, 8, 4, Math.PI, 0); x.lineTo(4, 18); fill('#5a3d22');
+    }],
+    'Museo de Historia (MUHTI)': ['#6b4f2a', () => { // palacio con columnas y frontón
+      poly('#f3e6cc', [[-19, -5], [0, -16], [19, -5]]); rect('#d9c8a5', -19, -6, 38, 3);
+      for (let i = 0; i < 5; i++) rect('#f3e6cc', -16 + i * 7.6, -2, 4, 16);
+      rect('#d9c8a5', -20, 14, 40, 3); rect('#c9b691', -22, 17, 44, 3);
+      txt('#6b4f2a', 4.2, 'MUHTI', 0, -8.5);
+    }],
+    "Hotel Caesar's": ['#2e7d32', () => { // ensalada Cesar con tenedor
+      ell('#fafafa', -2, 3, 17, 13); ell('#e6e6e6', -2, 3, 13, 9.5);
+      for (const [lx, ly, a] of [[-7, 1, -0.6], [2, -1, 0.5], [-3, 6, 0.2], [4, 6, -0.4], [-9, 6, 0.9]]) { ell('#7cb342', lx, ly, 6, 2.8, a); line('#c5e1a5', 0.5, [[lx - 4 * Math.cos(a), ly - 4 * Math.sin(a)], [lx + 4 * Math.cos(a), ly + 4 * Math.sin(a)]]); }
+      for (const [cx2, cy2] of [[-4, -2], [3, 3], [-8, 3], [1, 8]]) { x.save(); x.translate(cx2, cy2); x.rotate(cx2); rect('#e0b46c', -1.3, -1.3, 2.6, 2.6); x.restore(); }
+      for (let i = 0; i < 9; i++) circ('#fffde7', -10 + i * 2.4, -1 + (i % 3) * 3.5, 0.6);
+      line('#cfd8dc', 1.6, [[17, -14], [17, 16]]); for (const fx of [15.5, 17, 18.5]) line('#cfd8dc', 0.8, [[fx, -18], [fx, -12]]);
+    }],
+    'Frontón Jai Alai': ['#b45309', () => { // cesta de jai alai y la pelota
+      x.beginPath(); x.moveTo(-16, 10); x.quadraticCurveTo(-4, -22, 16, -12); x.quadraticCurveTo(2, -10, -10, 14); x.closePath(); fill('#c8945a');
+      x.save(); x.clip(); for (let i = -20; i < 20; i += 3) line('#9c6b37', 0.7, [[i, -20], [i + 10, 20]]); x.restore();
+      line('#6d4520', 1.6, [[-16, 10], [-10, 14]]); rect('#5d3a1a', -15, 11, 4, 9);
+      circ('#fafafa', 9, 8, 5); ring('#9e9e9e', 0.6, 9, 8, 5); ring('#bdbdbd', 0.5, 9, 8, 3.2, 0.5, 2.6);
+    }],
+    'Pasaje Rodríguez': ['#4a148c', () => { // paleta de pintor y pincel
+      x.beginPath(); x.ellipse(-2, 2, 17, 13, -0.3, 0, 7); fill('#e8c99a'); circ('#4a148c', 6, 8, 3.2);
+      [['#e53935', -11, 0], ['#fdd835', -6, -6], ['#43a047', 1, -8], ['#1e88e5', 8, -4], ['#fb8c00', -9, 7]].forEach(([c, px, py]) => circ(c, px, py, 2.6));
+      line('#6d4c41', 2, [[4, 18], [18, -12]]); line('#bdbdbd', 2.2, [[16.5, -9], [18, -12]]); line('#e53935', 2, [[18, -12], [19.5, -16]]);
+    }],
+    'Foreign Club': ['#1b5e20', () => { // naipe y dados de casino
+      x.save(); x.rotate(-0.25); x.beginPath(); x.roundRect(-16, -16, 15, 21, 2); fill('#fafafa'); txt('#c62828', 7, 'A', -8.5, -9); txt('#c62828', 7, '♥', -8.5, 0); x.restore();
+      const die = (cx2, cy2, a, n) => { x.save(); x.translate(cx2, cy2); x.rotate(a); x.beginPath(); x.roundRect(-6.5, -6.5, 13, 13, 2.5); fill('#fafafa');
+        const P = { 1: [[0, 0]], 5: [[-3, -3], [3, -3], [0, 0], [-3, 3], [3, 3]], 6: [[-3, -3.5], [3, -3.5], [-3, 0], [3, 0], [-3, 3.5], [3, 3.5]] }[n];
+        P.forEach(([px, py]) => circ('#1a1a1a', px, py, 1.2)); x.restore(); };
+      die(7, -3, 0.3, 5); die(4, 11, -0.2, 6);
+    }],
+    'Museo de Cera': ['#5d4037', () => { // vela de cera derritiendose
+      rect('#f5e6c8', -6, -6, 12, 22); x.beginPath(); x.moveTo(-6, -6); x.quadraticCurveTo(0, -9, 6, -6); fill('#f5e6c8');
+      for (const [dx, dl] of [[-4, 7], [1, 11], [4.5, 5]]) { rect('#fff4dc', dx - 1, -6, 2, dl); circ('#fff4dc', dx, -6 + dl, 1.3); }
+      rect('#d7c49e', -6, -6, 1.5, 22);
+      line('#3e2723', 0.9, [[0, -8], [0, -11]]);
+      ell('#ffb300', 0, -15, 2.8, 5); ell('#fff59d', 0, -14, 1.3, 2.6);
+      ell('rgba(0,0,0,0.25)', 0, 17, 10, 2.4); rect('#8d6e63', -10, 15, 20, 3);
+    }],
+    'Parque Teniente Guerrero': ['#2f6f3e', () => { // kiosco entre arboles
+      circ('#1b5e20', -15, -4, 7); circ('#388e3c', -14, -6, 5); circ('#1b5e20', 15, -4, 7); circ('#388e3c', 14, -6, 5);
+      rect('#5d4037', -16, 2, 2, 12); rect('#5d4037', 14, 2, 2, 12);
+      poly('#c62828', [[-11, -4], [0, -15], [11, -4]]); rect('#e8d9b5', -12, -5, 24, 2);
+      for (let i = 0; i < 5; i++) rect('#f5ecd7', -10 + i * 5, -3, 1.6, 12);
+      rect('#d7c4a0', -13, 9, 26, 3); rect('#bfa982', -14, 12, 28, 3);
+      line('#ffd23f', 1, [[0, -15], [0, -18]]);
+    }],
+    'Teatro Zaragoza': ['#8b0000', () => { // mascaras de comedia y tragedia
+      const mask = (cx2, cy2, a, happy, c) => { x.save(); x.translate(cx2, cy2); x.rotate(a);
+        x.beginPath(); x.moveTo(-8, -9); x.quadraticCurveTo(0, -12, 8, -9); x.quadraticCurveTo(9, 6, 0, 11); x.quadraticCurveTo(-9, 6, -8, -9); fill(c);
+        ell('#2b2b2b', -3.5, -3, 2, happy ? 1.3 : 1.6, happy ? 0 : 0.3); ell('#2b2b2b', 3.5, -3, 2, happy ? 1.3 : 1.6, happy ? 0 : -0.3);
+        x.beginPath(); if (happy) { x.arc(0, 2, 4, 0.15, Math.PI - 0.15); } else { x.arc(0, 7, 4, Math.PI + 0.25, -0.25); } x.strokeStyle = '#2b2b2b'; x.lineWidth = 1.4; x.stroke(); x.restore(); };
+      mask(6, 3, 0.3, false, '#cfd8dc'); mask(-6, -2, -0.25, true, '#fff8e1');
+    }],
+    'Mercado de Artesanías': ['#00897b', () => { // pinata de estrella
+      const cols = ['#e91e63', '#ffeb3b', '#2196f3', '#ff9800', '#9c27b0', '#4caf50', '#f44336'];
+      for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2 - Math.PI / 2, ca = Math.cos(a), sa = Math.sin(a);
+        poly(cols[i], [[ca * 18, sa * 18], [Math.cos(a + 0.45) * 7, Math.sin(a + 0.45) * 7], [Math.cos(a - 0.45) * 7, Math.sin(a - 0.45) * 7]]);
+        line(cols[(i + 3) % 7], 0.9, [[ca * 18, sa * 18], [ca * 21, sa * 21 + 2]]); }
+      circ('#ffeb3b', 0, 0, 8.5); ring('#e91e63', 1.4, 0, 0, 6.3); ring('#2196f3', 1.4, 0, 0, 3.8);
+    }],
+    'Puente El Chaparral': ['#455a64', () => { // puente peatonal con alguien cruzando
+      x.beginPath(); x.moveTo(-22, 10); x.quadraticCurveTo(0, -4, 22, 10); x.lineTo(22, 13); x.quadraticCurveTo(0, -1, -22, 13); fill('#cfd8dc');
+      // barandal: la misma curva 5 px arriba, con postes (y de la curva en x: t = (x / 22 + 1) / 2)
+      x.beginPath(); x.moveTo(-22, 5); x.quadraticCurveTo(0, -9, 22, 5); x.strokeStyle = '#eceff1'; x.lineWidth = 0.9; x.stroke();
+      for (let i = -18; i <= 18; i += 4) { const t = (i / 22 + 1) / 2, yy = 10 - 28 * t * (1 - t); line('#eceff1', 0.6, [[i, yy], [i, yy - 5]]); }
+      rect('#90a4ae', -20, 12, 3, 9); rect('#90a4ae', 17, 12, 3, 9);
+      circ('#ffd23f', 0, -12, 2); line('#ffd23f', 1.6, [[0, -10], [0, -5]]); line('#ffd23f', 1.3, [[0, -5], [-2, -1.5]]); line('#ffd23f', 1.3, [[0, -5], [2, -1.5]]); line('#ffd23f', 1.2, [[0, -9], [2.5, -6.5]]); line('#ffd23f', 1.2, [[0, -9], [-2.5, -6.5]]);
+    }],
+    'Garita de San Ysidro': ['#37474f', () => { // caseta con pluma
+      rect('#eceff1', -20, -15, 40, 4); for (const px of [-18, -1, 16]) rect('#b0bec5', px, -11, 2, 18);
+      x.beginPath(); x.roundRect(-14, -6, 10, 13, 1.5); fill('#90caf9'); rect('#546e7a', -14, -6, 10, 2.5);
+      x.save(); x.translate(-3, 4); x.rotate(-0.12); for (let i = 0; i < 6; i++) rect(i % 2 ? '#fafafa' : '#e53935', i * 3.4, -1.2, 3.4, 2.4); x.restore();
+      circ('#263238', -3, 4, 1.6);
+      rect('#2e7d32', 8, -5, 6, 8); circ('#a5d6a7', 11, -2.5, 1.4); circ('#1b5e20', 11, 1, 1.4);
+      rect('rgba(255,255,255,0.25)', -22, 8, 44, 1); txt('#fff', 3.6, 'U.S.A.  ·  MÉXICO', 0, 15);
+    }],
+    'Mercado Hidalgo': ['#f57c00', () => { // chiles
+      const chile = (cx2, cy2, a, c, c2) => { x.save(); x.translate(cx2, cy2); x.rotate(a);
+        x.beginPath(); x.moveTo(-3, -12); x.quadraticCurveTo(6, -10, 4, 2); x.quadraticCurveTo(2, 12, -6, 15); x.quadraticCurveTo(-1, 6, -4, -2); x.quadraticCurveTo(-6, -10, -3, -12); fill(c);
+        line(c2, 1, [[0, -9], [1.5, -2]]); x.beginPath(); x.ellipse(-1, -12.5, 3.2, 1.6, 0, 0, 7); fill('#558b2f'); line('#33691e', 1.5, [[-1, -13], [1, -18]]); x.restore(); };
+      chile(-6, 2, -0.35, '#d32f2f', 'rgba(255,255,255,0.45)'); chile(6, 1, 0.35, '#43a047', 'rgba(255,255,255,0.4)');
+    }],
+    'Museo del Taco': ['#c62828', () => { // taco de adobada con su limon
+      x.beginPath(); x.arc(0, 6, 17, Math.PI, 0); fill('#f3cf7a');
+      x.beginPath(); x.arc(0, 6, 13, Math.PI, 0); fill('#a8401a');
+      for (const [px, py] of [[-7, -1], [-1, -4], [5, -2], [9, 2], [-10, 3]]) circ('#c4562b', px, py, 2.2);
+      for (const [px, py] of [[-5, -4], [2, -6], [7, -3], [-9, 0]]) circ('#43a047', px, py, 1.3);
+      for (const [px, py] of [[-2, -1], [4, 1], [-7, 2]]) rect('#fafafa', px, py, 2, 1.4);
+      ring('#e0b55a', 1.2, 0, 6, 17, Math.PI, 0); rect('#e0b55a', -17, 5.5, 34, 1.2);
+      x.beginPath(); x.moveTo(12, 16); x.arc(12, 16, 6, Math.PI * 1.15, Math.PI * 1.85); x.closePath(); fill('#7cb342'); x.beginPath(); x.moveTo(12, 16); x.arc(12, 16, 4.6, Math.PI * 1.2, Math.PI * 1.8); x.closePath(); fill('#dcedc8');
+    }],
+    'CECUT': ['#0d47a1', () => { // La Bola
+      rect('#bcaaa4', -18, 10, 36, 6); rect('#a1887f', -20, 15, 40, 3);
+      const g = x.createRadialGradient(-5, -8, 2, 0, -2, 16); g.addColorStop(0, '#f5ead8'); g.addColorStop(1, '#b8a68a');
+      x.beginPath(); x.arc(0, -2, 14, 0, 7); x.fillStyle = g; x.fill();
+      x.save(); x.beginPath(); x.arc(0, -2, 14, 0, 7); x.clip();
+      for (let i = -12; i <= 12; i += 4) { x.beginPath(); x.ellipse(0, -2 + i, 14, 1.2, 0, 0, 7); x.strokeStyle = 'rgba(120,100,80,0.35)'; x.lineWidth = 0.6; x.stroke(); }
+      for (let i = -10; i <= 10; i += 5) { x.beginPath(); x.ellipse(i, -2, Math.max(0.5, 14 - Math.abs(i) * 1.3), 14, 0, 0, 7); x.stroke(); }
+      x.restore();
+    }],
+    'El Cubo': ['#263238', () => { // un cubo
+      poly('#eceff1', [[0, -17], [16, -8], [0, 1], [-16, -8]]);
+      poly('#b0bec5', [[-16, -8], [0, 1], [0, 19], [-16, 10]]);
+      poly('#78909c', [[16, -8], [0, 1], [0, 19], [16, 10]]);
+      for (let i = 1; i < 4; i++) { line('rgba(0,0,0,0.12)', 0.5, [[-16, -8 + i * 4.5], [0, 1 + i * 4.5]]); line('rgba(0,0,0,0.15)', 0.5, [[16, -8 + i * 4.5], [0, 1 + i * 4.5]]); }
+    }],
+    'Monumento a México': ['#1565c0', () => { // Las Tijeras: dos arcos que se cruzan
+      rect('#90a4ae', -20, 15, 40, 4);
+      x.beginPath(); x.moveTo(-17, 15); x.quadraticCurveTo(-6, -30, 12, -18); x.lineTo(9, -14); x.quadraticCurveTo(-4, -22, -11, 15); fill('#eceff1');
+      x.beginPath(); x.moveTo(17, 15); x.quadraticCurveTo(6, -30, -12, -18); x.lineTo(-9, -14); x.quadraticCurveTo(4, -22, 11, 15); fill('#cfd8dc');
+    }],
+    'Glorieta Cuauhtémoc': ['#bf360c', () => { // penacho de plumas sobre la cabeza
+      const cols = ['#2e7d32', '#1565c0', '#43a047', '#c62828', '#1e88e5', '#2e7d32', '#fdd835', '#43a047', '#1565c0'];
+      for (let i = 0; i < 9; i++) { const a = Math.PI + (i + 0.5) / 9 * Math.PI; x.save(); x.translate(0, 6); x.rotate(a + Math.PI / 2); ell(cols[i], 0, -14, 3, 9); line('rgba(255,255,255,0.4)', 0.5, [[0, -6], [0, -22]]); x.restore(); }
+      rect('#fdd835', -10, 1, 20, 3.5); for (let i = -8; i <= 8; i += 4) circ('#c62828', i, 2.8, 1);
+      x.beginPath(); x.arc(0, 11, 8, Math.PI, 0); fill('#8d5a3b'); rect('#8d5a3b', -8, 11, 16, 8);
+    }],
+    'Glorieta Lincoln': ['#283593', () => { // sombrero de copa y cadenas rotas
+      rect('#1a1a1a', -8, -18, 16, 18); ell('#1a1a1a', 0, 0, 14, 3.5); rect('#5d4037', -8, -5, 16, 3);
+      const link = (cx2, cy2, a) => { x.save(); x.translate(cx2, cy2); x.rotate(a); x.beginPath(); x.ellipse(0, 0, 4, 2.4, 0, 0, 7); x.strokeStyle = '#cfd8dc'; x.lineWidth = 1.6; x.stroke(); x.restore(); };
+      link(-16, 9, 0.4); link(-11, 11, -0.3); link(-6, 12, 0.2); link(16, 9, -0.4); link(11, 11, 0.3);
+      line('#ffd23f', 1, [[-3, 10], [-1, 13], [-3, 15]]); line('#ffd23f', 1, [[5, 10], [3, 13], [5, 15]]);
+    }],
+    'Glorieta Zaragoza': ['#33691e', () => { // quepi y los lentes redondos del general
+      x.beginPath(); x.moveTo(-11, -2); x.lineTo(-9, -17); x.lineTo(9, -17); x.lineTo(11, -2); x.closePath(); fill('#1a237e');
+      rect('#ffd23f', -11, -6, 22, 2.5); ell('#0d1257', 0, -1, 14, 3.2); circ('#ffd23f', 0, -12, 2);
+      ring('#e0e0e0', 1.4, -6, 9, 4.6); ring('#e0e0e0', 1.4, 6, 9, 4.6); line('#e0e0e0', 1.2, [[-1.4, 8.5], [1.4, 8.5]]);
+      circ('rgba(144,202,249,0.35)', -6, 9, 3.9); circ('rgba(144,202,249,0.35)', 6, 9, 3.9);
+      line('#3e2723', 2.2, [[-6, 17], [0, 15.5], [6, 17]]);
+    }],
+    'Plaza Río Tijuana': ['#ad1457', () => { // bolsa de compras
+      ring('#f8bbd0', 1.8, 0, -8, 6, Math.PI, 0);
+      x.beginPath(); x.moveTo(-13, -8); x.lineTo(13, -8); x.lineTo(15, 17); x.lineTo(-15, 17); x.closePath(); fill('#fafafa');
+      poly('#e0e0e0', [[13, -8], [15, 17], [11, 17]]);
+      txt('#ad1457', 13, 'R', 0, 5);
+    }],
+    'Palacio Municipal': ['#546e7a', () => { // edificio con la bandera
+      rect('#eceff1', -16, -6, 32, 24); rect('#cfd8dc', -18, -8, 36, 3);
+      for (let r = 0; r < 3; r++) for (let c = 0; c < 5; c++) rect('#64b5f6', -13 + c * 5.6, -2 + r * 6, 3.6, 4);
+      rect('#795548', -2.5, 12, 5, 6);
+      line('#b0bec5', 1, [[0, -8], [0, -22]]); flagMx(0.5, -22, 12, 7);
+    }],
+    'Defensa Heroica': ['#4e342e', () => { // obelisco de 1911
+      poly('#d7ccc8', [[-4, 12], [-2.6, -15], [0, -20], [2.6, -15], [4, 12]]); poly('#a1887f', [[0, -20], [2.6, -15], [4, 12], [0.5, 12]]);
+      rect('#bcaaa4', -12, 12, 24, 4); rect('#a1887f', -14, 16, 28, 3);
+      txt('#4e342e', 4.4, '1911', 0, 14.2);
+      for (const sx of [-1, 1]) for (let i = 0; i < 4; i++) ell('#7cb342', sx * (8 + i * 1.6), 8 - i * 3.6, 1.2, 2.4, sx * (0.6 + i * 0.15));
+    }],
+  };
+  // insignia de respaldo (un lugar nuevo sin dibujo): la estrella de siempre
+  const fallback = ['#5d4037', () => txt('#ffd23f', 30, '★', 0, 1)];
+  landmarks.forEach((l, i) => {
+    const [bg, art] = icons[l.name] || fallback, S0 = LM_SIZE, R = 30;
+    const t = scene.textures.createCanvas('lm' + i, S0 * SPR, S0 * SPR); x = t.getContext();
+    x.scale(SPR, SPR); x.translate(S0 / 2, S0 / 2);
+    circ('rgba(0,0,0,0.35)', 2, 3, R);
+    const g = x.createRadialGradient(-R * 0.4, -R * 0.4, 2, 0, 0, R); g.addColorStop(0, shade(bg, 1.35)); g.addColorStop(1, bg);
+    x.beginPath(); x.arc(0, 0, R, 0, 7); x.fillStyle = g; x.fill();
+    x.save(); x.beginPath(); x.arc(0, 0, R - 3, 0, 7); x.clip(); art(); x.restore();
+    ring('#ffd23f', 3.4, 0, 0, R - 1.5); ring('rgba(255,255,255,0.35)', 0.8, 0, 0, R - 4);
+    t.refresh();
+    l.icon = 'lm' + i;
+  });
+}
 function makeEggs(scene) {
   let x;
   const ell = (c, cx, cy, rx, ry, a) => { x.fillStyle = c; x.beginPath(); x.ellipse(cx, cy, rx, ry, a || 0, 0, 7); x.fill(); };
@@ -1746,7 +1947,9 @@ class Main extends Phaser.Scene {
     this.marks = [];
     for (const l of landmarks) {
       const ring = this.add.image(l.x, l.y, 'ring').setDepth(3).setTint(0xffd23f).setAlpha(0.8);
-      const star = this.add.text(l.x, l.y, '★', { fontSize: '30px', color: '#ffd23f', stroke: '#000', strokeThickness: 4, resolution: TXT_RES }).setOrigin(0.5).setDepth(20);
+      // la insignia del lugar flota un poco (cada una a su ritmo)
+      const star = this.add.image(l.x, l.y, l.icon).setDepth(20).setScale(0.62 / SPR);
+      this.tweens.add({ targets: star, y: l.y - 3, duration: 900 + Math.random() * 300, yoyo: true, repeat: -1, ease: 'Sine.inOut', delay: Math.random() * 900 });
       const label = this.add.text(l.x, l.y - 34, l.name, { fontSize: '15px', fontStyle: 'bold', color: '#fff', stroke: '#000', strokeThickness: 4, resolution: TXT_RES }).setOrigin(0.5).setDepth(20);
       this.marks.push({ l, ring, star, label });
     }
@@ -2481,7 +2684,7 @@ class Main extends Phaser.Scene {
     for (const m of this.marks) {
       const near = dist(m.l.x, m.l.y, f.x, f.y) < 700;
       m.ring.setVisible(!m.l.found).setScale(pulse * 3.4 / SPR);
-      if (m.found !== m.l.found) { m.found = m.l.found; m.star.setColor(m.l.found ? '#bbbbbb' : '#ffd23f'); }
+      if (m.found !== m.l.found) { m.found = m.l.found; if (m.l.found) m.star.setTint(0x9a9a9a).setAlpha(0.85); else m.star.clearTint().setAlpha(1); }
       m.label.setVisible(near);
     }
     for (const t of tacos) { t.icon.setAlpha(t.eaten ? 0.7 : 1); t.label.setVisible(!t.eaten && dist(t.x, t.y, f.x, f.y) < 300); }
