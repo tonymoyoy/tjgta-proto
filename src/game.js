@@ -943,9 +943,18 @@ const CLIENTES = [
   '"¿Y la salsa?" Así nomás te recibió.', 'Te pagó con monedas de 50 centavos, una por una.',
   'Te abrió en pijama de dinosaurio y te dijo "gracias, mi rey".', 'Te calificó con 5 estrellas y un emoji de calavera.',
   '"Pedí esto hace tres semanas", pero igual se lo comió.', 'Te pidió que le cambiaras un foco ya que ibas a estar ahí.',
-  'Su perro te recibió primero. El perro firmó.', '"Déjalo en la puerta", dijo el señor desde la puerta.',
+  '"Déjalo en la puerta", dijo el señor desde la puerta.',
   'Te ofreció la mitad de su pedido. Era tuyo de todas formas.', 'Te dio de propina un boleto de la rifa de la parroquia.',
 ];
+// cuando el que recibe es el perro (la birria del perro deprimido o, a veces, al azar)
+const PERRO_PEDIDO = 'una birria para un perro con depresión';
+const CLIENTES_PERRO = [
+  'Su perro te recibió primero. El perro firmó.',
+  'Te recibió un perro con paliacate. Movió la cola: eso cuenta como cinco estrellas.',
+  'El perro olió el pedido, te miró a los ojos y se lo llevó. Su dueño pagó desde la ventana.',
+  'El perro ladró dos veces. Según su dueño eso significa "gracias, quédate con el cambio".',
+];
+const CLIENTES_PERRO_BIRRIA = 'Llegó la birria. El perro sigue deprimido, pero ya comió y te lamió la mano. Algo es algo.';
 const CANCELADOS = [
   'El cliente canceló y te dejó una estrella con un comentario de tres párrafos.',
   'Se enfrió el pedido. Te lo comiste en un semáforo, para que no se desperdiciara.',
@@ -1215,7 +1224,7 @@ function vehicleTexture(scene, ti, ci, d) {
 
 const SHIRTS = ['#d35400', '#2980b9', '#27ae60', '#8e44ad', '#c0392b', '#ecf0f1', '#16a085', '#7f8c8d', '#f39c12', '#2c3e50'];
 function makeTextures(scene) {
-  makeMoto(scene); makeTaxi(scene); makePolice(scene); makeTacoStands(scene); makeCafes(scene); makeChinas(scene); makeEggs(scene); makeScorch(scene);
+  makeMoto(scene); makePerro(scene); makeTaxi(scene); makePolice(scene); makeTacoStands(scene); makeCafes(scene); makeChinas(scene); makeEggs(scene); makeScorch(scene);
   // personas vistas desde arriba, mirando a la derecha; 8 cuadros de caminata (el cuadro 0 es parado).
   // Se dibujan a SPR veces la resolucion y el sprite se muestra a escala 1 / SPR para que se vean nitidas.
   const PF = PED_FRAME * SPR, SKIN = ['#c68e5f', '#a8714a', '#e0b08a', '#8d5a36'], PANTS = ['#2c3e66', '#3b3b3b', '#5a4632', '#1f2a38'];
@@ -1257,13 +1266,43 @@ function makeTextures(scene) {
     t.refresh();
     scene.anims.create({ key: 'walk' + i, frames: Array.from({ length: 8 }, (_, f) => ({ key: 'ped' + i, frame: f })), frameRate: 9, repeat: -1 });
   });
-  const r = scene.textures.createCanvas('ring', 64, 64), x = r.getContext();
-  x.strokeStyle = '#fff'; x.lineWidth = 5; x.beginPath(); x.arc(32, 32, 28, 0, 7); x.stroke(); r.refresh();
+  // aro de los lugares y del destino: a SPR veces la resolucion (las escalas de abajo se dividen entre SPR)
+  const r = scene.textures.createCanvas('ring', 64 * SPR, 64 * SPR), x = r.getContext();
+  x.scale(SPR, SPR); x.strokeStyle = '#fff'; x.lineWidth = 5; x.beginPath(); x.arc(32, 32, 28, 0, 7); x.stroke(); r.refresh();
 }
 const PLAYER_SHIRT = SHIRTS.length;
 // taxi libre clasico de Tijuana: guayin roja con franjas negras y crema.
 // Se dibuja a SPR veces la resolucion y el sprite va a escala 1 / SPR.
 // moto de repartidor vista desde arriba con su caja termica, a SPR veces la resolucion
+// perro callejero color caramelo con paliacate, visto desde arriba mirando a la derecha;
+// dos cuadros: la cola a un lado y al otro
+function makePerro(scene) {
+  const FW = 22, FH = 14, t = scene.textures.createCanvas('perro', FW * 2 * SPR, FH * SPR), x = t.getContext();
+  for (let f = 0; f < 2; f++) {
+    x.save(); x.scale(SPR, SPR); x.translate(f * FW + 10, FH / 2);
+    x.fillStyle = 'rgba(0,0,0,0.25)'; x.beginPath(); x.ellipse(1, 1, 8, 4.2, 0, 0, 7); x.fill();
+    // cola
+    x.strokeStyle = '#9a5f2b'; x.lineWidth = 1.6; x.lineCap = 'round';
+    x.beginPath(); x.moveTo(-6, 0); x.quadraticCurveTo(-8.5, f ? 2.5 : -2.5, -9.5, f ? 4 : -4); x.stroke();
+    // patas
+    x.fillStyle = '#8a5426';
+    for (const [px, py] of [[-4, -3.4], [-4, 3.4], [3, -3.2], [3, 3.2]]) { x.beginPath(); x.ellipse(px, py, 1.4, 1, 0, 0, 7); x.fill(); }
+    // cuerpo y lomo mas oscuro
+    x.fillStyle = '#c58747'; x.beginPath(); x.ellipse(-0.5, 0, 6.5, 3.4, 0, 0, 7); x.fill();
+    x.fillStyle = '#a86b33'; x.beginPath(); x.ellipse(-1.5, 0, 4, 1.4, 0, 0, 7); x.fill();
+    // paliacate rojo con puntitos
+    x.fillStyle = '#c62828'; x.beginPath(); x.ellipse(5, 0, 1.5, 3, 0, 0, 7); x.fill();
+    x.fillStyle = '#fff'; for (const py of [-1.6, 0, 1.6]) x.fillRect(4.7, py - 0.3, 0.6, 0.6);
+    // cabeza, orejas y nariz
+    x.fillStyle = '#c58747'; x.beginPath(); x.ellipse(7.5, 0, 2.8, 2.5, 0, 0, 7); x.fill();
+    x.fillStyle = '#7a4520'; x.beginPath(); x.ellipse(6.6, -2.4, 1.5, 0.9, -0.5, 0, 7); x.fill(); x.beginPath(); x.ellipse(6.6, 2.4, 1.5, 0.9, 0.5, 0, 7); x.fill();
+    x.fillStyle = '#1a1a1a'; x.beginPath(); x.arc(10.2, 0, 0.8, 0, 7); x.fill();
+    x.restore();
+    t.add(f, 0, f * FW * SPR, 0, FW * SPR, FH * SPR);
+  }
+  t.refresh();
+  scene.anims.create({ key: 'cola', frames: [{ key: 'perro', frame: 0 }, { key: 'perro', frame: 1 }], frameRate: 8, repeat: -1 });
+}
 function makeMoto(scene) {
   const t = scene.textures.createCanvas('moto', 26 * SPR, 14 * SPR), x = t.getContext();
   x.scale(SPR, SPR);
@@ -2335,15 +2374,25 @@ class Main extends Phaser.Scene {
   startDelivery() {
     if (this.delivery) { toast(pick(FRASES_MOTO), 'Ya traes un pedido pendiente, ¡apúrale!', 3); return; }
     const f = this.inCar || this.player;
-    let spot = null;
+    let spot = null, mid = null;
     for (let i = 0; i < 40 && !spot; i++) {
       const e = randomEdgeNear(walkG, f.x, f.y, 700, 1600); if (!e || e.c > 6) continue;
-      const q = edgePos(e, rnd(0, e.len), 1, e.w / 2 + 1.5 * M, {});
-      if (!blocked(q.x, q.y)) spot = q;
+      const s = rnd(0, e.len), q = edgePos(e, s, 1, e.w / 2 + 1.5 * M, {});
+      if (!blocked(q.x, q.y)) { spot = q; mid = edgePos(e, s, 1, 0, {}); }
     }
     if (!spot) return;
     const d = dist(spot.x, spot.y, f.x, f.y), street = streetAt(spot.x, spot.y) || 'una calle del Centro';
-    this.delivery = { x: spot.x, y: spot.y, street, order: pick(PEDIDOS), time: d / 85 + 20, d };
+    const order = pick(PEDIDOS), dog = order === PERRO_PEDIDO || Math.random() < 0.15;
+    // quien recibe espera en la banqueta viendo hacia la calle
+    const face = Math.atan2(mid.y - spot.y, mid.x - spot.x);
+    let who;
+    if (dog) {
+      who = this.add.sprite(spot.x, spot.y, 'perro', 0).setDepth(6).setScale(1 / SPR).setRotation(face).play('cola');
+    } else {
+      who = this.add.sprite(spot.x, spot.y, 'ped' + ((Math.random() * SHIRTS.length) | 0), 0).setDepth(6).setScale(1 / SPR).setRotation(face);
+      this.tweens.add({ targets: who, angle: who.angle + 8, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+    }
+    this.delivery = { x: spot.x, y: spot.y, street, order, time: d / 85 + 20, d, dog, who };
     toast(pick(FRASES_MOTO), 'Pedido: ' + this.delivery.order + '. Llévalo a ' + street + '.', 4.5);
     this.setObjective();
   }
@@ -2352,8 +2401,13 @@ class Main extends Phaser.Scene {
     if (ok) {
       const pay = Math.round(50 + dl.d / 10 + dl.time * 2), tip = Math.random() < 0.5 ? Math.round(rnd(5, 60)) : 0;
       state.money += pay + tip; save(); updateStats();
-      toast('¡Pedido entregado!', pick(CLIENTES) + ' (+$' + pay + (tip ? ' y $' + tip + ' de propina' : '') + ')', 4.5);
+      const msg = dl.order === PERRO_PEDIDO ? CLIENTES_PERRO_BIRRIA : pick(dl.dog ? CLIENTES_PERRO : CLIENTES);
+      toast('¡Pedido entregado!', msg + ' (+$' + pay + (tip ? ' y $' + tip + ' de propina' : '') + ')', 4.5);
     } else toast('Pedido cancelado', pick(CANCELADOS), 4);
+    // el que recibio da un saltito de gusto y se mete; si se cancelo, nomas se mete
+    const w = dl.who; this.tweens.killTweensOf(w);
+    if (ok) this.tweens.add({ targets: w, scale: 1.4 / SPR, duration: 160, yoyo: true, repeat: 1 });
+    this.tweens.add({ targets: w, alpha: 0, delay: ok ? 1200 : 0, duration: 600, onComplete: () => w.destroy() });
     this.setObjective();
   }
   startTaxi() {
@@ -2426,7 +2480,7 @@ class Main extends Phaser.Scene {
     const pulse = 0.75 + Math.sin(time / 250) * 0.15;
     for (const m of this.marks) {
       const near = dist(m.l.x, m.l.y, f.x, f.y) < 700;
-      m.ring.setVisible(!m.l.found).setScale(pulse * 3.4);
+      m.ring.setVisible(!m.l.found).setScale(pulse * 3.4 / SPR);
       if (m.found !== m.l.found) { m.found = m.l.found; m.star.setColor(m.l.found ? '#bbbbbb' : '#ffd23f'); }
       m.label.setVisible(near);
     }
@@ -2435,7 +2489,7 @@ class Main extends Phaser.Scene {
     for (const c of chinas) c.label.setVisible(dist(c.x, c.y, f.x, f.y) < 300);
     const g = this.goal();
     this.target.setVisible(!!g);
-    if (g) this.target.setPosition(g.x, g.y).setScale(pulse * (this.taxi && this.taxi.phase === 'pick' ? 1.3 : 2));
+    if (g) this.target.setPosition(g.x, g.y).setScale(pulse * (this.taxi && this.taxi.phase === 'pick' ? 1.3 : 2) / SPR);
     if (this.waypoint && dist(this.waypoint.x, this.waypoint.y, f.x, f.y) < 60) { this.waypoint = null; toast('Llegaste a tu destino', '', 1.5); }
   }
 
