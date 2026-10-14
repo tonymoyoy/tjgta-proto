@@ -663,15 +663,12 @@ function* chunkSteps(cx, cy) {
     // orilla polvosa junto a la banqueta; el asfalto limpio de los cruces la tapa
     pass(list, r => ROAD_W[r.c] * M, '#4b4842', r => r.c <= 7);
     pass(list, r => ROAD_W[r.c] * M - 9, COL.asphalt, r => r.c <= 7);
-    const q = r => ROAD_W[r.c] * M / 4;
+    // solo la raya de en medio que separa los dos sentidos (doble en avenidas, punteada en calles);
+    // sin lineas de carril ni rayas en calles de un sentido: se mezclaban y ensuciaban el dibujo
     ctx.setLineDash([]);
     pass(list, () => 2, COL.yellow, r => r.c <= MAJOR && !(r.f & 2), () => [-2, 2]);
     ctx.setLineDash([16, 16]);
-    pass(list, () => 2, COL.white, r => r.c <= MAJOR && !(r.f & 2), r => [-q(r), q(r)]);
-    // rampas y viaductos de un sentido se enciman entre si: sin lineas para no ensuciar
-    pass(list, () => 2, COL.white, r => r.c >= 2 && r.c <= MAJOR && (r.f & 2) && !r.curvy, r => [-q(r), 0, q(r)]);
     pass(list, () => 2, COL.yellow, r => r.c === 4 && !(r.f & 2));
-    pass(list, () => 2, COL.white, r => r.c === 4 && (r.f & 2) && !r.curvy);
     ctx.setLineDash([]);
   };
   under(ground);
