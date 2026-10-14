@@ -1,4 +1,4 @@
-# TJGTA · Zona Centro y Zona Río (prototipo)
+# TJ Rush · Zona Centro y Zona Río (prototipo)
 
 Juego de vista cenital estilo GTA 2 en la Zona Centro y la Zona Río de Tijuana (unos 4.1 x 2.9 km), con calles, edificios y lugares reales.
 Hecho con Phaser 3 (JavaScript); corre en el navegador.

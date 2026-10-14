@@ -1,4 +1,4 @@
-package mx.tjgta.app;
+package mx.tjrush.app;
 
 import android.os.Build;
 import android.os.Bundle;

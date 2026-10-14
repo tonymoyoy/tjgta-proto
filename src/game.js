@@ -1,4 +1,4 @@
-// TJGTA: prototipo estilo GTA 2 en la Zona Centro de Tijuana.
+// TJ Rush: juego de vista cenital en la Zona Centro de Tijuana.
 // Mapa: calles, edificios y lugares reales (Overture Maps / OpenStreetMap), ver tools/prep_data.py.
 (() => {
 'use strict';
@@ -3445,7 +3445,7 @@ function drawActa() {
   const sx = W - 215, sy = 925;
   x.strokeStyle = 'rgba(183,28,28,0.85)'; x.lineWidth = 6; x.beginPath(); x.arc(sx, sy, 110, 0, 7); x.stroke(); x.lineWidth = 2; x.beginPath(); x.arc(sx, sy, 92, 0, 7); x.stroke();
   x.save(); x.translate(sx, sy); x.font = 'bold 22px sans-serif'; x.fillStyle = 'rgba(183,28,28,0.9)'; x.textAlign = 'center';
-  const label = 'H. CONSEJO DEL TACO · TJGTA · ';
+  const label = 'H. CONSEJO DEL TACO · TJ RUSH · ';
   for (let i = 0; i < label.length; i++) { x.save(); x.rotate(-Math.PI / 2 + i / label.length * Math.PI * 2); x.fillText(label[i], 0, -98); x.restore(); }
   x.restore();
   if (sc && sc.textures.exists('zonkey')) { const im = sc.textures.get('zonkey').getSourceImage(); x.save(); x.translate(sx, sy); x.rotate(-0.5); x.drawImage(im, -75, -75 * im.height / im.width, 150, 150 * im.height / im.width); x.restore(); }
@@ -3465,7 +3465,7 @@ $('actasave').addEventListener('click', async () => {
     // Android: se guarda en la cache de la app y se abre el menu de compartir del telefono
     try {
       const r = await C.Plugins.Filesystem.writeFile({ path: 'acta-tijuanense.png', data: url.split(',')[1], directory: 'CACHE' });
-      await C.Plugins.Share.share({ title: 'Mi Acta de Tijuanense', text: '¡Ya soy tijuanense! #TJGTA', files: [r.uri] });
+      await C.Plugins.Share.share({ title: 'Mi Acta de Tijuanense', text: '¡Ya soy tijuanense! #TJRush', files: [r.uri] });
     } catch (e) { if (!/cancel/i.test(String(e && e.message))) toast('No se pudo compartir', String(e && e.message || e), 3); }
   } else {
     const a = document.createElement('a'); a.href = url; a.download = 'acta-tijuanense.png'; document.body.appendChild(a); a.click(); a.remove();

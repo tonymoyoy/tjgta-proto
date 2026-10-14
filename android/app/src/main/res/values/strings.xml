@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">TJGTA</string>
-    <string name="title_activity_main">TJGTA</string>
-    <string name="package_name">mx.tjgta.app</string>
-    <string name="custom_url_scheme">mx.tjgta.app</string>
+    <string name="app_name">TJ Rush</string>
+    <string name="title_activity_main">TJ Rush</string>
+    <string name="package_name">mx.tjrush.app</string>
+    <string name="custom_url_scheme">mx.tjrush.app</string>
 </resources>

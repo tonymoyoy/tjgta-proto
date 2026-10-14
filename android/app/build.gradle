@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "mx.tjgta.app"
+    namespace = "mx.tjrush.app"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "mx.tjgta.app"
+        applicationId "mx.tjrush.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
