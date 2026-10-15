@@ -1455,6 +1455,39 @@ const PAROS = [
     pide: '"Lleva a Paco al veterinario, ya no canta. Bueno, sí habla, pero repite cosas que le enseñó mi sobrino y no se pueden decir."',
     fin: 'El veterinario dijo que Paco está sano. En la sala de espera gritó "¡ya llegó el pozole!" y todos le aplaudieron.',
     mal: 'De tanto esperar en el carro, Paco se aprendió el claxon. Ahora pita igualito y los vecinos se asoman a ver quién llegó.' },
+  // los del oriente (zona: 'oriente'): un poco sospechosos... y al final todo es de lo mas inocente
+  { k: 'paquete', quien: 'El Flaco', ico: '📦', prisa: true, zona: 'oriente', cosa: 'un paquete envuelto en cinta canela', a: 'una casa con el portón verde',
+    pide: '"Lleva este paquete. No lo abras. No preguntes. Y si alguien te pregunta... di que son tamales."',
+    fin: 'Lo abrieron enfrente de ti: eran tamales. De verdad eran tamales. El Flaco nomás es muy dramático.',
+    mal: 'Los tamales llegaron fríos. La señora del portón verde dice que ya no le vuelve a encargar nada al Flaco. El Flaco dice que "así es este negocio".' },
+  { k: 'maleta', quien: 'Un señor de lentes oscuros', ico: '💼', zona: 'oriente', cosa: 'una maleta', a: 'un señor con un periódico',
+    pide: '"Lleva esta maleta. Te va a recibir un señor con un periódico. Si no trae periódico, no es él. Si trae dos, corre."',
+    fin: 'El señor del periódico abrió la maleta: eran estampitas del álbum de futbol. Le faltaba una para llenarlo. Se le salieron las lágrimas.',
+    mal: 'El señor del periódico se cansó de esperar y se fue. Ahora hay un señor con una maleta y otro con un periódico buscándose por toda la colonia.' },
+  { k: 'hielera', quien: 'La Güera', ico: '🧊', prisa: true, zona: 'oriente', cosa: 'una hielera muy pesada', a: 'una fiesta en una cochera',
+    pide: '"Lleva esta hielera. Pesa porque... pesa. No la voltees y no la abras, que se sale lo bueno."',
+    fin: 'Era raspado de tamarindo para treinta niños. Pesaba porque era mucho raspado. La Güera es la heroína de la fiesta.',
+    mal: 'Llegó derretido. Ahora es agua de tamarindo. Los niños dicen que igual cuenta.' },
+  { k: 'sobre', quien: 'Don Nadie', ico: '✉️', zona: 'oriente', cosa: 'un sobre cerrado', a: 'su contacto',
+    pide: '"Entrégale este sobre a mi contacto. Él sabe. Tú no sabes. Nadie sabe. Ni yo sé bien, pero tú llévalo."',
+    fin: 'El contacto abrió el sobre: era la receta secreta del pozole de la abuela de Don Nadie. Te hicieron jurar que no la viste.',
+    mal: 'El contacto ya se había ido. Don Nadie dice que la receta seguirá siendo secreta otro año. Igual nadie la entiende: dice "sal al gusto".' },
+  { k: 'llanta', quien: 'El Chato', ico: '⚙️', zona: 'oriente', cosa: 'una llanta con todo y rin', a: 'un taller',
+    pide: '"Lleva esta llanta al taller. No es robada. Bueno... no sabemos. Es una llanta, no habla."',
+    fin: 'En el taller la reconocieron: era del carro del dueño del taller. Te dieron las gracias y te miraron raro un buen rato.',
+    mal: 'El taller ya había cerrado. Dejaste la llanta recargada en la cortina. En la mañana ya no estaba. El ciclo de la vida.' },
+  { k: 'bolsa', quien: 'El Tío Rafa', ico: '🛍️', prisa: true, zona: 'oriente', cosa: 'una bolsa negra', a: 'la casa de su hermana',
+    pide: '"Lleva esta bolsa negra con mi hermana y no hagas preguntas. Que no la vean los niños, por lo que más quieras."',
+    fin: 'Era el disfraz de Santa Claus para la posada. Los niños no se enteraron. El Tío Rafa va a sudar mucho esta noche.',
+    mal: 'Los niños vieron la barba blanca asomándose. Ahora saben que Santa Claus es el Tío Rafa. Uno lloró. Otro le pidió un celular.' },
+  { k: 'papeles', quien: 'El Licenciado', ico: '📁', prisa: true, zona: 'oriente', cosa: 'unos papeles importantes', a: 'la notaría',
+    pide: '"Lleva estos papeles a la notaría antes de que cierren. Que no los vea mi hermano. Ni mi otro hermano. Ni mi mamá."',
+    fin: 'Eran las escrituras del terreno de la abuela. Ahora toda la familia se pelea... pero en la notaría, como debe ser.',
+    mal: 'Cerró la notaría. Los hermanos se enteraron. La comida del domingo va a estar tensa.' },
+  { k: 'caja', quien: 'Chava', ico: '❓', zona: 'oriente', cosa: 'una caja que se mueve', a: 'la casa de su primo',
+    pide: '"Lleva esta caja con mi primo. Si se mueve, es normal. Si hace ruidos, también. No la sacudas. Por favor no la sacudas."',
+    fin: 'Eran tres conejitos para el cumpleaños de la sobrina de Chava. Por eso se movía. La niña gritó tan fuerte que se oyó en San Diego.',
+    mal: 'Los conejitos llegaron bien, pero la fiesta ya había acabado. La sobrina dice que es el mejor regalo de "después de cumpleaños".' },
 ];
 
 // ---------- HUD ----------
@@ -3512,8 +3545,9 @@ class Main extends Phaser.Scene {
   colocarParos() {
     const lejos = (x, y, list, r) => list.every(q => dist(q.x, q.y, x, y) > r);
     const cands = walkG.edges.filter(e => e.c <= 6 && e.len > 40).sort((a, b) => hash(a.id * 7 + 3) - hash(b.id * 7 + 3));
-    // las zonas de algunos paros (metros): el sur, entre los cerros y el Campestre
-    const ZONAS = { sur: [1300, 2800, 4600, 4755] };
+    // las zonas de algunos paros (metros, x0 y0 x1 y1): el sur, entre los cerros y el Campestre; el oriente
+    // (el quinto numero, si esta, es la separacion minima en metros con los demas paros; si no, 600)
+    const ZONAS = { sur: [1300, 2800, 4600, 4755], oriente: [4300, 200, 5913, 4755, 500] };
     this.paros = [];
     for (const P of PAROS) {
       const z = ZONAS[P.zona];
@@ -3522,7 +3556,7 @@ class Main extends Phaser.Scene {
         const t = edgePos(c, c.len / 2, 1, c.w / 2 + 1.5 * M, {});
         if (z && (t.x < z[0] * M || t.y < z[1] * M || t.x > z[2] * M || t.y > z[3] * M)) continue;
         if (t.y < borderY(t.x) + 300 || t.x < 200 || t.y < 200 || t.x > WORLD_W - 200 || t.y > WORLD_H - 200) continue;
-        if (!lejos(t.x, t.y, landmarks, 450 * M) || !lejos(t.x, t.y, this.paros, 600 * M) || blocked(t.x, t.y) || !walkableTo(t.x, t.y, 10)) continue;
+        if (!lejos(t.x, t.y, landmarks, 450 * M) || !lejos(t.x, t.y, this.paros, ((z && z[4]) || 600) * M) || blocked(t.x, t.y) || !walkableTo(t.x, t.y, 10)) continue;
         q = t; mid = edgePos(c, c.len / 2, 1, 0, {}); e = c; break;
       }
       if (!q) continue;
