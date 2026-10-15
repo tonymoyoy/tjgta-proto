@@ -200,7 +200,7 @@ Cada tema tiene su propio globo de diálogo (ver `.bubble` en src/style.css). Ha
 163. "En Otay está la UABC, y el terreno lo ganaron los estudiantes en el 71. Aquí la universidad se defendió desde el principio."
 164. "Soy de Otay: tengo el aeropuerto, la garita, el Tec y la UABC a diez minutos. El centro del mundo, compa."
 165. "En Otay se hacen teles, aparatos médicos y piezas de avión. Lo que traes en la bolsa capaz salió de aquí."
-166. "En La Mesa tenemos el Parque Morelos. Los domingos ahí se junta media Tijuana con su lonche y su pelota."
+166. "En Los Pinos llevamos treinta años cuidando nuestro centro comunitario. Ahí aprendimos a jugar fut y a defender lo nuestro."
 167. "Playas de Tijuana: el atardecer en el malecón no lo cambio por nada. Gratis y todos los días."
 168. "Vivo en Playas: me levanto, veo el mar y el faro, y ya puedo con el tráfico de todo el día."
 169. "En el Parque de la Amistad, en Playas, las familias se ven a través de la reja. Ahí aprendes lo que vale un abrazo."
