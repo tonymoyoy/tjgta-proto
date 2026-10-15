@@ -8,8 +8,8 @@ Todo lo necesario para publicar la app. Las imágenes de esta carpeta ya tienen 
 |---|---|---|
 | Paquete para la tienda (AAB) | `android/app/build/outputs/bundle/release/app-release.aab` | `npm run aab` |
 | APK firmada para compartir | `android/app/build/outputs/apk/release/app-release.apk` | `npm run apk:release` |
-| Ícono 512×512 | `icono-512.png` | `scripts/arte-app.html` (`ARTE.tienda(512)`) |
-| Gráfico destacado 1024×500 | `grafico-1024x500.png` | captura del juego + logo |
+| Ícono 512×512 | `icono-512.png` | `node scripts/arte-app.mjs`, a partir del logo `scripts/logo-tjrush.jpg` |
+| Gráfico destacado 1024×500 | `grafico-1024x500.png` | captura del juego + logo (`src/img/icono.png`) |
 | Capturas de teléfono | `captura-1…7-*.png` (1536×864 y 864×1536) | capturas del juego |
 | Aviso de privacidad | https://tonymoyoy.github.io/tjgta-proto/privacidad.html | `privacidad.html` (se publica al unir con `main`) |
 

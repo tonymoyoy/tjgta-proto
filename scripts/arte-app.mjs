@@ -1,10 +1,12 @@
-// Genera el icono de la app (todas las densidades), las pantallas de arranque de Android y src/img/icono.png
+// Genera, a partir de scripts/logo-tjrush.jpg, el icono de la app (todas las densidades), las pantallas de arranque
+// de Android, src/img/icono.png y el icono de 512 para Google Play
 // dibujando scripts/arte-app.html en Chromium. Uso (desde la raiz, con Playwright instalado aparte): node scripts/arte-app.mjs
 import { chromium } from 'playwright';
 import fs from 'fs';
 const ROOT = process.cwd(), RES = ROOT + '/android/app/src/main/res';
 const b = await chromium.launch(); const p = await b.newPage();
 await p.goto('file://' + ROOT + '/scripts/arte-app.html');
+await p.evaluate((src) => ARTE.cargar(src), 'data:image/jpeg;base64,' + fs.readFileSync(ROOT + '/scripts/logo-tjrush.jpg').toString('base64'));
 const put = async (file, expr) => { const d = await p.evaluate(expr); fs.writeFileSync(file, Buffer.from(d.split(',')[1], 'base64')); };
 const D = { mdpi: 1, hdpi: 1.5, xhdpi: 2, xxhdpi: 3, xxxhdpi: 4 };
 for (const [k, m] of Object.entries(D)) {
@@ -20,5 +22,6 @@ for (const f of fs.readdirSync(RES).filter(d => d.startsWith('drawable'))) {
   await put(s, `ARTE.arranque(${m[0]}, ${m[1]})`);
 }
 fs.mkdirSync(ROOT + '/src/img', { recursive: true });
-await put(ROOT + '/src/img/icono.png', 'ARTE.icono(256, false)');
+await put(ROOT + '/src/img/icono.png', 'ARTE.icono(384, false)');
+await put(ROOT + '/docs/google-play/icono-512.png', 'ARTE.tienda(512)');
 await b.close();
