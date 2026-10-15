@@ -1326,6 +1326,8 @@ const CANCELADOS = [
 // paros: gente de las colonias (lejos de los lugares tipicos) que te pide que le lleves algo a alguien.
 // quien te lo pide, su icono, lo que dice, lo que llevas, a donde, como termina (fin) o si tardas (mal);
 // prisa: el tiempo es mas justo (se enfria, ya empezo la fiesta...)
+// "a" + destino, con la contraccion: a la veterinaria, al panteon
+const aDonde = (a) => a.startsWith('el ') ? 'al ' + a.slice(3) : 'a ' + a;
 const PAROS = [
   { k: 'gato', quien: 'Doña Cuca', ico: '🐱', prisa: true, cosa: 'a Michi en su jaula', a: 'la veterinaria',
     pide: '"Mijo, ¿me haces un paro? Lleva a Michi al veterinario, se tragó una liga del pelo. Ya ni maúlla, nomás me juzga."',
@@ -1391,6 +1393,35 @@ const PAROS = [
     pide: '"Hoy es la final del torneo de la colonia y el trofeo está en mi casa. Sin trofeo, no hay final. Sin final, hay pleito."',
     fin: 'Ganó el equipo de los señores de cincuenta. Los jóvenes piden revancha. Los señores piden pomada.',
     mal: 'Jugaron sin trofeo. Al ganador le dieron un garrafón de agua. Lo levantó igual de orgulloso.' },
+  // perritos y gatitos (recibe: 'perro' = quien te recibe es un perro)
+  { k: 'bano', quien: 'Don Lencho', ico: '🐶', cosa: 'a Firulais', a: 'la estética canina',
+    pide: '"¿Me haces el paro de llevar a Firulais a que lo bañen? Ya huele a tenis de secundaria. Él cree que huele bien."',
+    fin: 'Firulais salió bañado, con moñito y perfume de vainilla. Está ofendidísimo. No te va a hablar en una semana.',
+    mal: 'Firulais se echó a un charco en el camino y llegó peor. En la estética dicen que eso ya es otro precio.' },
+  { k: 'adopcion', quien: 'Mariana la rescatista', ico: '🐾', cosa: 'a una perrita rescatada', a: 'la casa de su nueva familia',
+    pide: '"La encontré en la canalización, flaquita y con miedo. Ya la curamos y una familia la quiere adoptar. ¿Se la llevas?"',
+    fin: 'La niña de la casa la abrazó y le puso Princesa. La perrita movió la cola tan fuerte que se cayó. Mariana lloró por teléfono.',
+    mal: 'La familia se cansó de esperar... pero al rato volvieron a llamar: la quieren igual. Mariana dice que lo vuelvas a intentar.' },
+  { k: 'gatitos', quien: 'Doña Chayo', ico: '🐈', cosa: 'dos gatitos en una caja', a: 'la casa de su sobrina',
+    pide: '"Mi gata tuvo seis gatitos en mi cajón de calcetines. Llévale estos dos a mi sobrina, que dijo que sí los quiere... creo."',
+    fin: 'La sobrina dijo que solo quería uno. Se quedó con los dos. Y con la caja. Y ya pregunta por los otros cuatro.',
+    mal: 'Los gatitos se salieron de la caja y se durmieron en tu asiento. Te los regresaron. Ahora te ven como su mamá.' },
+  { k: 'gato_vecino', quien: 'Don Fito', ico: '😾', cosa: 'al gato del vecino', a: 'la casa del vecino de Don Fito',
+    pide: '"El gato del vecino se subió a mi techo hace tres días y ya se cree el dueño. Regrésaselo. Con cuidado, que rasguña."',
+    fin: 'El vecino ni sabía que se había ido. El gato te vio con desprecio, se subió al techo y se quedó viendo para la casa de Don Fito.',
+    mal: 'El gato se bajó solito a medio camino y volvió al techo de Don Fito. Ya hasta le pusieron plato.' },
+  { k: 'canelo', quien: 'Doña Rosa', ico: '🐕', prisa: true, cosa: 'a Canelo, su perro viejito', a: 'el veterinario',
+    pide: '"Canelo ya está viejito, ya casi no camina y tiene cita con el veterinario. Yo no tengo carro. ¿Lo llevas tú? Con cariño, por favor."',
+    fin: 'El veterinario dijo que Canelo está viejito pero bien, que nomás necesita sus vitaminas y mucho cariño. De eso le sobra. Doña Rosa lloró de gusto.',
+    mal: 'Llegaron tarde a la cita, pero el veterinario los atendió igual. Canelo le movió la cola. Doña Rosa dice que eso es lo que importa.' },
+  { k: 'croquetas', quien: 'Don Memo', ico: '🦴', recibe: 'perro', cosa: 'un costal de croquetas', a: 'el albergue de perritos',
+    pide: '"En el albergue se les acabaron las croquetas y son como cuarenta perros. Llévales este costal, ándale, que ya ni ladran de hambre."',
+    fin: 'Cuarenta perros te ladraron al mismo tiempo. La encargada dice que es "gracias" en perro. Uno te siguió hasta el carro.',
+    mal: 'Llegaste tarde, pero los perros te recibieron como si fueras el ídolo de la colonia. Dicen que no importa la hora si traes croquetas.' },
+  { k: 'cumple_gato', quien: 'Yaretzi', ico: '🎂', prisa: true, cosa: 'un pastel de atún', a: 'la fiesta de cumpleaños de Señor Bigotes',
+    pide: '"¡Hoy cumple dos años Señor Bigotes y el pastel de atún sigue aquí! Ya están los invitados: tres gatos y mi tía. ¡Córrele!"',
+    fin: 'Señor Bigotes ignoró el pastel, se metió a la caja en que venía y no salió en toda la fiesta. Fue un éxito.',
+    mal: 'Los invitados se comieron las botanas. Señor Bigotes se comió una planta. Nadie cantó las mañanitas.' },
 ];
 
 // ---------- HUD ----------
@@ -3488,6 +3519,7 @@ class Main extends Phaser.Scene {
   }
   aceptarParo() {
     const p = this.paroOfer.p; this.paroOfer = null;
+    if (this.bubble.ped === p) this.bubble.t = 0; // se cierra el globo de la peticion (el aviso dice a donde ir)
     let spot = null, mid = null;
     for (let i = 0; i < 60 && !spot; i++) {
       const e = randomEdgeNear(walkG, p.x, p.y, 1500, 3500); if (!e || e.c > 6) continue;
@@ -3497,10 +3529,15 @@ class Main extends Phaser.Scene {
     if (!spot) { this.globo(p, 'paro', '"Mejor al rato, que no me acuerdo ni de la dirección."', 3); this.setObjective(); return; }
     const d = dist(spot.x, spot.y, p.x, p.y), street = streetAt(spot.x, spot.y) || 'una calle de Tijuana';
     // quien recibe espera en la banqueta, viendo hacia la calle
-    const who = this.add.sprite(spot.x, spot.y, 'ped' + pedVariant(), 0).setDepth(6).setScale(1 / SPR).setRotation(Math.atan2(mid.y - spot.y, mid.x - spot.x));
-    this.tweens.add({ targets: who, angle: who.angle + 8, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+    const face = Math.atan2(mid.y - spot.y, mid.x - spot.x);
+    let who;
+    if (p.recibe === 'perro') who = this.add.sprite(spot.x, spot.y, 'perro', 0).setDepth(6).setScale(1 / SPR).setRotation(face).play('cola');
+    else {
+      who = this.add.sprite(spot.x, spot.y, 'ped' + pedVariant(), 0).setDepth(6).setScale(1 / SPR).setRotation(face);
+      this.tweens.add({ targets: who, angle: who.angle + 8, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+    }
     this.paro = { de: p, x: spot.x, y: spot.y, street, d, who, time: p.prisa ? d / 80 + 25 : d / 55 + 60 };
-    toast('🤝 Paro para ' + p.quien, 'Lleva ' + p.cosa + ' a ' + p.a + ', en ' + street + '.' + (p.prisa ? ' ¡Tiene prisa!' : ''), 5);
+    toast('🤝 Paro para ' + p.quien, 'Lleva ' + p.cosa + ' ' + aDonde(p.a) + ', en ' + street + '.' + (p.prisa ? ' ¡Tiene prisa!' : ''), 5);
     this.setObjective();
   }
   endParo(ok) {
@@ -3885,7 +3922,7 @@ class Main extends Phaser.Scene {
     let t = '';
     if (this.taxi) t = this.taxi.phase === 'pick' ? 'Taxi: recoge al pasajero' : 'Taxi: lleva al pasajero a ' + this.taxi.name;
     else if (this.delivery) t = 'Entrega: ' + this.delivery.order + ' en ' + this.delivery.street;
-    else if (this.paro) t = '🤝 Paro: lleva ' + this.paro.de.cosa + ' a ' + this.paro.de.a;
+    else if (this.paro) t = '🤝 Paro: lleva ' + this.paro.de.cosa + ' ' + aDonde(this.paro.de.a);
     else if (this.waypoint && this.waypoint.fiesta) t = '🎉 Ve a la fiesta en la Plaza Santa Cecilia';
     else if (this.waypoint) t = '📍 Sigue la ruta verde a tu destino';
     hud.obj.textContent = t; // vacio = no se muestra (las instrucciones estan en Opciones)
