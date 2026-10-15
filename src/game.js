@@ -1225,7 +1225,7 @@ const FRASES = {
     'Bro, mi outfit es todo de la Ross: diez dólares y me veo de Fashion Valley.',
     'Cruzo la línea diario, bro: con mi sueldo en San Diego nomás me alcanza para rentar un clóset.',
     'Hablo spanglish bien fluent: "voy a la marketa por unas groceries y regreso pronto, ¿okay?"',
-    'Bro, I\'m like, super mexicano. Mi playlist es puro Peso Pluma.',
+    'Bro, este año sí ganan los Padres. Lo dije el año pasado, but this time for real. Nunca le pierdas la fe.',
     'Mi abuela me dice pocho, mis primos de LA me dicen paisa. Soy un bug de dos países.',
     'Vengo a Tijuana por el dentista, los tacos y que la farmacia no me pida receta. Pura vida, bro.',
     'Pagué con dólares y me dieron cambio en pesos, centavos y un chicle. Best deal ever.',

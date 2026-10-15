@@ -37,7 +37,7 @@ Cada tema tiene su propio globo de diálogo (ver `.bubble` en src/style.css). Ha
 24. "Bro, mi outfit es todo de la Ross: diez dólares y me veo de Fashion Valley."
 25. "Cruzo la línea diario, bro: con mi sueldo en San Diego nomás me alcanza para rentar un clóset."
 26. "Hablo spanglish bien fluent: "voy a la marketa por unas groceries y regreso pronto, ¿okay?""
-27. "Bro, I'm like, super mexicano. Mi playlist es puro Peso Pluma."
+27. "Bro, este año sí ganan los Padres. Lo dije el año pasado, but this time for real. Nunca le pierdas la fe."
 28. "Mi abuela me dice pocho, mis primos de LA me dicen paisa. Soy un bug de dos países."
 29. "Vengo a Tijuana por el dentista, los tacos y que la farmacia no me pida receta. Pura vida, bro."
 30. "Pagué con dólares y me dieron cambio en pesos, centavos y un chicle. Best deal ever."
