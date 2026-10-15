@@ -1159,7 +1159,7 @@ const FRASES = {
     'Pescado en la mañana, adobada en la noche y carne asada el domingo. Así se vive aquí.',
     'Pide un ceviche de carreta, el de la esquina no falla... casi nunca.',
     'La dieta tijuanense: tacos de adobada, luego de asada, luego de tripa y luego arrepentimiento.',
-    '¿Que el taco de canasta te cayó mal? No, mijo, tú le caíste mal al taco.',
+    '¿Que el taco al vapor te cayó mal? No, mijo, tú le caíste mal al taco.',
     'En la Telefónica venden comida gourmet en contenedores. Tijuana es la única ciudad que recicla así.',
     'Los dogos de la Revu a las tres de la mañana saben a gloria y a malas decisiones.',
     'Si la taquería no tiene salsa de aguacate aguada, no es taquería, es restaurante.',
