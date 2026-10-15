@@ -25,6 +25,8 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); c
   padding: 4px 10px; font-size: 13px; line-height: 1.4; }
 #stats .row { display: flex; align-items: baseline; gap: 10px; white-space: nowrap; }
 #stats .money { font-size: 18px; font-weight: bold; color: var(--good); letter-spacing: 0.5px; }
+/* los contadores: cada uno entero (en vertical se brinca de linea entre ellos, en los separadores) */
+#counts span { white-space: nowrap; }
 #stats .obj { color: var(--accent); max-width: 300px; font-size: 12px; }
 #stats .obj:empty { display: none; }
 #mini { top: 12px; right: 12px; width: 180px; height: 180px; border-radius: 50%; border: 3px solid rgba(0,0,0,.7);
@@ -221,6 +223,7 @@ body:not(.touch) #keystouch { display: none; }
   #stats, #mini { top: max(34px, env(safe-area-inset-top)); }
   #stats { max-width: calc(100vw - 160px); }
   #stats .row { flex-wrap: wrap; row-gap: 0; column-gap: 8px; }
+  #counts { white-space: normal; }
   .touch #optbtn, #optbtn { top: 166px; }
   #fps { top: 100px; }
   #stick { bottom: 40px; }

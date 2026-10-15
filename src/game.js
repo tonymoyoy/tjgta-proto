@@ -1511,9 +1511,12 @@ function updateStats() {
   if (window.SND) { if (dm > 0) SND.play(bigSound ? 'fanfare' : 'gain', dm); else if (dm < 0) SND.play('loss'); }
   bigSound = false;
   hud.money.textContent = '$' + state.money.toLocaleString('es-MX');
-  hud.counts.textContent = `★ ${landmarks.filter(l => l.found).length}/${landmarks.length} · 🌮 ${tacos.filter(t => t.eaten).length}/${tacos.length} · ☕ ${cafes.filter(c => c.drunk).length}/${cafes.length}` +
-    (EGGS.some(e => e.got) ? ` · 🥚 ${EGGS.filter(e => e.got).length}/${EGGS.length}` : '') +
-    ((state.paros || []).length ? ` · 🤝 ${state.paros.length}/${PAROS.length}` : '');
+  // cada contador en su propio span (no se parte); si no cabe en una linea, se brinca entre contadores (ver #counts)
+  const cs = [`★ ${landmarks.filter(l => l.found).length}/${landmarks.length}`, `🌮 ${tacos.filter(t => t.eaten).length}/${tacos.length}`,
+    `☕ ${cafes.filter(c => c.drunk).length}/${cafes.length}`];
+  if (EGGS.some(e => e.got)) cs.push(`🥚 ${EGGS.filter(e => e.got).length}/${EGGS.length}`);
+  if ((state.paros || []).length) cs.push(`🤝 ${state.paros.length}/${PAROS.length}`);
+  hud.counts.replaceChildren(...cs.flatMap((t, i) => { const e = document.createElement('span'); e.textContent = t; return i ? [' · ', e] : [e]; }));
 }
 
 // ---------- texturas ----------
