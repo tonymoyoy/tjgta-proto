@@ -1,6 +1,6 @@
 <!doctype html>
 <!-- Arte de la app: icono (capas del icono adaptable de Android, icono viejo, el de la tienda y el de la web)
-     y pantalla de arranque, todo a partir del logo scripts/logo-tjrush.jpg (ya recortado, sin marco).
+     y pantalla de arranque, todo a partir del logo scripts/logo-tjrush.jpg (cuadrado, sin marco).
      Lo genera scripts/arte-app.mjs (abre esta pagina en Chromium, le pasa el logo y guarda los PNG).
      Tambien se puede abrir a mano en el navegador para ver como quedan. -->
 <html lang="es"><head><meta charset="utf-8"><title>Arte TJ Rush</title>
@@ -14,10 +14,10 @@ let LOGO = null;
 function logo(x, x0 = 0, y0 = 0, s = 108) { x.drawImage(LOGO, x0, y0, s, s); }
 
 // icono adaptable de Android: el lanzador recorta las capas con su forma (circulo, cuadro redondeado...)
-// y solo se ve el centro (de 18 a 90 de 108). El titulo del logo va pegado abajo, asi que al frente el logo
+// y solo se ve el centro (de 18 a 90 de 108). El titulo del logo va abajo, asi que al frente el logo
 // va un poco mas arriba (se recorta cielo, no letras); al fondo, el tono del asfalto con el mismo logo
 // borroso detras, para que la orilla de abajo se funda.
-const FRENTE = 76, FRENTE_Y = 6;
+const FRENTE = 80, FRENTE_Y = 8;
 function fondo(x) {
   x.fillStyle = '#1c1720'; x.fillRect(0, 0, 108, 108); // el tono del asfalto de abajo del logo
   x.filter = 'blur(2.5px) brightness(0.8)';
