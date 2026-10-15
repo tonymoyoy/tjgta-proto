@@ -81,7 +81,7 @@ En `android/app/build.gradle` sube `versionCode` (entero, siempre mayor) y `vers
 - **App de noticias / salud / gobierno / préstamos:** No.
 - **Cuestionario de clasificación (IARC)**, contestar con la verdad; lo que tiene el juego:
   - Violencia: choques entre autos y atropellar no muestran sangre ni heridas; la policía persigue (sin armas).
-  - Actividad delictiva: **sí**, robo de autos (estilo caricatura, es el corazón del juego).
+  - Actividad delictiva: **sí**, robo de autos (estilo caricatura, es el corazón del juego); un yonke que compra los carros robados; "coyotes" que ofrecen cruzarte la frontera y solo te estafan (pierdes dinero, nunca se cruza).
   - Lenguaje: groserías leves ("pinche").
   - Alcohol/drogas: referencias (tequila, michelada, bares de la Revolución); no se consumen en el juego.
   - Juegos de azar: no hay apuestas; solo dibujos de casino como parte de la historia de la ciudad.

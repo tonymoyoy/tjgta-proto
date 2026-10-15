@@ -788,6 +788,21 @@ function save() {
 }
 
 // ---------- frases ----------
+// los coyotes: te ofrecen pasarte al otro lado en voz bajita ($ es el precio) y, si les pagas, te estafan
+const COYOTE_OFERTA = [
+  'Psst... ¿pa\'l otro lado? Sin fila y sin papeles. $ y mañana desayunas en San Diego.',
+  'Oiga, joven... yo lo paso. Tengo un primo en la garita. Nomás $.',
+  'Psst. Visa láser, pasaporte, lo que ocupe. $ y es suyo, sin preguntas.',
+  'Conozco un túnel que ni la migra sabe. $, pero no le diga a nadie.',
+  '¿Va pa\' Los Ángeles? Lo dejo allá hoy mismo. $, todo incluido.',
+];
+const COYOTE_PAGO = ['Simón. Espérame aquí, voy por la camioneta.', 'Trato hecho. No te muevas, ahorita vengo por ti.',
+  'Ya estás. Nomás voy por los papeles a la vuelta.'];
+const COYOTE_ESTAFA = ['Dijo que iba por la camioneta. Sigues esperando en la esquina.',
+  'La "visa láser" que te dejó es una credencial del Calimax con tu foto pegada.',
+  'El mapa del "túnel" que te dio es el menú de una taquería.',
+  'Su "primo en la garita" no existe. Él tampoco contesta.',
+  'Te dio una cita para cruzar... el 30 de febrero.'];
 const FRASES_ROBO = [
   '¡Ey, mi carro!', '¡Ese carro tiene más multas que yo, suerte!', '¡Auxilio, me lo bajaron!', '¡No manches, todavía lo estoy pagando!',
   '¡Llévatelo, pero cámbiale el aceite!', '¡Ni lo laves, ya así está bonito!', '¡Le falta la segunda, ahí te encargo!',
@@ -1434,12 +1449,15 @@ function makeTextures(scene) {
   };
   PED_VARIANTS.forEach((V, i) => sheet(i, V));
   sheet(PLAYER_SHIRT, PLAYER_LOOK);
+  sheet('C', COYOTE_LOOK);
   // aro de los lugares y del destino: a SPR veces la resolucion (las escalas de abajo se dividen entre SPR)
   const r = scene.textures.createCanvas('ring', 64 * SPR, 64 * SPR), x = r.getContext();
   x.scale(SPR, SPR); x.strokeStyle = '#fff'; x.lineWidth = 5; x.beginPath(); x.arc(32, 32, 28, 0, 7); x.stroke(); r.refresh();
 }
 const PLAYER_SHIRT = 'P'; // textura 'pedP' y animacion 'walkP'
 // el jugador: camisa amarilla, pantalon de mezclilla y gorra roja (como siempre)
+// el coyote: un señor flaco, todo de oscuro y con gorra negra; se pierde entre la gente (ver ofrecerCoyote)
+const COYOTE_LOOK = { female: false, age: 'adulto', build: 'delgado', skin: '#a8714a', shirt: '#2b2b2b', pants: '#1f2a38', hair: 'corto', hairCol: '#111', hat: 'gorra', hatCol: '#151515', k: 1 };
 const PLAYER_LOOK = { female: false, age: 'adulto', build: 'normal', skin: '#c68e5f', shirt: '#ffd23f', pants: '#1d3f8f', hair: 'corto', hairCol: '#111', hat: 'gorra', hatCol: '#c0392b', k: 1 };
 // taxi libre clasico de Tijuana: guayin roja con franjas negras y crema.
 // Se dibuja a SPR veces la resolucion y el sprite va a escala 1 / SPR.
@@ -2582,6 +2600,20 @@ class Main extends Phaser.Scene {
       ped.speed *= ped.sprite.pace;
       this.peds.push(ped);
     }
+    // coyotes: raros, solo a menos de 250 m de la linea y nunca mas de dos
+    if (Math.random() < 0.006 && p.y - borderY(p.x) < 400 * M && this.peds.filter(q => q.coyote).length < 2) {
+      const e = randomEdgeNear(walkG, p.x, p.y, initial ? 60 : R + 20, R + 250);
+      if (e && e.c < 8) {
+        const side = (Math.random() < 0.5 ? 1 : -1) * (e.w / 2 + rnd(0.6, 2) * M);
+        const ped = { e, dir: Math.random() < 0.5 ? 1 : -1, s: rnd(0, e.len), side, speed: rnd(11, 16), st: 'walk', t: rnd(3, 8), x: 0, y: 0, a: 0, coyote: true, ph: rnd(0, 6) };
+        edgePos(e, ped.s, ped.dir, ped.side, ped);
+        if (ped.y - borderY(ped.x) < 250 * M && !blocked(ped.x, ped.y) && (initial || !inView(ped.x, ped.y))) {
+          ped.sprite = this.add.sprite(ped.x, ped.y, 'pedC', 0).setDepth(5).setScale(1 / SPR);
+          ped.sprite.play({ key: 'walkC', startFrame: (Math.random() * 8) | 0 }); ped.sprite.anims.timeScale = ped.speed / 20;
+          this.peds.push(ped);
+        }
+      }
+    }
     const far = R + 520;
     this.cars = this.cars.filter(c => { if (dist(c.x, c.y, p.x, p.y) > far) { c.sprite.destroy(); return false; } return true; });
     this.peds = this.peds.filter(c => { if (dist(c.x, c.y, p.x, p.y) > far) { c.sprite.destroy(); return false; } return true; });
@@ -2820,6 +2852,7 @@ class Main extends Phaser.Scene {
   }
 
   toggleCar() {
+    if (!this.inCar && this.coy) { this.pagarCoyote(); return; }
     if (this.inCar) {
       const car = this.inCar, a = car.a;
       if (Math.hypot(car.vx, car.vy) > 60) return;
@@ -2924,7 +2957,20 @@ class Main extends Phaser.Scene {
         if (Math.random() < 0.7) toast(pick(FRASES_ATROPELLO), '', 1.8);
         continue;
       }
-      if (p.st === 'flee') { p.t -= dt; if (p.t <= 0) { p.st = 'walk'; p.sprite.anims.timeScale = p.speed / 20; } }
+      if (p.st === 'flee') { p.t -= dt; if (p.t <= 0) { p.st = 'walk'; p.sprite.anims.timeScale = p.speed / 20; if (p.paid) { p.sprite.destroy(); p.dead = true; continue; } } }
+      if (p.coyote && p.st === 'walk') {
+        // deambula: camina un rato, se para y mira a los lados; si te esta ofreciendo, se queda viendote
+        const ofrece = this.coy && this.coy.p === p;
+        p.t -= dt;
+        if (p.t <= 0 && !ofrece) { p.idle = !p.idle; p.t = p.idle ? rnd(2.5, 5) : rnd(5, 10); }
+        if (p.idle || ofrece) {
+          if (p.sprite.anims.isPlaying) { p.sprite.stop(); p.sprite.setFrame(0); }
+          const pl = this.player;
+          p.sprite.setRotation(ofrece ? Math.atan2(pl.y - p.y, pl.x - p.x) : p.a + Math.sin(this.time.now / 700 + p.ph) * 0.9);
+          continue;
+        }
+        if (!p.sprite.anims.isPlaying) p.sprite.play({ key: 'walkC', startFrame: 1 });
+      }
       const sp = p.st === 'flee' ? 70 : p.speed;
       p.s += sp * dt;
       if (p.s > p.e.len) {
@@ -2938,6 +2984,7 @@ class Main extends Phaser.Scene {
       p.a = tmp.a;
       p.sprite.setPosition(p.x, p.y).setRotation(p.a);
     }
+    if (this.peds.some(p => p.dead)) this.peds = this.peds.filter(p => !p.dead);
   }
 
   // la gente te habla si te le pegas caminando (una frase distinta cada vez hasta agotarlas)
@@ -2949,10 +2996,13 @@ class Main extends Phaser.Scene {
       this.placeBubble();
       if (b.t <= 0 || b.ped.st === 'down' || dist(b.ped.x, b.ped.y, this.player.x, this.player.y) > 140) { b.ped = null; b.el.classList.remove('on'); }
     }
+    const cy = this.coy;
+    if (cy) { cy.t -= dt; if (cy.t <= 0 || this.inCar || dist(cy.p.x, cy.p.y, this.player.x, this.player.y) > 70) { this.coy = null; this.setObjective(); } }
     if (this.inCar || this.chatCool > 0) return;
     const pl = this.player;
     for (const p of this.peds) {
-      if (p.st !== 'walk' || p.talked || dist(p.x, p.y, pl.x, pl.y) > 14) continue;
+      if (p.coyote && p.st === 'walk' && !p.offered && dist(p.x, p.y, pl.x, pl.y) < 28) { this.ofrecerCoyote(p); break; }
+      if (p.coyote || p.st !== 'walk' || p.talked || dist(p.x, p.y, pl.x, pl.y) > 14) continue;
       if (!this.chatDeck.length) this.chatDeck = Phaser.Utils.Array.Shuffle(FRASES_PEATON.slice());
       p.talked = true; b.ped = p; b.t = 4.5; this.chatCool = 2.5;
       const fr = this.chatDeck.pop();
@@ -2965,6 +3015,33 @@ class Main extends Phaser.Scene {
       if (window.SND) SND.play('chat');
       break;
     }
+  }
+
+  // el coyote te habla bajito; con E (o el boton PAGAR) lo contratas... y te estafa
+  globo(p, k, t, secs) {
+    const b = this.bubble;
+    b.ped = p; b.t = secs; b.el.className = 'hud bubble ' + k; b.el.textContent = t;
+    b.el.style.setProperty('--tilt', (Math.random() * 5 - 2.5).toFixed(1) + 'deg');
+    this.placeBubble(); void b.el.offsetWidth; b.el.classList.add('on');
+  }
+  ofrecerCoyote(p) {
+    p.offered = true; this.chatCool = 2.5;
+    const price = Math.round(rnd(300, 800) / 50) * 50, how = document.body.classList.contains('touch') ? 'toca PAGAR' : 'E para pagar';
+    this.coy = { p, price, t: 8 };
+    this.globo(p, 'coyote', pick(COYOTE_OFERTA).replace('$', '$' + price) + '  (' + how + ')', 8);
+    if (window.SND) SND.play('chat');
+    this.setObjective();
+  }
+  pagarCoyote() {
+    const { p, price } = this.coy;
+    this.coy = null; p.idle = false; p.t = rnd(6, 10);
+    if (state.money < price) { this.globo(p, 'coyote', '¿Y la lana? Así no se puede, compa.', 3); this.setObjective(); return; }
+    state.money -= price; save(); updateStats();
+    this.globo(p, 'coyote', pick(COYOTE_PAGO), 3.5);
+    // se va "por la camioneta" y ya no vuelve
+    p.paid = true; p.st = 'flee'; p.t = 5; p.sprite.play({ key: 'walkC', startFrame: 1 }); p.sprite.anims.timeScale = 2.2;
+    this.time.delayedCall(9000, () => toast('🤫 Te estafó el coyote (-$' + price + ')', pick(COYOTE_ESTAFA), 5));
+    this.setObjective();
   }
 
   // el globo es HTML: se coloca sobre la cabeza del peaton pasando de coordenadas del mundo a pixeles CSS
@@ -3336,7 +3413,7 @@ class Main extends Phaser.Scene {
     else if (this.waypoint && this.waypoint.fiesta) t = '🎉 Ve a la fiesta en la Plaza Santa Cecilia';
     else if (this.waypoint) t = '📍 Sigue la ruta verde a tu destino';
     hud.obj.textContent = t; // vacio = no se muestra (las instrucciones estan en Opciones)
-    $('bE').textContent = this.inCar ? 'BAJAR' : 'SUBIR'; // el boton tactil dice lo que va a hacer
+    $('bE').textContent = this.inCar ? 'BAJAR' : this.coy ? 'PAGAR' : 'SUBIR'; // el boton tactil dice lo que va a hacer
   }
   goal() {
     if (this.taxi) return this.taxi;
