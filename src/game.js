@@ -829,17 +829,17 @@ const FRASES_ROBO = [
   '¡Ey, mi carro!', '¡Ese carro tiene más multas que yo, suerte!', '¡Auxilio, me lo bajaron!', '¡No manches, todavía lo estoy pagando!',
   '¡Llévatelo, pero cámbiale el aceite!', '¡Ni lo laves, ya así está bonito!', '¡Le falta la segunda, ahí te encargo!',
   '¡Mi jefa me va a matar!', '¡Era de mi compadre, ni es mío!', '¡Chale, y con el tanque lleno!',
-  '¡Ya ni la amuelas, güey!', '¡Ahí van mis 14 abonos!', '¡Al menos ponle gasolina, rata!',
+  '¡Ya ni la amuelas, compa!', '¡Ahí van mis 14 abonos!', '¡Al menos ponle gasolina, rata!',
   '¡Por lo menos devuélveme mis lentes!', '¡Se me olvidó adentro el pollo asado!', '¡Cuidado, frena con el de mano!',
   '¡Ese no tiene placas, buena suerte!', '¡Lo saqué del yonke ayer!', '¡Me lo lleva el diablo... y tú!',
   '¡Ni modo, me regreso en calafia!',
 ];
 const FRASES_ATROPELLO = [
-  '¡Ay, mi espalda!', '¡Fíjate, güey!', '¡Aguas!', '¡No soy de hule, perro!', '¡No seas mamón!',
+  '¡Ay, mi espalda!', '¡Fíjate, compa!', '¡Aguas!', '¡No soy de hule, perro!', '¡No seas gacho!',
   '¡Iba por unas tortillas nomás!', '¡Me tumbaste el elote!', '¡Ni el Uber me había atropellado tan feo!',
   '¡Ya llegué tarde a la maquila, gracias!', '¡Te voy a quemar en el Face!', '¡Le voy a decir a mi mamá!', '¡Estaba en la banqueta, menso!',
   '¡Ya me tocaba vacaciones, gracias!', '¡No vi el semáforo... porque no hay!', '¡Me arruinaste los tenis nuevos!',
-  '¡Uy, eso va a dejar marca!', '¡Pinche carro, ni frenó!', '¡Me debes un tejuino!',
+  '¡Uy, eso va a dejar marca!', '¡Ese carro ni frenó, oiga!', '¡Me debes un tejuino!',
   '¡Ando de buenas, si no, te bajo!', '¡Ahí te va la cuenta del Seguro, compa!',
 ];
 const FRASES_POLI = [
@@ -858,7 +858,7 @@ const FRASES_POLI = [
 ];
 // cuando se te acaba el aire de tanto correr
 const FRASES_CANSADO = ['¡Te bofeaste!', 'Mucho taco y poco ejercicio.', 'Se te salió un pulmón, compa.', 'Así no llegas ni a la fila de la garita.',
-  'Pa\'l otra, menos caguama.', 'Échate un aguita, campeón.', 'Ya no das ni un paso más, ¿verdad?', 'Te faltó el aire, viejo lobo.'];
+  'Pa\'l otra, mejor te subes a la calafia.', 'Échate un aguita, campeón.', 'Ya no das ni un paso más, ¿verdad?', 'Te faltó el aire, viejo lobo.'];
 const STAMINA = 5; // segundos que aguantas corriendo
 const FIESTA_SECS = 32;  // lo que dura la fiesta de la Plaza Santa Cecilia
 const MARI_SWAY = 333;   // mecerse al compas del vals (un tiempo a 180 bpm)
@@ -876,7 +876,7 @@ const FRASES_BACHE = ['¡Ese bache tenía su propio código postal!', 'Ahí se f
 // cada tema tiene su propio globo (ver .bubble en style.css)
 const FRASES = {
   historia: [
-    'En 1911 los magonistas tomaron Tijuana. Y luego llegaron los gringos a tomar tequila.',
+    'En 1911 los magonistas tomaron Tijuana. Luego llegaron los gringos y tomaron... fotos con el burro cebra.',
     'Mi abuelo dice que vio a Rita Hayworth en el Agua Caliente. Mi abuelo dice muchas cosas.',
     'La ensalada César se inventó aquí, no en Italia. Apúntalo.',
     'En la Ley Seca los gringos venían a la Revu a echarse lo que allá no podían.',

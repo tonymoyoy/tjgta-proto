@@ -5,7 +5,7 @@ Cada tema tiene su propio globo de diálogo (ver `.bubble` en src/style.css). Ha
 
 ## Historia
 
-1. "En 1911 los magonistas tomaron Tijuana. Y luego llegaron los gringos a tomar tequila."
+1. "En 1911 los magonistas tomaron Tijuana. Luego llegaron los gringos y tomaron... fotos con el burro cebra."
 2. "Mi abuelo dice que vio a Rita Hayworth en el Agua Caliente. Mi abuelo dice muchas cosas."
 3. "La ensalada César se inventó aquí, no en Italia. Apúntalo."
 4. "En la Ley Seca los gringos venían a la Revu a echarse lo que allá no podían."
