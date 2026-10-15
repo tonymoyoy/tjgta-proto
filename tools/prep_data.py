@@ -151,6 +151,14 @@ LANDMARKS = [
     ("Monumento Defensa Heroica de Tijuana", "Defensa Heroica", "Recuerda a quienes defendieron Tijuana en 1911."),
 ]
 landmarks = [[title, desc] + at(src) for src, title, desc in LANDMARKS]
+# lugares que Overture no trae con nombre: van con su coordenada de OpenStreetMap (lat, lon)
+LANDMARKS_OSM = [
+    ("Plaza de la Tecnología", "Celulares, computadoras y refacciones de todo: si aquí no lo encuentras, no existe.", 32.53469, -117.04059),
+    ("FrikiPlaza", "Cómics, figuras, cartas y videojuegos: la meca friki de Tijuana.", 32.53438, -117.04152),
+    ("Parque México", "Un respiro verde en la Zona Norte, a unos pasos de la línea.", 32.54015, -117.03691),
+    ("Templo de San Francisco", "El templo de San Francisco de Asís, a una cuadra del Parque Teniente Guerrero.", 32.53336, -117.04645),
+]
+landmarks += [[title, desc] + P(lon, lat) for title, desc, lat, lon in LANDMARKS_OSM]
 
 TACOS = ["Tacos El Gordo", "Tacos Fiesta", "Tacos Guanajuato", "Tacos de Birria la 4ta", "Tacos El REY",
          "Tacos de Birria Noe", "Tacos al Pastor El Meño", "Tacos Rodriguez", "Taco Loco",

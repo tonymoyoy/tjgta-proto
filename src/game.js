@@ -119,7 +119,17 @@ const EGGS = [
     say: '(No dice ni una palabra. Saca una cartera invisible, cuenta billetes invisibles... y te da dinero de verdad.)' },
   { k: 'payaso', name: 'El Payaso del Crucero', near: 'Glorieta Cuauhtémoc', dx: 60, dy: -40, pay: 150,
     say: '"Hago malabares con tres limones y dos chambas. Toma, que hoy me fue bien en el semáforo."' },
-].map(e => { const l = landmarks.find(q => q.name === e.near) || landmarks[0]; return { ...e, x: l.x + e.dx * M, y: l.y + e.dy * M, got: false }; });
+  { k: 'elotero', name: 'El Señor de los Elotes', near: 'Parque México', dx: -40, dy: 35, pay: 150,
+    say: '"¿Elote o esquite? Con mayonesa, queso, chile y limón. Hoy invita la casa... y hasta te doy cambio de más."' },
+  { k: 'gamer', name: 'El Gamer de la FrikiPlaza', near: 'FrikiPlaza', dx: 35, dy: 30, pay: 200,
+    say: '"¿Una reta de Street Fighter? ...No manches, ni la vi venir. Toma, te ganaste el premio del torneo."' },
+  // este no tiene un lugar cerca: va en metros desde la esquina noroeste del mapa, en plena Zona Norte
+  { k: 'danzante', name: 'El Danzante', at: [395, 615], pay: 200,
+    say: '"Danzo pa\'l sol, pa\'l agua y pa\' los que van cruzando. Toma esta ofrenda pa\' tu camino."' },
+].map(e => {
+  if (e.at) return { ...e, x: e.at[0] * M, y: e.at[1] * M, got: false };
+  const l = landmarks.find(q => q.name === e.near) || landmarks[0]; return { ...e, x: l.x + e.dx * M, y: l.y + e.dy * M, got: false };
+});
 
 // ---------- indices espaciales ----------
 function gridIndex(items, cell, bbKey) {
@@ -423,6 +433,24 @@ const chinas = (() => {
     out.push({ name: CHINA_NAMES[out.length], x: tmp.x, y: tmp.y, cool: 0 });
   }
   return out;
+})();
+
+// ---------- el yonke (ficticio) de la Calle Baja California: ahi se venden los carros robados ----------
+// pagan segun el modelo, menos si llega madreado; el precio es lo que dan por uno de agencia sin un rayon
+const YONKE_PRECIO = { 'Sedán': 220, 'Vocho': 140, 'Troca': 300, 'Camioneta': 320, 'Tsurito': 180, 'Combi': 240, 'Muscle car': 480,
+  'Lowrider': 420, 'Calafia': 260, 'Camión de carga': 360, 'Bólido italiano': 1200 };
+const YONKE = (() => {
+  const wx = 470 * M, wy = 455 * M, tmp = {};
+  let best = null, bd = Infinity;
+  for (const e of traffic.edges) {
+    if (e.len < 60) continue;
+    edgePos(e, e.len / 2, 1, 0, tmp);
+    const d = dist(tmp.x, tmp.y, wx, wy);
+    if (d < bd && d < 600 && streetAt(tmp.x, tmp.y) === 'Calle Baja California') { bd = d; best = e; }
+  }
+  const e = best || nearEdge(traffic, wx, wy).e;
+  edgePos(e, e.len / 2, 1, e.w / 2 + 1.5 * M, tmp);
+  return { name: 'Yonke El Güero', x: tmp.x, y: tmp.y, cool: 0, msgT: 0 };
 })();
 
 // ---------- detalles de la calle: topes y baches ----------
@@ -734,8 +762,13 @@ state.eggs = state.eggs || [];
 EGGS.forEach(e => { e.got = state.eggs.includes(e.k); });
 // premios por completar colecciones (ver checkPerks) y contadores para el Acta de Tijuanense
 state.celebrated = state.celebrated || []; state.deliveries = state.deliveries || 0; state.rides = state.rides || 0;
+// los lugares que se agregaron despues (Zona Norte y alrededores): quien ya tenia Tijuana de noche con los 25
+// de antes no la pierde; para los demas cuentan todos
+const LUGARES_NUEVOS = ['Plaza de la Tecnología', 'FrikiPlaza', 'Parque México', 'Templo de San Francisco'];
+const nocheOk = (found, cel) => landmarks.every(l => found.includes(l.name)) ||
+  ((cel || []).includes('noche') && landmarks.every(l => LUGARES_NUEVOS.includes(l.name) || found.includes(l.name)));
 const perks = () => {
-  const p = { cafe: cafes.every(c => c.drunk), taco: tacos.every(t => t.eaten), noche: landmarks.every(l => l.found) };
+  const p = { cafe: cafes.every(c => c.drunk), taco: tacos.every(t => t.eaten), noche: nocheOk(landmarks.filter(l => l.found).map(l => l.name), state.celebrated) };
   p.final = p.cafe && p.taco && p.noche;
   return p;
 };
@@ -1383,7 +1416,7 @@ function drawPerson(x, V, sw) {
   x.restore();
 }
 function makeTextures(scene) {
-  makeLights(scene); makeFiesta(scene); makeMoto(scene); makePerro(scene); makeLandmarkIcons(scene); makeTrocaTacos(scene); makeZonkey(scene); makeTaxi(scene); makePolice(scene); makeTacoStands(scene); makeCafes(scene); makeChinas(scene); makeEggs(scene); makeScorch(scene);
+  makeLights(scene); makeFiesta(scene); makeMoto(scene); makePerro(scene); makeLandmarkIcons(scene); makeTrocaTacos(scene); makeZonkey(scene); makeTaxi(scene); makePolice(scene); makeTacoStands(scene); makeCafes(scene); makeChinas(scene); makeYonke(scene); makeEggs(scene); makeScorch(scene);
   // personas vistas desde arriba, mirando a la derecha; 8 cuadros de caminata (el cuadro 0 es parado).
   // Una textura por variante de PED_VARIANTS ('ped0'...) y la del jugador ('pedP'); ver drawPerson.
   // Se dibujan a SPR veces la resolucion y el sprite se muestra a escala 1 / SPR para que se vean nitidas.
@@ -1723,6 +1756,52 @@ function makeChinas(scene) {
     t.refresh();
   }
 }
+// el yonke visto desde arriba: terreno de tierra con malla ciclonica, carros deshuesados apilados, llantas,
+// la caseta del yonkero y el letrero en el porton. El porton va hacia abajo; 'u' voltea el letrero.
+function makeYonke(scene) {
+  for (const k of ['', 'u']) {
+    const t = scene.textures.createCanvas('yonke' + k, 200, 140), x = t.getContext(), r = mulberry(23);
+    x.scale(2, 2); x.translate(3, 3);
+    const W = 92, H = 56;
+    x.fillStyle = 'rgba(0,0,0,0.3)'; x.fillRect(2, 2, W, H);
+    x.fillStyle = '#7d6b52'; x.fillRect(0, 0, W, H);
+    for (let i = 0; i < 40; i++) { x.fillStyle = r() < 0.5 ? 'rgba(60,45,30,0.35)' : 'rgba(170,150,115,0.3)'; x.beginPath(); x.ellipse(r() * W, r() * H, 1 + r() * 4, 0.6 + r() * 2.4, r() * 3, 0, 7); x.fill(); }
+    for (let i = 0; i < 6; i++) { x.fillStyle = 'rgba(10,10,15,0.45)'; x.beginPath(); x.ellipse(8 + r() * (W - 16), 8 + r() * (H - 16), 2 + r() * 3, 1.5 + r() * 2, r() * 3, 0, 7); x.fill(); } // aceite
+    // carros deshuesados: unos encima de otros, oxidados y sin puertas
+    const cols = ['#8e3b2f', '#3f5f7a', '#6b6b4a', '#7a7a7a', '#5b3f6b', '#a0522d', '#2f5a3f', '#c2a14a'];
+    const car = (cx, cy, a, c) => {
+      x.save(); x.translate(cx, cy); x.rotate(a);
+      x.fillStyle = 'rgba(0,0,0,0.35)'; x.fillRect(-6.4, -3, 14, 7);
+      x.fillStyle = c; x.beginPath(); x.roundRect(-7, -3.4, 14, 6.8, 1.4); x.fill();
+      x.fillStyle = 'rgba(120,60,20,0.55)'; for (let i = 0; i < 4; i++) { x.beginPath(); x.ellipse(-5 + r() * 10, -2 + r() * 4, 0.8 + r() * 1.6, 0.6 + r(), 0, 0, 7); x.fill(); } // oxido
+      x.fillStyle = '#1d2a33'; x.fillRect(-2.6, -2.6, 5.6, 5.2); x.fillStyle = shade(c, 0.75); x.fillRect(-1.6, -2.2, 3.6, 4.4);
+      x.strokeStyle = 'rgba(0,0,0,0.5)'; x.lineWidth = 0.3; x.strokeRect(-7, -3.4, 14, 6.8);
+      x.restore();
+    };
+    [[12, 10, 0.05], [12, 18.5, -0.04], [26, 10, 0.1], [26, 18, 0.02], [44, 9, -0.08], [70, 12, 1.4], [79, 12, 1.5], [70, 30, 1.6]].forEach(([cx, cy, a], i) => car(cx, cy, a, cols[i % cols.length]));
+    car(19, 14, 0.3, cols[5]); car(35, 13.5, -0.2, cols[6]); // los de arriba de la pila
+    // llantas apiladas
+    for (let i = 0; i < 9; i++) { const lx = 48 + (i % 3) * 4.2, ly = 26 + ((i / 3) | 0) * 4.2;
+      x.fillStyle = '#151515'; x.beginPath(); x.arc(lx, ly, 2.2, 0, 7); x.fill(); x.fillStyle = '#5a5a5a'; x.beginPath(); x.arc(lx, ly, 0.9, 0, 7); x.fill(); }
+    // motor sobre una tarima y un gancho de grua
+    x.fillStyle = '#8d6e63'; x.fillRect(30, 27, 9, 7); x.fillStyle = '#455a64'; x.fillRect(31.5, 28.5, 6, 4); x.fillStyle = '#263238'; x.fillRect(32.5, 27.4, 1.2, 1.2); x.fillRect(35, 27.4, 1.2, 1.2);
+    // caseta del yonkero con techo de lamina
+    x.fillStyle = '#9e9e9e'; x.fillRect(6, 32, 18, 13); x.strokeStyle = '#757575'; x.lineWidth = 0.5;
+    for (let i = 7.5; i < 24; i += 2.2) { x.beginPath(); x.moveTo(i, 32); x.lineTo(i, 45); x.stroke(); }
+    x.fillStyle = 'rgba(120,60,20,0.45)'; x.fillRect(16, 38, 6, 5);
+    // malla ciclonica alrededor, con el porton abierto abajo al centro
+    x.strokeStyle = '#b0bec5'; x.lineWidth = 0.9;
+    x.beginPath(); x.moveTo(34, H); x.lineTo(0, H); x.lineTo(0, 0); x.lineTo(W, 0); x.lineTo(W, H); x.lineTo(58, H); x.stroke();
+    x.fillStyle = '#78909c'; for (const [px, py] of [[0, 0], [W, 0], [0, H], [W, H], [34, H], [58, H], [W / 2, 0], [0, H / 2], [W, H / 2]]) { x.beginPath(); x.arc(px, py, 1.1, 0, 7); x.fill(); }
+    x.strokeStyle = '#90a4ae'; x.lineWidth = 0.8; x.beginPath(); x.moveTo(34, H); x.lineTo(30, H + 9); x.moveTo(58, H); x.lineTo(62, H + 9); x.stroke(); // hojas del porton
+    // letrero sobre el porton
+    x.fillStyle = '#212121'; x.fillRect(36.5, H - 9, 1, 9); x.fillRect(54.5, H - 9, 1, 9);
+    x.fillStyle = '#fdd835'; x.fillRect(34, H - 13, 24, 8); x.strokeStyle = '#212121'; x.lineWidth = 0.6; x.strokeRect(34, H - 13, 24, 8);
+    x.fillStyle = '#c62828'; x.font = 'bold 6px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.save(); x.translate(46, H - 8.8); if (k) x.rotate(Math.PI); x.fillText('YONKE', 0, 0); x.restore();
+    t.refresh();
+  }
+}
 // encima del auto quemado: manchas de hollin, vidrios rotos y lamina abollada (64 de largo x 32 de ancho, frente a la derecha)
 function makeScorch(scene) {
   const t = scene.textures.createCanvas('scorch', 64, 32), x = t.getContext(), r = mulberry(7);
@@ -1919,6 +1998,38 @@ function makeLandmarkIcons(scene) {
       rect('#bcaaa4', -12, 12, 24, 4); rect('#a1887f', -14, 16, 28, 3);
       txt('#4e342e', 4.4, '1911', 0, 14.2);
       for (const sx of [-1, 1]) for (let i = 0; i < 4; i++) ell('#7cb342', sx * (8 + i * 1.6), 8 - i * 3.6, 1.2, 2.4, sx * (0.6 + i * 0.15));
+    }],
+    'Plaza de la Tecnología': ['#00695c', () => { // celular sobre un circuito
+      for (const [a, b, c2, d2] of [[-20, -8, -9, -8], [-20, 6, -9, 6], [9, -12, 20, -12], [9, 2, 20, 2], [9, 12, 16, 12]]) { line('#4db6ac', 1, [[a, b], [c2, d2]]); circ('#b2dfdb', a === -20 ? a : c2, b, 1.6); }
+      x.beginPath(); x.roundRect(-9, -18, 18, 34, 3.5); fill('#1c1c1c');
+      x.beginPath(); x.roundRect(-7.5, -14.5, 15, 25, 1.5); fill('#4fc3f7');
+      rect('rgba(255,255,255,0.35)', -7.5, -14.5, 15, 3);
+      const apps = ['#ffd23f', '#ef5350', '#66bb6a', '#ab47bc', '#ff7043', '#29b6f6', '#ec407a', '#9ccc65', '#ffca28'];
+      for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) rect(apps[r * 3 + c], -5.6 + c * 4.2, -10 + r * 5, 3, 3);
+      circ('#555', 0, 13.2, 1.4); rect('#555', -2.5, -16.6, 5, 0.9);
+    }],
+    'FrikiPlaza': ['#6a1b9a', () => { // control de videojuego
+      x.beginPath(); x.moveTo(-14, -6); x.lineTo(14, -6); x.quadraticCurveTo(21, -6, 21, 4); x.quadraticCurveTo(21, 15, 14, 13); x.lineTo(8, 7); x.lineTo(-8, 7);
+      x.lineTo(-14, 13); x.quadraticCurveTo(-21, 15, -21, 4); x.quadraticCurveTo(-21, -6, -14, -6); fill('#eceff1');
+      rect('#37474f', -15.5, -1, 9, 3); rect('#37474f', -12.5, -4, 3, 9); // cruceta
+      circ('#e53935', 13, -2, 2); circ('#43a047', 9, 1.5, 2); circ('#1e88e5', 17, 1.5, 2); circ('#fdd835', 13, 5, 2);
+      rect('#90a4ae', -4, 0, 3, 1.4); rect('#90a4ae', 1, 0, 3, 1.4);
+      for (const [sx2, sy2] of [[-14, -15], [15, -16], [0, -16]]) txt('#ffd23f', 6, '★', sx2, sy2);
+    }],
+    'Parque México': ['#2e7d32', () => { // arboles, banca y la bandera
+      line('#cfd8dc', 1.2, [[10, 14], [10, -18]]); flagMx(10.6, -18, 11, 7);
+      for (const [tx, ty, r] of [[-12, -4, 8], [-2, -9, 6]]) { rect('#5d4037', tx - 1, ty, 2.4, 14); circ('#1b5e20', tx, ty, r); circ('#43a047', tx - r * 0.25, ty - r * 0.3, r * 0.65); }
+      rect('#8d6e63', -14, 11, 18, 2.4); rect('#6d4c41', -13, 13.4, 1.6, 4); rect('#6d4c41', 1.4, 13.4, 1.6, 4);
+      rect('rgba(255,255,255,0.18)', -22, 17, 44, 3);
+    }],
+    'Templo de San Francisco': ['#8d6e63', () => { // fachada con espadana de campanas y el cordon franciscano
+      rect('#f0e3c8', -14, -4, 28, 22);
+      x.beginPath(); x.moveTo(-9, -4); x.lineTo(-9, -14); x.quadraticCurveTo(0, -22, 9, -14); x.lineTo(9, -4); x.closePath(); fill('#f0e3c8');
+      for (const bx2 of [-4, 4]) { x.beginPath(); x.moveTo(bx2 - 2.4, -8); x.lineTo(bx2 - 2.4, -11); x.arc(bx2, -11, 2.4, Math.PI, 0); x.lineTo(bx2 + 2.4, -8); fill('#5d4037'); circ('#e3b341', bx2, -9.5, 1.4); }
+      line('#5d4037', 1.2, [[0, -18], [0, -24]]); line('#5d4037', 1.2, [[-2.4, -21.5], [2.4, -21.5]]);
+      x.beginPath(); x.moveTo(-4, 18); x.lineTo(-4, 9); x.arc(0, 9, 4, Math.PI, 0); x.lineTo(4, 18); fill('#6d4c41');
+      circ('#90caf9', 0, 1, 2.4); ring('#a1887f', 0.8, 0, 1, 2.4);
+      line('#c8a46a', 1, [[-14, -2], [-10, 1], [-14, 4], [-10, 7]]); circ('#c8a46a', -10, 7, 1); // cordon con nudo
     }],
   };
   // insignia de respaldo (un lugar nuevo sin dibujo): la estrella de siempre
@@ -2125,6 +2236,79 @@ function makeEggs(scene) {
       ball(16, 12, 0.95, '#ff6b6b', '#c40000');
       line('#d0112b', 0.4, [[14.8, 14.2], [16, 14.8], [17.2, 14.2]]);
     },
+    elotero(x0) { // carrito de elotes con su sombrilla, la olla humeando y el elotero con gorra
+      shadow(15, 17, 13, 11);
+      // carrito: caja metalica con dos ruedas y la olla de esquites
+      x.fillStyle = '#b0bec5'; x.beginPath(); x.roundRect(5, 14, 15, 11, 1.2); x.fill();
+      x.strokeStyle = 'rgba(0,0,0,0.45)'; x.lineWidth = 0.35; x.stroke();
+      ell('#2c2c2c', 4.6, 22.5, 1, 2.6); ell('#2c2c2c', 20.4, 22.5, 1, 2.6);
+      ball(9.5, 19.5, 3.3, '#cfd8dc', '#78909c', '#455a64'); ball(9.5, 19.5, 2.5, '#ffe36b', '#d6a400'); // olla de esquites
+      for (let i = 0; i < 9; i++) ell('#fff59d', 8 + (i % 3) * 1.4, 18.2 + ((i / 3) | 0) * 1.3, 0.45, 0.45);
+      for (let i = 0; i < 3; i++) ell('rgba(255,255,255,0.35)', 8 + i * 1.6, 15.4 - i * 0.8, 1.2, 0.8); // vapor
+      for (let i = 0; i < 4; i++) { // elotes con palito y mayonesa
+        const ex = 14.6 + i * 1.3; ell('#f4c430', ex, 19.6, 0.65, 2.6); line('#fffde7', 0.35, [[ex - 0.3, 18], [ex + 0.3, 21]]); line('#d7b98e', 0.3, [[ex, 22.2], [ex, 24]]); }
+      ell('#ef5350', 18.6, 15.6, 0.7, 0.7); ell('#fff', 17.2, 15.6, 0.7, 0.7); ell('#7cb342', 15.8, 15.6, 0.7, 0.7); // chile, queso y limon
+      // sombrilla de colores encima de la mitad del carrito
+      x.save(); x.beginPath(); x.arc(12.5, 12.5, 8.4, 0, 7); x.clip();
+      ['#e53935', '#fdd835', '#43a047', '#1e88e5', '#e53935', '#fdd835', '#43a047', '#1e88e5'].forEach((c, i) => {
+        x.fillStyle = c; x.beginPath(); x.moveTo(12.5, 12.5); x.arc(12.5, 12.5, 8.4, i * Math.PI / 4, (i + 1) * Math.PI / 4); x.closePath(); x.fill(); });
+      x.restore(); x.globalAlpha = 0.9; ball(12.5, 12.5, 0.9, '#ffffff', '#bdbdbd'); x.globalAlpha = 1;
+      // el elotero: playera blanca, delantal y gorra roja
+      shoulders(25, 18, '#ffffff', '#cfcfcf', 4.4, 3);
+      ell('#1565c0', 25, 19.6, 3.2, 1.2);
+      ell('#c99a6b', 22, 17.6, 1.2, 1.8, 0.5);
+      ball(25, 17.2, 2.2, '#3b2414', '#1e120a');
+      ell('#c62828', 25, 16.6, 2.3, 1.9); ell('#b71c1c', 23.2, 16.6, 1.2, 1.4);
+    },
+    gamer(x0) { // gamer en su silla con audifonos con luces, control y una lata de refresco
+      shadow(16, 17, 11, 12);
+      // silla gamer: respaldo negro con franjas moradas
+      x.fillStyle = '#1b1b1b'; x.beginPath(); x.roundRect(9, 18, 14, 11, 2.5); x.fill();
+      x.fillStyle = '#8e24aa'; x.fillRect(12, 18.5, 1.6, 10); x.fillRect(18.4, 18.5, 1.6, 10);
+      ell('#1b1b1b', 7.6, 17, 1.6, 5); ell('#1b1b1b', 24.4, 17, 1.6, 5); // descansabrazos
+      // sudadera con gorro y brazos hacia el control
+      shoulders(16, 17, '#5e35b1', '#311b92', 6, 4);
+      ell('#4527a0', 16, 19.6, 3.6, 2);
+      ell('#5e35b1', 11.6, 13.4, 1.4, 3, -0.4); ell('#5e35b1', 20.4, 13.4, 1.4, 3, 0.4);
+      // control con botones
+      x.fillStyle = '#eceff1'; x.beginPath(); x.ellipse(13.6, 9.6, 2.2, 2, 0, 0, 7); x.ellipse(18.4, 9.6, 2.2, 2, 0, 0, 7); x.fill();
+      x.fillRect(13.6, 8, 4.8, 3); ell('#c99a6b', 12.6, 10.6, 1, 1); ell('#c99a6b', 19.4, 10.6, 1, 1);
+      for (const [bx, by, c] of [[18.6, 8.8, '#e53935'], [19.6, 9.8, '#43a047']]) ell(c, bx, by, 0.45, 0.45);
+      line('#37474f', 0.6, [[12.6, 9.6], [14.4, 9.6]]); line('#37474f', 0.6, [[13.5, 8.7], [13.5, 10.5]]);
+      // cabeza con pelo despeinado y audifonos con luz verde
+      ball(16, 16, 2.9, '#3b2414', '#1e120a');
+      for (let i = 0; i < 6; i++) { const a = i * 1.05; line('#2a170b', 0.6, [[16 + Math.cos(a) * 2, 16 + Math.sin(a) * 2], [16 + Math.cos(a) * 3.3, 16 + Math.sin(a) * 3.3]]); }
+      x.strokeStyle = '#212121'; x.lineWidth = 0.9; x.beginPath(); x.arc(16, 16, 3.3, Math.PI * 0.9, Math.PI * 2.1); x.stroke();
+      ball(12.6, 16.4, 1.5, '#424242', '#111'); ball(19.4, 16.4, 1.5, '#424242', '#111');
+      ell('#76ff03', 12.6, 16.4, 0.6, 0.6); ell('#76ff03', 19.4, 16.4, 0.6, 0.6);
+      // lata de refresco y bolsa de papitas en el suelo
+      ball(26, 24, 1.6, '#ef5350', '#b71c1c', '#7f0000'); ell('#cfd8dc', 26, 24, 0.8, 0.8);
+      x.fillStyle = '#ffb300'; x.save(); x.translate(5.5, 25); x.rotate(-0.4); x.fillRect(-2, -2.6, 4, 5.2); x.fillStyle = '#e53935'; x.fillRect(-2, -0.6, 4, 1.2); x.restore();
+    },
+    danzante(x0) { // danzante azteca con penacho de plumas, sonajas en los tobillos y su tambor (huehuetl)
+      shadow(15, 16, 13, 13);
+      // tambor de madera con cuero
+      ball(25, 24, 4, '#a1887f', '#5d4037', '#3e2723'); ball(25, 24, 3.2, '#f3e3c3', '#cbb48a');
+      for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; ell('#3e2723', 25 + Math.cos(a) * 3.6, 24 + Math.sin(a) * 3.6, 0.35, 0.35); }
+      // penacho: abanico de plumas largas alrededor de la cabeza
+      const plumas = ['#2e7d32', '#1565c0', '#c62828', '#43a047', '#fdd835', '#1e88e5', '#2e7d32', '#c62828', '#43a047', '#1565c0', '#fdd835', '#2e7d32'];
+      plumas.forEach((c, i) => {
+        const a = i / plumas.length * Math.PI * 2; x.save(); x.translate(15, 14); x.rotate(a);
+        ell(c, 0, -7.4, 1.6, 5.6); line('rgba(255,255,255,0.45)', 0.25, [[0, -2.8], [0, -12.4]]); ell('#fff59d', 0, -12, 0.6, 0.8); x.restore();
+      });
+      // cuerpo: hombros morenos con pectoral de semillas y brazos abiertos con sonajas
+      shoulders(15, 18, '#a86b44', '#6d3f22', 5.6, 3.6);
+      line('#fdd835', 0.7, [[11.4, 17], [15, 19.4], [18.6, 17]]); line('#c62828', 0.5, [[11.8, 18.2], [15, 20.4], [18.2, 18.2]]);
+      ell('#a86b44', 9, 19.6, 1.3, 2.6, 0.5); ell('#a86b44', 21, 19.6, 1.3, 2.6, -0.5);
+      ball(7.8, 22, 1.3, '#d7b98e', '#8d6e63', '#5d4037'); ball(22.2, 22, 1.3, '#d7b98e', '#8d6e63', '#5d4037'); // sonajas (ayoyotes)
+      // cabeza con banda bordada
+      ball(15, 14, 2.6, '#2a1a10', '#120a05');
+      x.strokeStyle = '#e53935'; x.lineWidth = 0.8; x.beginPath(); x.arc(15, 14, 2.4, 0, 7); x.stroke();
+      for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; ell('#fdd835', 15 + Math.cos(a) * 2.4, 14 + Math.sin(a) * 2.4, 0.35, 0.35); }
+      // humo de copal
+      for (let i = 0; i < 4; i++) ell('rgba(230,230,230,' + (0.45 - i * 0.09) + ')', 5 + i * 0.6, 8 - i * 1.6, 1.4 + i * 0.4, 1 + i * 0.3);
+      ball(5, 10, 1.4, '#8d6e63', '#4e342e'); // sahumador
+    },
   };
   for (const k in draw) {
     const t = scene.textures.createCanvas('egg_' + k, 160, 160);
@@ -2217,6 +2401,15 @@ class Main extends Phaser.Scene {
       c.icon = this.add.image(sx - bx * 30, sy - by * 30, 'antro0' + c.up).setScale(0.6).setRotation(rot).setDepth(6);
       const hh = Math.abs(Math.cos(rot)) * 40 + Math.abs(Math.sin(rot)) * 54;
       c.label = this.add.text(c.icon.x, c.icon.y - hh - 8, c.name, { fontSize: '12px', color: '#ff8a80', stroke: '#000', strokeThickness: 3, resolution: TXT_RES }).setOrigin(0.5).setDepth(19);
+    }
+    {
+      // el yonke: el porton queda en la banqueta y el terreno se mete hacia la cuadra
+      const Y = YONKE, [sx, sy, rot] = sidewalkSpot(Y.x, Y.y, (SIDEWALK + 0.5) * M + 2);
+      Y.x = sx; Y.y = sy;
+      const bx = -Math.sin(rot), by = Math.cos(rot);
+      Y.icon = this.add.image(sx - bx * 44, sy - by * 44, 'yonke' + (Math.cos(rot) < -0.3 ? 'u' : '')).setScale(0.75).setRotation(rot).setDepth(6);
+      const hh = Math.abs(Math.cos(rot)) * 52 + Math.abs(Math.sin(rot)) * 75;
+      Y.label = this.add.text(Y.icon.x, Y.icon.y - hh - 8, '🔧 ' + Y.name, { fontSize: '13px', fontStyle: 'bold', color: '#ffd54f', stroke: '#000', strokeThickness: 3, resolution: TXT_RES }).setOrigin(0.5).setDepth(19);
     }
     for (const e of EGGS) {
       const [sx, sy, rot] = sidewalkSpot(e.x, e.y, (SIDEWALK + 0.5) * M);
@@ -2782,7 +2975,7 @@ class Main extends Phaser.Scene {
     b.el.style.top = ((b.ped.y - 10 - v.y) * k) + 'px';
   }
 
-  // ----- Tijuana de noche (premio de los 25 lugares) -----
+  // ----- Tijuana de noche (premio por conocer todos los lugares) -----
   // Una capa oscura del tamaño de la pantalla (RenderTexture fija a la camara) a la que cada cuadro se le "borran"
   // las luces con texturas suaves; encima, resplandores de color en el mundo con mezcla aditiva.
   updateNight(time, dt, f) {
@@ -3012,6 +3205,7 @@ class Main extends Phaser.Scene {
       toast('🏮 ' + c.name, pick(['Pediste "el combo especial" y saliste sin cartera.', 'Te dijeron que la orden de la casa era barata. No lo era.',
         'Entraste por unas costillitas y salió carísimo.', 'La cuenta llegó más larga que el menú.']) + '  (-$' + loss + ')', 4);
     }
+    this.checkYonke(dt, f, sp);
     const dl = this.delivery;
     if (dl) {
       dl.time -= dt;
@@ -3040,6 +3234,35 @@ class Main extends Phaser.Scene {
         this.setObjective();
       }
     }
+  }
+  // ----- el yonke: entras con un carro robado y te lo compran -----
+  checkYonke(dt, f, sp) {
+    const Y = YONKE, car = this.inCar;
+    Y.cool -= dt; Y.msgT -= dt;
+    if (!car || sp > 45 || dist(Y.x, Y.y, f.x, f.y) > 50) return;
+    const base = YONKE_PRECIO[car.T.name];
+    if (!base || !VTYPES.includes(car.T)) { // taxi, moto, troca de tacos, burro: esos no se venden
+      if (Y.msgT <= 0) { Y.msgT = 8; toast('🔧 ' + Y.name, '"¿' + (car.moto ? 'La moto del repartidor' : 'Eso') + '? No, compa, eso no lo compro. Tráeme un carro."', 3); }
+      return;
+    }
+    if (Y.cool > 0) {
+      if (Y.msgT <= 0) { Y.msgT = 8; toast('🔧 ' + Y.name, '"Todavía ando desarmando el otro. Vuelve en ' + Math.ceil(Y.cool) + ' segundos."', 3); }
+      return;
+    }
+    // el precio baja con lo madreado: sin vida vale una quinta parte
+    const pay = Math.max(20, Math.round(base * (0.2 + 0.8 * Math.max(0, car.hp) / (car.T.hp)) / 10) * 10);
+    Y.cool = 45; state.money += pay; state.vendidos = (state.vendidos || 0) + 1; save(); bigSound = true; updateStats();
+    const frase = car.T.name === 'Bólido italiano' ? '"¡¿Un italiano?! No preguntes de dónde saqué tanto billete."'
+      : car.hp < car.T.hp * 0.45 ? pick(['"Puro fierro viejo, pero algo se le saca."', '"Este ya no arranca ni empujado. Te doy lo que vale la chatarra."', '"¿Lo trajiste o lo arrastraste?"'])
+      : pick(['"Está bonito. Nadie va a preguntar, ¿verdad?"', '"Las placas ni las quiero ver."', '"Ese en dos horas ya es refacción."', '"Buen ojo, compa. Tráeme más de esos."']);
+    toast('🔧 ' + Y.name + ' (+$' + pay + ')', frase + '  ' + car.T.name + ' vendido.', 4.5);
+    // te bajas en la banqueta, junto al porton, y el carro se queda adentro
+    car.sprite.destroy(); if (car.scorch) car.scorch.destroy();
+    this.inCar = null;
+    this.player.x = Y.x; this.player.y = Y.y;
+    this.player.sprite.setVisible(true).setPosition(Y.x, Y.y);
+    this.cameras.main.startFollow(this.player.sprite, true, 0.15, 0.15);
+    this.setObjective();
   }
   startDelivery() {
     if (this.delivery) { toast(pick(FRASES_MOTO), 'Ya traes un pedido pendiente, ¡apúrale!', 3); return; }
@@ -3159,6 +3382,7 @@ class Main extends Phaser.Scene {
     for (const t of tacos) { t.icon.setAlpha(t.eaten ? 0.7 : 1); t.label.setVisible(!t.eaten && dist(t.x, t.y, f.x, f.y) < 300); }
     for (const c of cafes) { c.icon.setAlpha(c.drunk ? 0.7 : 1); c.label.setVisible(!c.drunk && dist(c.x, c.y, f.x, f.y) < 300); }
     for (const c of chinas) c.label.setVisible(dist(c.x, c.y, f.x, f.y) < 300);
+    YONKE.label.setVisible(dist(YONKE.x, YONKE.y, f.x, f.y) < 400);
     const g = this.goal();
     this.target.setVisible(!!g);
     if (g) this.target.setPosition(g.x, g.y).setScale(pulse * (this.taxi && this.taxi.phase === 'pick' ? 1.3 : 2) / SPR);
@@ -3198,6 +3422,7 @@ function drawMarkers(c, sx, sy, ox, oy, scene, f, big) {
   for (const t of tacos) if (!t.eaten) { const [x, y] = P(t.x, t.y); c.fillStyle = '#ff9f1c'; c.beginPath(); c.arc(x, y, big ? 4 : 2.5, 0, 7); c.fill(); }
   for (const k of cafes) if (!k.drunk) { const [x, y] = P(k.x, k.y); c.fillStyle = '#a0662f'; c.strokeStyle = '#f3e1c8'; c.lineWidth = 1; c.beginPath(); c.arc(x, y, big ? 4 : 2.5, 0, 7); c.fill(); c.stroke(); }
   for (const k of chinas) { const [x, y] = P(k.x, k.y); c.fillStyle = '#e53935'; c.fillRect(x - (big ? 4 : 2.5), y - (big ? 4 : 2.5), big ? 8 : 5, big ? 8 : 5); }
+  { const [x, y] = P(YONKE.x, YONKE.y), r = big ? 5 : 3.5; c.fillStyle = '#fdd835'; c.strokeStyle = '#000'; c.lineWidth = 1.5; c.beginPath(); c.rect(x - r, y - r, r * 2, r * 2); c.fill(); c.stroke(); }
   for (const l of landmarks) {
     const [x, y] = P(l.x, l.y);
     c.font = (big ? 22 : 15) + 'px sans-serif'; c.lineWidth = 3; c.strokeStyle = '#000'; c.strokeText('★', x, y);
@@ -3315,6 +3540,8 @@ function renderBig(detail) {
   const farol = (X, Y, k) => { c.fillStyle = '#c62828'; c.beginPath(); c.ellipse(X, Y, 5 * k, 6 * k, 0, 0, 7); c.fill(); c.fillStyle = '#ffd23f';
     c.fillRect(X - 3 * k, Y - 7 * k, 6 * k, 2 * k); c.fillRect(X - 3 * k, Y + 5 * k, 6 * k, 2 * k); c.strokeStyle = 'rgba(0,0,0,0.5)'; c.lineWidth = 1; c.beginPath(); c.moveTo(X, Y - 6 * k); c.lineTo(X, Y + 6 * k); c.stroke(); };
   for (const k of chinas) { const X = bmX(k.x), Y = bmY(k.y); if (on(X, Y)) farol(X, Y, icons ? 1.1 : 0.6); }
+  { const X = bmX(YONKE.x), Y = bmY(YONKE.y); if (on(X, Y)) { if (icons) { c.font = '17px sans-serif'; c.fillText('🔧', X, Y); c.font = 'bold 11px sans-serif'; c.lineWidth = 3; c.strokeStyle = '#000'; c.strokeText('Yonke', X, Y + 14); c.fillStyle = '#fdd835'; c.fillText('Yonke', X, Y + 14); }
+    else { c.fillStyle = '#fdd835'; c.strokeStyle = '#000'; c.lineWidth = 1; c.fillRect(X - 3.5, Y - 3.5, 7, 7); c.strokeRect(X - 3.5, Y - 3.5, 7, 7); } } }
   for (const t of tacos) { const X = bmX(t.x), Y = bmY(t.y); if (on(X, Y)) { if (icons) emoji('🌮', X, Y, t.eaten); else if (!t.eaten) { c.fillStyle = '#ff9f1c'; c.beginPath(); c.arc(X, Y, 3, 0, 7); c.fill(); } } }
   for (const k of cafes) { const X = bmX(k.x), Y = bmY(k.y); if (on(X, Y)) { if (icons) emoji('☕', X, Y, k.drunk); else if (!k.drunk) { c.fillStyle = '#a0662f'; c.beginPath(); c.arc(X, Y, 3, 0, 7); c.fill(); } } }
   const lsz = icons ? 30 : 20;
@@ -3332,7 +3559,7 @@ function renderBig(detail) {
   c.save(); c.translate(PX, PY); c.rotate(f.a); c.fillStyle = '#ffd23f'; c.strokeStyle = '#000'; c.lineWidth = 2;
   c.beginPath(); c.moveTo(13, 0); c.lineTo(-8, 8); c.lineTo(-3, 0); c.lineTo(-8, -8); c.closePath(); c.fill(); c.stroke(); c.restore();
   // leyenda con lo que llevas
-  $('mlegend').textContent = `📍 Tú · ★ ${landmarks.filter(l => l.found).length}/${landmarks.length} · 🌮 ${tacos.filter(t => t.eaten).length}/${tacos.length} · ☕ ${cafes.filter(k => k.drunk).length}/${cafes.length} · 🏮 cuidado`;
+  $('mlegend').textContent = `📍 Tú · ★ ${landmarks.filter(l => l.found).length}/${landmarks.length} · 🌮 ${tacos.filter(t => t.eaten).length}/${tacos.length} · ☕ ${cafes.filter(k => k.drunk).length}/${cafes.length} · 🔧 yonke · 🏮 cuidado`;
 }
 function bmZoomAt(factor, sx, sy) {
   const wx = BM.cx + (sx - BM.W / 2) / BM.s, wy = BM.cy + (sy - BM.H / 2) / BM.s;
@@ -3510,7 +3737,7 @@ $('actasave').addEventListener('click', async () => {
   }
 });
 
-// la noche se prende y apaga en Opciones o con la tecla L (solo si ya conoces los 25 lugares)
+// la noche se prende y apaga en Opciones o con la tecla L (solo si ya conoces todos los lugares)
 function toggleNight() {
   if (!perks().noche) return;
   state.night = !state.night; save(); renderOptions();
@@ -3624,9 +3851,9 @@ function partidaValida(p) {
   if (!p || typeof p !== 'object' || !Number.isFinite(p.money) || Math.abs(p.money) > 1e7) return false;
   if (!subset(p.found, landmarks.map(l => l.name)) || !subset(p.eaten || [], tacos.map(t => t.name)) ||
       !subset(p.cafes || [], cafes.map(c => c.name)) || !subset(p.eggs || [], EGGS.map(e => e.k))) return false;
-  if (!num(p.deliveries || 0, 1e5) || !num(p.rides || 0, 1e5) || (p.name != null && (typeof p.name !== 'string' || p.name.length > 32))) return false;
+  if (!num(p.deliveries || 0, 1e5) || !num(p.rides || 0, 1e5) || !num(p.vendidos || 0, 1e5) || (p.name != null && (typeof p.name !== 'string' || p.name.length > 32))) return false;
   const lleno = (a, all) => (a || []).length === all.length;
-  const ok = { cafe: lleno(p.cafes, cafes), taco: lleno(p.eaten, tacos), noche: lleno(p.found, landmarks) };
+  const ok = { cafe: lleno(p.cafes, cafes), taco: lleno(p.eaten, tacos), noche: nocheOk(p.found, p.celebrated) };
   ok.final = ok.cafe && ok.taco && ok.noche;
   const cel = p.celebrated || [];
   if (!subset(cel, ['cafe', 'taco', 'noche', 'final', 'fiesta'])) return false;
@@ -3702,7 +3929,7 @@ function start() {
     scene: [Main], fps: { target: 60, smoothStep: false },
   });
   window.addEventListener('resize', () => game.scale.resize(window.innerWidth * DPR, window.innerHeight * DPR));
-  window.TJGTA = game; game.dbg = { VTYPES, vehicleTexture, state, drawChunk, baches, landmarks, tacos, cafes, perks, blocked, inWater, onRoad, waterAreas, roads, PED_VARIANTS };
+  window.TJGTA = game; game.dbg = { VTYPES, vehicleTexture, state, drawChunk, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, blocked, inWater, onRoad, waterAreas, roads, PED_VARIANTS };
 }
 $('go').addEventListener('click', start);
 
@@ -3721,7 +3948,7 @@ function renderIntro() {
   const b = $('reset');
   b.addEventListener('click', () => {
     if (!b.classList.contains('confirm')) { b.classList.add('confirm'); b.textContent = '¿Seguro? Toca otra vez para borrar todo'; return; }
-    Object.assign(state, { money: 0, celebrated: [], deliveries: 0, rides: 0, night: false });
+    Object.assign(state, { money: 0, celebrated: [], deliveries: 0, rides: 0, vendidos: 0, night: false });
     landmarks.forEach(l => { l.found = false; }); tacos.forEach(t => { t.eaten = false; }); cafes.forEach(c => { c.drunk = false; }); EGGS.forEach(e => { e.got = false; });
     save(); updateStats();
     start();
