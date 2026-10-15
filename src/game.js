@@ -53,7 +53,7 @@ const COL = {
 // 6 vivienda, 7 agua, 8 arena (las trampas del golf)
 const AREA_COL = ['#5f8a3f', '#6a9a48', '#c9bc9f', '#a39a82', '#9b927d', '#a08c66', '#958e7a', '#2f5f7f', '#dcc89a'];
 const AREA_PLAZA = 2, AREA_AGUA = 7, AREA_ARENA = 8;
-const TEX_SENDERO = 'sendero', TEX_BANQUETA = 'banqueta', TEX_ASFALTO = 'asfalto'; // los andadores (clase 9) no son area, pero usan su propia textura
+const TEX_SENDERO = 'sendero', TEX_BANQUETA = 'banqueta', TEX_ASFALTO = 'asfalto', TEX_TIERRA = 'tierra'; // los andadores (clase 9) no son area, pero usan su propia textura
 const ROOFS = ['#b9a98c', '#c9b89c', '#a39483', '#8f8a84', '#c3a27b', '#d2c5ae', '#9d7c64', '#7f8a90',
   '#b07d62', '#a8a8a0', '#c7b18a', '#8d9a86', '#bfa99a', '#d6cfc0'];
 
@@ -654,12 +654,39 @@ function asfaltoTile(base) {
     }
   });
 }
+// tierra (el terreno entre edificios y los lotes): manchas de tierra clara y oscura, piedritas y matitas
+// de zacate seco
+function tierraTile(base) {
+  return texTile(base, (x, rnd, wrap, mancha) => {
+    mancha(18, 10, 32, ['rgba(70,55,35,0.20)', 'rgba(230,215,180,0.16)', 'rgba(120,95,60,0.14)']);
+    for (let i = 0; i < 1800; i++) {
+      const px = rnd() * TEX, py = rnd() * TEX, v = rnd();
+      x.fillStyle = v < 0.5 ? 'rgba(60,48,32,0.35)' : v < 0.9 ? 'rgba(235,225,200,0.35)' : 'rgba(150,140,130,0.5)';
+      wrap(px, py, 1, (X, Y) => x.fillRect(X, Y, 0.5, 0.5));
+    }
+    for (let i = 0; i < 40; i++) { // piedritas
+      const px = rnd() * TEX, py = rnd() * TEX, r = 0.5 + rnd() * 0.7;
+      wrap(px, py, 2, (X, Y) => { x.fillStyle = 'rgba(40,32,25,0.35)'; x.beginPath(); x.arc(X + 0.3, Y + 0.3, r, 0, 7); x.fill();
+        x.fillStyle = 'rgba(200,190,175,0.85)'; x.beginPath(); x.arc(X, Y, r, 0, 7); x.fill(); });
+    }
+    x.lineCap = 'round';
+    for (let i = 0; i < 22; i++) { // matitas de zacate seco
+      const px = rnd() * TEX, py = rnd() * TEX, n = 4 + (rnd() * 5 | 0), seco = rnd() < 0.6;
+      wrap(px, py, 4, (X, Y) => {
+        for (let k = 0; k < n; k++) { const a = -Math.PI / 2 + (k / (n - 1) - 0.5) * 1.8, l = 1.5 + (k % 3) * 0.6;
+          x.strokeStyle = seco ? 'rgba(170,150,90,0.75)' : 'rgba(110,125,60,0.7)'; x.lineWidth = 0.4;
+          x.beginPath(); x.moveTo(X, Y); x.lineTo(X + Math.cos(a) * l, Y + Math.sin(a) * l); x.stroke(); }
+      });
+    }
+  });
+}
 let TEXTURAS = null;
 // relleno para un tipo de area (o null si va de color parejo); el patron se escala para medir TEX px del mundo
 function areaFill(ctx, k) {
   if (!TEXTURAS) TEXTURAS = { 0: grassTile(AREA_COL[0]), 1: grassTile(AREA_COL[1]), [AREA_AGUA]: waterTile(COL.water), [AREA_ARENA]: sandTile(AREA_COL[AREA_ARENA]),
     [AREA_PLAZA]: plazaTile(AREA_COL[AREA_PLAZA]), [TEX_SENDERO]: senderoTile(COL.footway),
-    [TEX_BANQUETA]: banquetaTile(COL.sidewalk), [TEX_ASFALTO]: asfaltoTile(COL.asphalt) };
+    [TEX_BANQUETA]: banquetaTile(COL.sidewalk), [TEX_ASFALTO]: asfaltoTile(COL.asphalt),
+    [TEX_TIERRA]: tierraTile(COL.ground), 3: tierraTile(AREA_COL[3]), 4: tierraTile(AREA_COL[4]), 5: tierraTile(AREA_COL[5]), 6: tierraTile(AREA_COL[6]) };
   const t = TEXTURAS[k]; if (!t) return AREA_COL[k];
   const p = ctx.createPattern(t, 'repeat'); p.setTransform(new DOMMatrix().scale(1 / RES)); return p;
 }
@@ -834,7 +861,7 @@ function* chunkSteps(cx, cy) {
   const cv = document.createElement('canvas'); cv.width = cv.height = (CHUNK + 2) * RES;
   const ctx = cv.getContext('2d', CTX2D);
   ctx.scale(RES, RES); ctx.translate(1 - cx * CHUNK, 1 - cy * CHUNK);
-  ctx.fillStyle = COL.ground; ctx.fillRect(cx * CHUNK - 1, cy * CHUNK - 1, CHUNK + 2, CHUNK + 2);
+  ctx.fillStyle = areaFill(ctx, TEX_TIERRA); ctx.fillRect(cx * CHUNK - 1, cy * CHUNK - 1, CHUNK + 2, CHUNK + 2);
   const k = cx + ',' + cy;
   for (const i of chunkAreas.get(k) || []) { const a = areas[i]; ctx.fillStyle = areaFill(ctx, a.k); trace(ctx, a.p, true); ctx.fill(); }
   const rs = (chunkRoads.get(k) || []).map(i => roads[i]);
