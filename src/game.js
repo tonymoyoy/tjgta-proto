@@ -1646,19 +1646,15 @@ function makeTaxi(scene) {
   x.fillStyle = 'rgba(0,0,0,0.35)'; x.fillRect(3, 3, L, W);
   x.fillStyle = RED; x.beginPath(); x.roundRect(0, 0, L, W, 3.5); x.fill();
   x.strokeStyle = 'rgba(0,0,0,0.5)'; x.lineWidth = 0.8; x.stroke();
-  // franjas a lo largo de los dos costados: negra, crema, negra
-  for (const y of [1.2, W - 4.2]) {
-    x.fillStyle = BLACK; x.fillRect(1.5, y, L - 3, 3);
-    x.fillStyle = CREAM; x.fillRect(1.5, y + 0.7, L - 3, 1.6);
-  }
-  // techo largo de guayin con ventanas laterales hasta atras
-  x.fillStyle = '#a61f1f'; x.fillRect(4, 3.5, 20, W - 7);
-  x.fillStyle = '#1d2733'; x.fillRect(4, 3.2, 20, 1.3); x.fillRect(4, W - 4.5, 20, 1.3);
-  x.fillStyle = 'rgba(255,255,255,0.15)'; x.fillRect(7, 5, 14, W - 10);
-  // parabrisas, medallon trasero y franja crema del cofre
-  x.fillStyle = '#1d2733'; x.fillRect(24, 3.5, 4.5, W - 7); x.fillRect(1.6, 4, 2.4, W - 8);
-  x.fillStyle = CREAM; x.fillRect(29, W / 2 - 1, L - 30.5, 2);
-  x.fillStyle = BLACK; x.fillRect(29, W / 2 - 1.6, L - 30.5, 0.6); x.fillRect(29, W / 2 + 1, L - 30.5, 0.6);
+  // cofre y cajuela rojos con un brillo a lo largo
+  x.fillStyle = 'rgba(255,255,255,0.13)'; x.fillRect(29, 3, L - 31.5, 2.2); x.fillRect(0.8, 3.5, 1, W - 7);
+  // techo largo de guayin, negro, con las ventanas laterales asomando por las orillas hasta atras
+  x.fillStyle = BLACK; x.beginPath(); x.roundRect(3.6, 2.4, 21, W - 4.8, 1.4); x.fill();
+  x.fillStyle = '#34465a'; x.fillRect(4.2, 2.4, 19.8, 1); x.fillRect(4.2, W - 3.4, 19.8, 1);
+  x.fillStyle = 'rgba(255,255,255,0.08)'; x.fillRect(6, 4.6, 16, 2.2);
+  // parabrisas y medallon trasero
+  x.fillStyle = '#2b3a4a'; x.fillRect(24.6, 3.4, 4, W - 6.8); x.fillRect(1.8, 4, 1.8, W - 8);
+  x.fillStyle = 'rgba(255,255,255,0.18)'; x.fillRect(25.4, 4.2, 1, W - 8.4);
   // letrero de TAXI en el techo
   x.fillStyle = CREAM; x.fillRect(13, W / 2 - 2.5, 4, 5); x.strokeStyle = BLACK; x.lineWidth = 0.5; x.strokeRect(13, W / 2 - 2.5, 4, 5);
   // faros y calaveras
