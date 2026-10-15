@@ -2949,7 +2949,7 @@ class Main extends Phaser.Scene {
         this.peds.push(ped);
       }
       if (best.moto) this.startDelivery();
-      else toast(pick(FRASES_ROBO), best.T.name + (best.dirty ? ' bien madreado' : ' de agencia'), 2.4);
+      else toast(pick(FRASES_ROBO), best.T.name + (best.dirty ? ' bien tijuaneado' : ' de agencia'), 2.4);
     } else this.parked.splice(this.parked.indexOf(best), 1);
     best.vx = best.vy = 0;
     this.inCar = best; this.staminaBar.clear(); this.stamina = STAMINA; this.tired = false; // manejando descansas
