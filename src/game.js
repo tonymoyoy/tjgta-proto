@@ -53,7 +53,7 @@ const COL = {
 // 6 vivienda, 7 agua, 8 arena (las trampas del golf)
 const AREA_COL = ['#5f8a3f', '#6a9a48', '#c9bc9f', '#a39a82', '#9b927d', '#a08c66', '#958e7a', '#2f5f7f', '#dcc89a'];
 const AREA_PLAZA = 2, AREA_AGUA = 7, AREA_ARENA = 8;
-const TEX_SENDERO = 'sendero', TEX_BANQUETA = 'banqueta', TEX_ASFALTO = 'asfalto', TEX_TIERRA = 'tierra'; // los andadores (clase 9) no son area, pero usan su propia textura
+const TEX_SENDERO = 'sendero', TEX_BANQUETA = 'banqueta', TEX_ASFALTO = 'asfalto', TEX_TIERRA = 'tierra', TEX_TECHO = 'techo'; // los andadores (clase 9) no son area, pero usan su propia textura
 const ROOFS = ['#b9a98c', '#c9b89c', '#a39483', '#8f8a84', '#c3a27b', '#d2c5ae', '#9d7c64', '#7f8a90',
   '#b07d62', '#a8a8a0', '#c7b18a', '#8d9a86', '#bfa99a', '#d6cfc0'];
 
@@ -682,6 +682,26 @@ function tierraTile(base) {
     }
   });
 }
+// techos: capa transparente que va encima del color de cada techo (hay 14 colores): grano, manchas de humedad
+// y partes deslavadas del impermeabilizante
+function techoTile() {
+  return texTile('rgba(0,0,0,0)', (x, rnd, wrap, mancha) => {
+    mancha(14, 8, 26, ['rgba(0,0,0,0.12)', 'rgba(255,255,255,0.10)']);
+    for (let i = 0; i < 5; i++) { // manchas de humedad: unos cuantos borrones encimados, de forma irregular
+      const px = rnd() * TEX, py = rnd() * TEX;
+      for (let k = 0; k < 4; k++) {
+        const qx = px + (rnd() - 0.5) * 10, qy = py + (rnd() - 0.5) * 7, r = 2.5 + rnd() * 4;
+        wrap(qx, qy, r + 1, (X, Y) => { const g = x.createRadialGradient(X, Y, 0, X, Y, r);
+          g.addColorStop(0, 'rgba(20,15,10,0.10)'); g.addColorStop(1, 'rgba(20,15,10,0)'); x.fillStyle = g; x.fillRect(X - r, Y - r, r * 2, r * 2); });
+      }
+    }
+    for (let i = 0; i < 2000; i++) {
+      const px = rnd() * TEX, py = rnd() * TEX;
+      x.fillStyle = rnd() < 0.55 ? 'rgba(0,0,0,0.22)' : 'rgba(255,255,255,0.22)';
+      wrap(px, py, 1, (X, Y) => x.fillRect(X, Y, 0.45, 0.45));
+    }
+  });
+}
 let TEXTURAS = null; const PATRONES = {};
 // relleno para un tipo de area (o null si va de color parejo); el patron se escala para medir TEX px del mundo
 const SIN_TEXTURAS = (() => { try { return localStorage.getItem('tjrush-texturas') === 'no'; } catch (e) { return false; } })();
@@ -691,7 +711,7 @@ function areaFill(ctx, k) {
   if (!TEXTURAS) TEXTURAS = { 0: grassTile(AREA_COL[0]), 1: grassTile(AREA_COL[1]), [AREA_AGUA]: waterTile(COL.water), [AREA_ARENA]: sandTile(AREA_COL[AREA_ARENA]),
     [AREA_PLAZA]: plazaTile(AREA_COL[AREA_PLAZA]), [TEX_SENDERO]: senderoTile(COL.footway),
     [TEX_BANQUETA]: banquetaTile(COL.sidewalk), [TEX_ASFALTO]: asfaltoTile(COL.asphalt),
-    [TEX_TIERRA]: tierraTile(COL.ground), 3: tierraTile(AREA_COL[3]), 4: tierraTile(AREA_COL[4]), 5: tierraTile(AREA_COL[5]), 6: tierraTile(AREA_COL[6]) };
+    [TEX_TIERRA]: tierraTile(COL.ground), [TEX_TECHO]: techoTile(), 3: tierraTile(AREA_COL[3]), 4: tierraTile(AREA_COL[4]), 5: tierraTile(AREA_COL[5]), 6: tierraTile(AREA_COL[6]) };
   const t = TEXTURAS[k]; if (!t) return AREA_COL[k];
   // un patron por textura, hecho una sola vez y compartido por todos los trozos (un patron sirve en cualquier lienzo)
   let p = PATRONES[k];
@@ -817,6 +837,11 @@ function* drawBuildings(ctx, bl, rs, cx, cy) {
         trace(g, b.p, true); g.fillStyle = 'rgba(255,255,255,0.10)'; g.fill(); g.restore();
         if (hash(b.p.length + (mx | 0)) % 3 === 0) { g.fillStyle = 'rgba(60,60,60,0.55)'; g.fillRect(mx - 6, my - 4, 12, 8); }
       }
+    }
+    // textura de los techos: una sola capa encima de todo el grupo (source-atop: solo donde ya hay techo)
+    if (!SIN_TEXTURAS) {
+      g.globalCompositeOperation = 'source-atop'; g.fillStyle = areaFill(g, TEX_TECHO);
+      g.fillRect(rx0 - 1 - LEAN_PAD + cx * CHUNK, ry0 - 1 + cy * CHUNK, rw, rh); g.globalCompositeOperation = 'source-over';
     }
     // borrar lo que cae sobre calles y banquetas
     g.globalCompositeOperation = 'destination-out'; g.lineCap = 'round'; g.strokeStyle = '#000';
