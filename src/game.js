@@ -53,6 +53,7 @@ const COL = {
 // 6 vivienda, 7 agua, 8 arena (las trampas del golf)
 const AREA_COL = ['#5f8a3f', '#6a9a48', '#c9bc9f', '#a39a82', '#9b927d', '#a08c66', '#958e7a', '#2f5f7f', '#dcc89a'];
 const AREA_PLAZA = 2, AREA_AGUA = 7, AREA_ARENA = 8;
+const TEX_SENDERO = 'sendero'; // los andadores (clase 9) no son area, pero usan su propia textura
 const ROOFS = ['#b9a98c', '#c9b89c', '#a39483', '#8f8a84', '#c3a27b', '#d2c5ae', '#9d7c64', '#7f8a90',
   '#b07d62', '#a8a8a0', '#c7b18a', '#8d9a86', '#bfa99a', '#d6cfc0'];
 
@@ -608,11 +609,22 @@ function plazaTile(base) {
     }
   });
 }
+// andadores de los parques: grava fina apisonada, piedritas de varios tonos
+function senderoTile(base) {
+  return texTile(base, (x, rnd, wrap, mancha) => {
+    mancha(16, 8, 22, ['rgba(110,90,60,0.16)', 'rgba(255,250,235,0.16)']);
+    for (let i = 0; i < 2200; i++) {
+      const px = rnd() * TEX, py = rnd() * TEX, r = 0.25 + rnd() * 0.45, v = rnd();
+      const col = v < 0.4 ? 'rgba(120,100,70,0.45)' : v < 0.75 ? 'rgba(250,245,230,0.5)' : v < 0.9 ? 'rgba(160,140,120,0.5)' : 'rgba(80,70,60,0.45)';
+      wrap(px, py, 1, (X, Y) => { x.fillStyle = col; x.beginPath(); x.arc(X, Y, r, 0, 7); x.fill(); });
+    }
+  });
+}
 let TEXTURAS = null;
 // relleno para un tipo de area (o null si va de color parejo); el patron se escala para medir TEX px del mundo
 function areaFill(ctx, k) {
   if (!TEXTURAS) TEXTURAS = { 0: grassTile(AREA_COL[0]), 1: grassTile(AREA_COL[1]), [AREA_AGUA]: waterTile(COL.water), [AREA_ARENA]: sandTile(AREA_COL[AREA_ARENA]),
-    [AREA_PLAZA]: plazaTile(AREA_COL[AREA_PLAZA]) };
+    [AREA_PLAZA]: plazaTile(AREA_COL[AREA_PLAZA]), [TEX_SENDERO]: senderoTile(COL.footway) };
   const t = TEXTURAS[k]; if (!t) return AREA_COL[k];
   const p = ctx.createPattern(t, 'repeat'); p.setTransform(new DOMMatrix().scale(1 / RES)); return p;
 }
@@ -804,7 +816,7 @@ function* chunkSteps(cx, cy) {
   // debajo de los edificios: agua, andadores y vias del tren
   const under = (list) => {
     pass(list, r => ROAD_W[r.c] * M, areaFill(ctx, AREA_AGUA), r => r.c === 11);
-    pass(list, r => ROAD_W[r.c] * M, r => r.c === 8 ? areaFill(ctx, AREA_PLAZA) : COL.footway, r => r.c === 8 || r.c === 9);
+    pass(list, r => ROAD_W[r.c] * M, r => areaFill(ctx, r.c === 8 ? AREA_PLAZA : TEX_SENDERO), r => r.c === 8 || r.c === 9);
     pass(list, () => 3 * M, COL.rail, r => r.c === 10);
     ctx.setLineDash([2, 6]); pass(list, () => 3 * M, '#3a2d22', r => r.c === 10);
     ctx.setLineDash([]); pass(list, () => 1, '#9a9aa0', r => r.c === 10);
