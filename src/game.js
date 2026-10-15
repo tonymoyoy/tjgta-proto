@@ -1646,6 +1646,8 @@ function makeTaxi(scene) {
   x.fillStyle = 'rgba(0,0,0,0.35)'; x.fillRect(3, 3, L, W);
   x.fillStyle = RED; x.beginPath(); x.roundRect(0, 0, L, W, 3.5); x.fill();
   x.strokeStyle = 'rgba(0,0,0,0.5)'; x.lineWidth = 0.8; x.stroke();
+  // franja blanca a lo largo de los dos costados, de la defensa de adelante a la de atras
+  x.fillStyle = '#f4f1ea'; x.fillRect(2.2, 0.8, L - 4.4, 1.2); x.fillRect(2.2, W - 2, L - 4.4, 1.2);
   // cofre y cajuela rojos con un brillo a lo largo
   x.fillStyle = 'rgba(255,255,255,0.13)'; x.fillRect(29, 3, L - 31.5, 2.2); x.fillRect(0.8, 3.5, 1, W - 7);
   // techo largo de guayin, negro, con las ventanas laterales asomando por las orillas hasta atras
