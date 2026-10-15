@@ -53,7 +53,7 @@ const COL = {
 // 6 vivienda, 7 agua, 8 arena (las trampas del golf)
 const AREA_COL = ['#5f8a3f', '#6a9a48', '#c9bc9f', '#a39a82', '#9b927d', '#a08c66', '#958e7a', '#2f5f7f', '#dcc89a'];
 const AREA_PLAZA = 2, AREA_AGUA = 7, AREA_ARENA = 8;
-const TEX_SENDERO = 'sendero'; // los andadores (clase 9) no son area, pero usan su propia textura
+const TEX_SENDERO = 'sendero', TEX_BANQUETA = 'banqueta'; // los andadores (clase 9) no son area, pero usan su propia textura
 const ROOFS = ['#b9a98c', '#c9b89c', '#a39483', '#8f8a84', '#c3a27b', '#d2c5ae', '#9d7c64', '#7f8a90',
   '#b07d62', '#a8a8a0', '#c7b18a', '#8d9a86', '#bfa99a', '#d6cfc0'];
 
@@ -620,11 +620,35 @@ function senderoTile(base) {
     }
   });
 }
+// banquetas: concreto sin direccion (las calles van en todos los angulos), con grano, manchas de uso,
+// grietitas y uno que otro chicle pegado
+function banquetaTile(base) {
+  return texTile(base, (x, rnd, wrap, mancha) => {
+    mancha(14, 8, 24, ['rgba(80,70,55,0.14)', 'rgba(255,252,240,0.14)', 'rgba(60,55,50,0.10)']);
+    for (let i = 0; i < 1600; i++) {
+      const px = rnd() * TEX, py = rnd() * TEX;
+      x.fillStyle = rnd() < 0.55 ? 'rgba(90,80,65,0.30)' : 'rgba(255,252,240,0.35)';
+      wrap(px, py, 1, (X, Y) => x.fillRect(X, Y, 0.45, 0.45));
+    }
+    x.lineCap = 'round'; x.lineJoin = 'round';
+    for (let i = 0; i < 7; i++) { // grietitas en zigzag
+      let px = rnd() * TEX, py = rnd() * TEX; const a0 = rnd() * 7, n = 3 + (rnd() * 3 | 0), seg = [];
+      for (let k = 0; k <= n; k++) { seg.push([px, py]); const a = a0 + (rnd() - 0.5) * 1.4; px += Math.cos(a) * 2.5; py += Math.sin(a) * 2.5; }
+      wrap(seg[0][0], seg[0][1], 16, (X, Y) => { x.strokeStyle = 'rgba(60,52,42,0.45)'; x.lineWidth = 0.4; x.beginPath();
+        for (const [qx, qy] of seg) x.lineTo(X + qx - seg[0][0], Y + qy - seg[0][1]); x.stroke(); });
+    }
+    for (let i = 0; i < 12; i++) { // chicles
+      const px = rnd() * TEX, py = rnd() * TEX, r = 0.35 + rnd() * 0.3;
+      wrap(px, py, 1, (X, Y) => { x.fillStyle = 'rgba(55,50,45,0.55)'; x.beginPath(); x.arc(X, Y, r, 0, 7); x.fill(); });
+    }
+  });
+}
 let TEXTURAS = null;
 // relleno para un tipo de area (o null si va de color parejo); el patron se escala para medir TEX px del mundo
 function areaFill(ctx, k) {
   if (!TEXTURAS) TEXTURAS = { 0: grassTile(AREA_COL[0]), 1: grassTile(AREA_COL[1]), [AREA_AGUA]: waterTile(COL.water), [AREA_ARENA]: sandTile(AREA_COL[AREA_ARENA]),
-    [AREA_PLAZA]: plazaTile(AREA_COL[AREA_PLAZA]), [TEX_SENDERO]: senderoTile(COL.footway) };
+    [AREA_PLAZA]: plazaTile(AREA_COL[AREA_PLAZA]), [TEX_SENDERO]: senderoTile(COL.footway),
+    [TEX_BANQUETA]: banquetaTile(COL.sidewalk) };
   const t = TEXTURAS[k]; if (!t) return AREA_COL[k];
   const p = ctx.createPattern(t, 'repeat'); p.setTransform(new DOMMatrix().scale(1 / RES)); return p;
 }
@@ -824,8 +848,9 @@ function* chunkSteps(cx, cy) {
   // encima de los edificios: calles con banqueta y lineas de carril
   const over = (list) => {
     pass(list, r => (ROAD_W[r.c] + SIDEWALK * 2 + 0.5) * M, COL.curb, r => r.c <= 6);
-    pass(list, r => (ROAD_W[r.c] + SIDEWALK * 2) * M, COL.sidewalk, r => r.c <= 6);
-    pass(list, r => (ROAD_W[r.c] + 1) * M, COL.sidewalk, r => r.c === 7);
+    const banq = areaFill(ctx, TEX_BANQUETA);
+    pass(list, r => (ROAD_W[r.c] + SIDEWALK * 2) * M, banq, r => r.c <= 6);
+    pass(list, r => (ROAD_W[r.c] + 1) * M, banq, r => r.c === 7);
     // orilla polvosa junto a la banqueta; el asfalto limpio de los cruces la tapa
     pass(list, r => ROAD_W[r.c] * M, '#4b4842', r => r.c <= 7);
     pass(list, r => ROAD_W[r.c] * M - 9, COL.asphalt, r => r.c <= 7);
