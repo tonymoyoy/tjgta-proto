@@ -117,15 +117,16 @@ const EGGS = [
     say: '"Te canto El Rey gratis... no, mentira. Bueno, hoy sí, y hasta te doy pa\'l camión."' },
   { k: 'mimo', name: 'El Mimo Moy', near: 'Museo de Historia (MUHTI)', dx: 40, dy: 40, pay: 150,
     say: '(No dice ni una palabra. Saca una cartera invisible, cuenta billetes invisibles... y te da dinero de verdad.)' },
-  { k: 'payaso', name: 'El Payaso del Crucero', near: 'Glorieta Cuauhtémoc', dx: 60, dy: -40, pay: 150,
-    say: '"Hago malabares con tres limones y dos chambas. Toma, que hoy me fue bien en el semáforo."' },
-  { k: 'elotero', name: 'El Señor de los Elotes', near: 'Parque México', dx: -40, dy: 35, pay: 150,
-    say: '"¿Elote o esquite? Con mayonesa, queso, chile y limón. Hoy invita la casa... y hasta te doy cambio de más."' },
+  // la llave 'payaso' se queda: asi la reconocen las partidas que ya lo habian encontrado
+  { k: 'payaso', name: 'La Bailarina sin Cabeza', near: 'Glorieta Cuauhtémoc', dx: 60, dy: -40, pay: 250,
+    say: '(Una bailarina de lentejuelas gira y gira... sin cabeza. Se detiene frente a ti, te deja unos billetes de los años 30 que todavía sirven y se desvanece.)' },
+  { k: 'alien', name: 'Un Alien', near: 'Parque México', dx: -40, dy: 35, pay: 200,
+    say: '"Vine a estudiar a los terrícolas y me quedé por los tacos. Toma, en mi planeta este papel no vale nada."' },
   { k: 'gamer', name: 'El Gamer de la FrikiPlaza', near: 'FrikiPlaza', dx: 35, dy: 30, pay: 200,
     say: '"¿Una reta de Street Fighter? ...No manches, ni la vi venir. Toma, te ganaste el premio del torneo."' },
   // este no tiene un lugar cerca: va en metros desde la esquina noroeste del mapa, en plena Zona Norte
-  { k: 'danzante', name: 'El Danzante', at: [395, 615], pay: 200,
-    say: '"Danzo pa\'l sol, pa\'l agua y pa\' los que van cruzando. Toma esta ofrenda pa\' tu camino."' },
+  { k: 'raton', name: 'La Botarga del Ratón Amarillo', at: [395, 615], pay: 200,
+    say: '"¡Foto con el ratón, foto! ...No soy pirata, soy edición limitada. Ten, por no preguntar de qué caricatura soy."' },
 ].map(e => {
   if (e.at) return { ...e, x: e.at[0] * M, y: e.at[1] * M, got: false };
   const l = landmarks.find(q => q.name === e.near) || landmarks[0]; return { ...e, x: l.x + e.dx * M, y: l.y + e.dy * M, got: false };
@@ -2234,49 +2235,48 @@ function makeEggs(scene) {
       ell('#111', 14.8, 14.5, 0.35, 0.6); ell('#111', 17.2, 14.5, 0.35, 0.6); ell('#d0112b', 16, 15.7, 0.8, 0.35);
       line('#111', 0.15, [[14.8, 13.8], [14.8, 15.4]]); line('#111', 0.15, [[17.2, 13.8], [17.2, 15.4]]);
     },
-    payaso(x0) { // payaso de crucero: peluca de colores, nariz roja, traje de lunares, zapatotes y limones al aire
-      shadow(16, 18, 9, 10);
-      ell('#c0392b', 12.5, 25.5, 2.2, 3.4, 0.15); ell('#c0392b', 19.5, 25.5, 2.2, 3.4, -0.15); // zapatotes
-      ell('#ff7b6b', 12.3, 24.4, 1, 1.2); ell('#ff7b6b', 19.3, 24.4, 1, 1.2);
-      // traje de lunares
-      shoulders(16, 18, '#4fa3ff', '#1c5fb8', 6, 4.2);
-      for (const [px, py, c] of [[12.4, 17, '#ffd23f'], [15, 20, '#ff4f8b'], [18.6, 16.6, '#ffffff'], [19.6, 19.6, '#ffd23f'], [14.4, 16, '#ff4f8b'], [11.8, 19.6, '#ffffff']]) ell(c, px, py, 0.7, 0.7);
-      for (let i = 0; i < 5; i++) ell(i % 2 ? '#ffffff' : '#ff4f8b', 13.4 + i * 1.3, 14.8, 0.9, 0.6); // cuello de holan
-      // brazos arriba haciendo malabares
-      ell('#4fa3ff', 9.6, 14, 1.4, 2.6, 0.6); ell('#4fa3ff', 22.4, 14, 1.4, 2.6, -0.6);
-      ball(8.6, 11.8, 1, '#ffffff', '#d8d8d8'); ball(23.4, 11.8, 1, '#ffffff', '#d8d8d8');
-      // limones en el aire con su estela
-      x.setLineDash([0.6, 0.6]); x.strokeStyle = 'rgba(255,255,255,0.6)'; x.lineWidth = 0.3; x.beginPath(); x.arc(16, 9, 7.5, Math.PI * 1.05, Math.PI * 1.95); x.stroke(); x.setLineDash([]);
-      for (const [lx, ly] of [[9.6, 6.2], [16, 1.8], [22.4, 6.2]]) { ball(lx, ly, 1.5, '#c5ef7c', '#4c9a1c', '#2f6b0d'); ell('#8bc34a', lx + 0.5, ly - 0.5, 0.4, 0.3); }
-      // cabeza: peluca esponjada de colores, cara blanca y nariz roja
-      for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2; ball(16 + Math.cos(a) * 3.2, 13 + Math.sin(a) * 3.2, 1.6, ['#ff5252', '#ffd23f', '#4caf50', '#40c4ff', '#e040fb'][i % 5], ['#b71c1c', '#c79a00', '#1b5e20', '#0277bd', '#7b1fa2'][i % 5]); }
-      ball(16, 13, 2.7, '#ffffff', '#e8dccb', '#bbb');
-      ball(16, 12, 0.95, '#ff6b6b', '#c40000');
-      line('#d0112b', 0.4, [[14.8, 14.2], [16, 14.8], [17.2, 14.2]]);
+    payaso(x0) { // la bailarina sin cabeza: un fantasma de los tiempos del casino girando con su vestido de lentejuelas
+      // resplandor fantasmal
+      x.fillStyle = rad(16, 16, 15.5, 'rgba(210,235,255,0.6)', 'rgba(120,160,255,0)'); x.beginPath(); x.arc(16, 16, 15.5, 0, 7); x.fill();
+      x.globalAlpha = 0.88;
+      // falda de vuelo abierta por el giro, en gajos de dos tonos y holan festoneado
+      for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2 + 0.2; x.fillStyle = i % 2 ? '#d81b60' : '#ad1457'; x.beginPath(); x.moveTo(16, 16); x.arc(16, 16, 11, a, a + Math.PI / 6 + 0.02); x.closePath(); x.fill(); }
+      for (let i = 0; i < 24; i++) { const a = i / 24 * Math.PI * 2; ell('#f8bbd0', 16 + Math.cos(a) * 11, 16 + Math.sin(a) * 11, 1.5, 1.5); }
+      for (let i = 0; i < 34; i++) { const a = i * 2.4, r = 2.5 + (i % 8) * 1.1; ell(i % 3 ? '#fff59d' : '#ffffff', 16 + Math.cos(a) * r, 16 + Math.sin(a) * r, 0.35, 0.35); } // lentejuelas
+      x.strokeStyle = 'rgba(255,255,255,0.5)'; x.lineWidth = 0.4; // estela del giro
+      for (const r of [12.8, 13.9]) { x.beginPath(); x.arc(16, 16, r, 0.3, 1.9); x.stroke(); x.beginPath(); x.arc(16, 16, r, 3.4, 5); x.stroke(); }
+      // brazos en alto, palidos, con guantes largos
+      ell('#efe6f5', 11.2, 13.2, 1, 3.4, -0.9); ell('#efe6f5', 20.8, 13.2, 1, 3.4, 0.9);
+      ball(9, 11, 1, '#ffffff', '#d1c4e9'); ball(23, 11, 1, '#ffffff', '#d1c4e9');
+      // corset y, donde va la cabeza, solo el cuello del vestido y un hilito de niebla
+      x.fillStyle = rad(16, 16, 4, '#c2185b', '#6a0d36'); x.beginPath(); x.ellipse(16, 16, 3.8, 2.8, 0, 0, 7); x.fill();
+      for (let i = 0; i < 7; i++) ell('#fafafa', 13.6 + i * 0.8, 14.3 + Math.abs(i - 3) * 0.25, 0.35, 0.35); // collar de perlas
+      ell('#f8bbd0', 16, 14.2, 1.5, 0.8); ell('#4a0f2a', 16, 14.2, 0.9, 0.45);
+      ell('rgba(255,255,255,0.55)', 16, 12.3, 1.2, 1.6); ell('rgba(255,255,255,0.35)', 16.8, 10.2, 1.7, 1.3); ell('rgba(255,255,255,0.18)', 15.6, 8.2, 2.2, 1.4);
+      x.globalAlpha = 1;
     },
-    elotero(x0) { // carrito de elotes con su sombrilla, la olla humeando y el elotero con gorra
-      shadow(15, 17, 13, 11);
-      // carrito: caja metalica con dos ruedas y la olla de esquites
-      x.fillStyle = '#b0bec5'; x.beginPath(); x.roundRect(5, 14, 15, 11, 1.2); x.fill();
+    alien(x0) { // alien verde de ojos negros, saludando con un taco en la mano; a un lado, su platillo volador estacionado
+      shadow(16, 17, 13, 12);
+      // platillo: disco metalico con domo de vidrio y lucecitas
+      ball(23.5, 22.5, 6.6, '#eceff1', '#78909c', '#455a64');
+      x.strokeStyle = 'rgba(0,0,0,0.3)'; x.lineWidth = 0.3; x.beginPath(); x.arc(23.5, 22.5, 4.6, 0, 7); x.stroke();
+      ball(23.5, 22.5, 2.9, 'rgba(200,245,250,0.95)', 'rgba(0,151,167,0.9)', '#006064');
+      for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; ell(i % 2 ? '#76ff03' : '#ffea00', 23.5 + Math.cos(a) * 5.7, 22.5 + Math.sin(a) * 5.7, 0.55, 0.55); }
+      // cuerpo flaquito y brazos largos
+      shoulders(12, 16, '#aed581', '#558b2f', 4.2, 2.8);
+      ell('#8bc34a', 7.6, 17.4, 0.9, 3, 0.5); ball(6.4, 20, 0.9, '#aed581', '#558b2f');
+      ell('#8bc34a', 16.6, 12.6, 0.9, 3.2, -0.9); ball(18.8, 10.6, 0.9, '#aed581', '#558b2f');
+      // el taco
+      x.save(); x.translate(20.6, 8.8); x.rotate(-0.5);
+      x.fillStyle = '#f3cf7a'; x.beginPath(); x.arc(0, 0, 2.6, Math.PI, 0); x.closePath(); x.fill();
+      x.fillStyle = '#a8401a'; x.beginPath(); x.arc(0, 0, 1.8, Math.PI, 0); x.closePath(); x.fill();
+      ell('#43a047', -0.8, -0.9, 0.4, 0.4); ell('#43a047', 0.7, -1.1, 0.4, 0.4); x.restore();
+      // cabezota de bulbo con ojos negros rasgados
+      x.fillStyle = rad(12, 11, 6, '#c5e1a5', '#689f38'); x.beginPath(); x.ellipse(12, 11.5, 4.6, 5.4, 0, 0, 7); x.fill();
       x.strokeStyle = 'rgba(0,0,0,0.45)'; x.lineWidth = 0.35; x.stroke();
-      ell('#2c2c2c', 4.6, 22.5, 1, 2.6); ell('#2c2c2c', 20.4, 22.5, 1, 2.6);
-      ball(9.5, 19.5, 3.3, '#cfd8dc', '#78909c', '#455a64'); ball(9.5, 19.5, 2.5, '#ffe36b', '#d6a400'); // olla de esquites
-      for (let i = 0; i < 9; i++) ell('#fff59d', 8 + (i % 3) * 1.4, 18.2 + ((i / 3) | 0) * 1.3, 0.45, 0.45);
-      for (let i = 0; i < 3; i++) ell('rgba(255,255,255,0.35)', 8 + i * 1.6, 15.4 - i * 0.8, 1.2, 0.8); // vapor
-      for (let i = 0; i < 4; i++) { // elotes con palito y mayonesa
-        const ex = 14.6 + i * 1.3; ell('#f4c430', ex, 19.6, 0.65, 2.6); line('#fffde7', 0.35, [[ex - 0.3, 18], [ex + 0.3, 21]]); line('#d7b98e', 0.3, [[ex, 22.2], [ex, 24]]); }
-      ell('#ef5350', 18.6, 15.6, 0.7, 0.7); ell('#fff', 17.2, 15.6, 0.7, 0.7); ell('#7cb342', 15.8, 15.6, 0.7, 0.7); // chile, queso y limon
-      // sombrilla de colores encima de la mitad del carrito
-      x.save(); x.beginPath(); x.arc(12.5, 12.5, 8.4, 0, 7); x.clip();
-      ['#e53935', '#fdd835', '#43a047', '#1e88e5', '#e53935', '#fdd835', '#43a047', '#1e88e5'].forEach((c, i) => {
-        x.fillStyle = c; x.beginPath(); x.moveTo(12.5, 12.5); x.arc(12.5, 12.5, 8.4, i * Math.PI / 4, (i + 1) * Math.PI / 4); x.closePath(); x.fill(); });
-      x.restore(); x.globalAlpha = 0.9; ball(12.5, 12.5, 0.9, '#ffffff', '#bdbdbd'); x.globalAlpha = 1;
-      // el elotero: playera blanca, delantal y gorra roja
-      shoulders(25, 18, '#ffffff', '#cfcfcf', 4.4, 3);
-      ell('#1565c0', 25, 19.6, 3.2, 1.2);
-      ell('#c99a6b', 22, 17.6, 1.2, 1.8, 0.5);
-      ball(25, 17.2, 2.2, '#3b2414', '#1e120a');
-      ell('#c62828', 25, 16.6, 2.3, 1.9); ell('#b71c1c', 23.2, 16.6, 1.2, 1.4);
+      ell('#0d0d0d', 10, 11, 1.5, 2.5, 0.5); ell('#0d0d0d', 14, 11, 1.5, 2.5, -0.5);
+      ell('rgba(255,255,255,0.75)', 9.6, 10.1, 0.4, 0.55); ell('rgba(255,255,255,0.75)', 13.6, 10.1, 0.4, 0.55);
+      line('#33691e', 0.3, [[11.2, 14.6], [12, 15], [12.8, 14.6]]); // sonrisita
     },
     gamer(x0) { // gamer en su silla con audifonos con luces, control y una lata de refresco
       shadow(16, 17, 11, 12);
@@ -2303,29 +2303,35 @@ function makeEggs(scene) {
       ball(26, 24, 1.6, '#ef5350', '#b71c1c', '#7f0000'); ell('#cfd8dc', 26, 24, 0.8, 0.8);
       x.fillStyle = '#ffb300'; x.save(); x.translate(5.5, 25); x.rotate(-0.4); x.fillRect(-2, -2.6, 4, 5.2); x.fillStyle = '#e53935'; x.fillRect(-2, -0.6, 4, 1.2); x.restore();
     },
-    danzante(x0) { // danzante azteca con penacho de plumas, sonajas en los tobillos y su tambor (huehuetl)
-      shadow(15, 16, 13, 13);
-      // tambor de madera con cuero
-      ball(25, 24, 4, '#a1887f', '#5d4037', '#3e2723'); ball(25, 24, 3.2, '#f3e3c3', '#cbb48a');
-      for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; ell('#3e2723', 25 + Math.cos(a) * 3.6, 24 + Math.sin(a) * 3.6, 0.35, 0.35); }
-      // penacho: abanico de plumas largas alrededor de la cabeza
-      const plumas = ['#2e7d32', '#1565c0', '#c62828', '#43a047', '#fdd835', '#1e88e5', '#2e7d32', '#c62828', '#43a047', '#1565c0', '#fdd835', '#2e7d32'];
-      plumas.forEach((c, i) => {
-        const a = i / plumas.length * Math.PI * 2; x.save(); x.translate(15, 14); x.rotate(a);
-        ell(c, 0, -7.4, 1.6, 5.6); line('rgba(255,255,255,0.45)', 0.25, [[0, -2.8], [0, -12.4]]); ell('#fff59d', 0, -12, 0.6, 0.8); x.restore();
-      });
-      // cuerpo: hombros morenos con pectoral de semillas y brazos abiertos con sonajas
-      shoulders(15, 18, '#a86b44', '#6d3f22', 5.6, 3.6);
-      line('#fdd835', 0.7, [[11.4, 17], [15, 19.4], [18.6, 17]]); line('#c62828', 0.5, [[11.8, 18.2], [15, 20.4], [18.2, 18.2]]);
-      ell('#a86b44', 9, 19.6, 1.3, 2.6, 0.5); ell('#a86b44', 21, 19.6, 1.3, 2.6, -0.5);
-      ball(7.8, 22, 1.3, '#d7b98e', '#8d6e63', '#5d4037'); ball(22.2, 22, 1.3, '#d7b98e', '#8d6e63', '#5d4037'); // sonajas (ayoyotes)
-      // cabeza con banda bordada
-      ball(15, 14, 2.6, '#2a1a10', '#120a05');
-      x.strokeStyle = '#e53935'; x.lineWidth = 0.8; x.beginPath(); x.arc(15, 14, 2.4, 0, 7); x.stroke();
-      for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; ell('#fdd835', 15 + Math.cos(a) * 2.4, 14 + Math.sin(a) * 2.4, 0.35, 0.35); }
-      // humo de copal
-      for (let i = 0; i < 4; i++) ell('rgba(230,230,230,' + (0.45 - i * 0.09) + ')', 5 + i * 0.6, 8 - i * 1.6, 1.4 + i * 0.4, 1 + i * 0.3);
-      ball(5, 10, 1.4, '#8d6e63', '#4e342e'); // sahumador
+    raton(x0) { // botarga de raton amarillo (de dudosa procedencia): orejotas, cachetes, colita, cierre y su letrero de FOTO
+      shadow(15, 17, 12, 12);
+      // letrero de carton
+      x.save(); x.translate(25.5, 24.5); x.rotate(0.25);
+      x.fillStyle = '#c8a26a'; x.fillRect(-4.2, -3.2, 8.4, 6.4); x.strokeStyle = '#8d6e63'; x.lineWidth = 0.3; x.strokeRect(-4.2, -3.2, 8.4, 6.4);
+      x.fillStyle = '#212121'; x.font = 'bold 2.3px sans-serif'; x.textAlign = 'center'; x.fillText('FOTO', 0, -0.4); x.fillStyle = '#c62828'; x.fillText('$20', 0, 2.1);
+      x.restore();
+      // colita delgada con rizo
+      line('#f9a825', 0.9, [[15, 22], [12.8, 25.5], [15.5, 28.5], [18.6, 27.2]]);
+      // patotas y cuerpo de peluche con panza clara y el cierre de la botarga
+      ell('#fbc02d', 11, 23.4, 2.3, 1.6); ell('#fbc02d', 19, 23.4, 2.3, 1.6);
+      x.fillStyle = rad(15, 18, 7, '#fff176', '#f9a825'); x.beginPath(); x.ellipse(15, 18.2, 6.3, 5.6, 0, 0, 7); x.fill();
+      x.strokeStyle = 'rgba(0,0,0,0.4)'; x.lineWidth = 0.35; x.stroke();
+      ell('#fff9c4', 15, 19.2, 3.4, 3);
+      line('#9e9e9e', 0.35, [[15, 15.6], [15, 23.4]]); for (let i = 0; i < 6; i++) line('#bdbdbd', 0.2, [[14.6, 16.2 + i * 1.2], [15.4, 16.2 + i * 1.2]]);
+      // brazos saludando con guantes blancos
+      ell('#fdd835', 8.2, 15, 1.6, 2.9, 0.6); ell('#fdd835', 21.8, 15, 1.6, 2.9, -0.6);
+      ball(7, 12.8, 1.3, '#ffffff', '#d6d6d6', '#999'); ball(23, 12.8, 1.3, '#ffffff', '#d6d6d6', '#999');
+      // orejotas redondas
+      ball(9.4, 5.8, 3.3, '#fff176', '#f9a825', 'rgba(0,0,0,0.4)'); ell('#f8bbd0', 9.4, 5.8, 1.9, 1.9);
+      ball(20.6, 5.8, 3.3, '#fff176', '#f9a825', 'rgba(0,0,0,0.4)'); ell('#f8bbd0', 20.6, 5.8, 1.9, 1.9);
+      // cabezota con un ojo mas grande que el otro (es pirata, pero no le digas)
+      x.fillStyle = rad(15, 10.5, 7, '#fff59d', '#fbc02d'); x.beginPath(); x.ellipse(15, 10.8, 6.2, 5.4, 0, 0, 7); x.fill();
+      x.strokeStyle = 'rgba(0,0,0,0.4)'; x.lineWidth = 0.35; x.stroke();
+      ell('#1a1a1a', 12.7, 10, 0.9, 1.2); ell('#1a1a1a', 17.4, 10.3, 1.2, 1.5);
+      ell('#fff', 12.4, 9.6, 0.3, 0.35); ell('#fff', 17, 9.8, 0.4, 0.45);
+      ell('#ff8a65', 11, 12.4, 1.2, 0.8); ell('#ff8a65', 19, 12.4, 1.2, 0.8); // cachetes
+      ell('#5d4037', 15, 12, 0.8, 0.55); line('#5d4037', 0.3, [[13.8, 13.3], [15, 13.9], [16.2, 13.3]]);
+      for (const s of [-1, 1]) for (const dy of [-0.4, 0.5]) line('rgba(93,64,55,0.7)', 0.2, [[15 + s * 1.4, 12.3 + dy * 0.3], [15 + s * 4.2, 12 + dy * 1.6]]); // bigotes
     },
   };
   for (const k in draw) {
