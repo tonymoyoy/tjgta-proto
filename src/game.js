@@ -1427,6 +1427,7 @@ const PAROS = [
 // ---------- HUD ----------
 const $ = (id) => document.getElementById(id);
 const hud = { money: $('money'), counts: $('counts'), obj: $('obj'), street: $('street'), toast: $('toast'), timer: $('timer'), arrow: $('arrow'), mini: $('mini') };
+hud.arrowRot = hud.arrow.querySelector('.rot'); hud.arrowDist = hud.arrow.querySelector('.dist');
 $('credit').textContent = D.src;
 let toastT = 0, streetT = 0, lastStreet = '';
 // la columna de avisos va entre el panel de dinero y el minimapa; si no cabe ahi (pantalla angosta), debajo de los dos.
@@ -2852,7 +2853,7 @@ class Main extends Phaser.Scene {
     this.bubble = { el: $('bubble'), ped: null, t: 0 };
     this.staminaBar = this.add.graphics().setDepth(20);
     this.target = this.add.image(0, 0, 'ring').setDepth(4).setTint(0x57d16b).setVisible(false);
-    this.routeG = this.add.graphics().setDepth(3); this.route = null; this.routeT = 0;
+    this.route = null; this.routeT = 0;
 
     // el jugador aparece en una calle al azar, en la banqueta y con un auto estacionado al lado
     let pos, side;
@@ -2879,7 +2880,7 @@ class Main extends Phaser.Scene {
     // la fiesta: si ya fue, los mariachis se quedan en la plaza; si falta, sigue la invitacion
     this.fiesta = null;
     if (state.celebrated.includes('fiesta')) this.spawnMariachis();
-    else if (state.celebrated.includes('final')) this.time.delayedCall(4000, () => { this.inviteFiesta(); toast('🎉 Te esperan en la Plaza Santa Cecilia', 'La fiesta no empieza sin ti. Sigue los puntos verdes.', 5); });
+    else if (state.celebrated.includes('final')) this.time.delayedCall(4000, () => { this.inviteFiesta(); toast('🎉 Te esperan en la Plaza Santa Cecilia', 'La fiesta no empieza sin ti. Sigue la flecha.', 5); });
     this.populate(true);
     updateStats();
     this.setObjective();
@@ -3733,7 +3734,7 @@ class Main extends Phaser.Scene {
     if (k === 'noche') { showPerkButtons(); toast('★ ¡Cronista de Tijuana!', 'Conoces los ' + landmarks.length + ' lugares. Se desbloqueó Tijuana de noche: búscala en ⚙️ Opciones (o tecla L).', 6.5); }
     if (k === 'final') {
       this.spawnSpecial('zonkey', 40); showPerkButtons();
-      toast('🏆 ¡Ya eres tijuanense!', 'Completaste todo. Aquí cerca te espera un burro cebra dorado y... ¡hay fiesta en la Plaza Santa Cecilia! Sigue los puntos verdes.', 8);
+      toast('🏆 ¡Ya eres tijuanense!', 'Completaste todo. Aquí cerca te espera un burro cebra dorado y... ¡hay fiesta en la Plaza Santa Cecilia! Sigue la flecha.', 8);
       this.inviteFiesta();
     }
   }
@@ -3908,7 +3909,7 @@ class Main extends Phaser.Scene {
     if (!spot) { toast('No hay pasaje por aquí', 'Intenta en otra calle.'); return; }
     const ped = this.add.sprite(spot.x, spot.y, 'ped0', 0).setDepth(6).setScale(1 / SPR);
     this.taxi = { phase: 'pick', x: spot.x, y: spot.y, ped };
-    toast('Taxi libre', 'Recoge al pasajero marcado en verde.', 2.5);
+    toast('Taxi libre', 'Recoge al pasajero: sigue la flecha.', 2.5);
     this.setObjective();
   }
   endTaxi(ok, msg) {
@@ -3924,7 +3925,7 @@ class Main extends Phaser.Scene {
     else if (this.delivery) t = 'Entrega: ' + this.delivery.order + ' en ' + this.delivery.street;
     else if (this.paro) t = '🤝 Paro: lleva ' + this.paro.de.cosa + ' ' + aDonde(this.paro.de.a);
     else if (this.waypoint && this.waypoint.fiesta) t = '🎉 Ve a la fiesta en la Plaza Santa Cecilia';
-    else if (this.waypoint) t = '📍 Sigue la ruta verde a tu destino';
+    else if (this.waypoint) t = '📍 Sigue la flecha a tu destino';
     hud.obj.textContent = t; // vacio = no se muestra (las instrucciones estan en Opciones)
     $('bE').textContent = this.inCar ? 'BAJAR' : this.coy ? 'PAGAR' : this.paroOfer ? 'ACEPTAR' : 'SUBIR'; // el boton tactil dice lo que va a hacer
   }
@@ -3936,10 +3937,9 @@ class Main extends Phaser.Scene {
     return null;
   }
 
-  // camino al objetivo: puntos verdes tenues sobre las calles que avanzan hacia el destino
+  // camino al objetivo por las calles: ya no se pinta en el juego (lo guia la flecha), pero el mapa grande lo dibuja
   updateRoute(time, dt, f) {
-    const g = this.goal(), gr = this.routeG;
-    gr.clear();
+    const g = this.goal();
     if (!g || dist(g.x, g.y, f.x, f.y) < 40) { this.route = null; return; }
     // se recalcula seguido (te sales del camino, el pasajero ya subio...) pero no en cada cuadro
     this.routeT -= dt;
@@ -3947,20 +3947,8 @@ class Main extends Phaser.Scene {
       this.routeT = 0.5; this.routeGoal = g; this.routeGX = g.x; this.routeGY = g.y;
       this.route = findRoute(f.x, f.y, g.x, g.y);
     }
-    const r = this.route; if (!r) return;
-    const v = this.cameras.main.worldView, SP = 14, M0 = 20;
-    gr.fillStyle(0x57d16b, 0.32);
-    // los puntos se recorren hacia el destino; los primeros pixeles se saltan para no tapar al jugador
-    let d = 18 + (time / 1000 * 22) % SP, acc = 0;
-    for (let i = 0; i < r.length - 2; i += 2) {
-      const x0 = r[i], y0 = r[i + 1], dx = r[i + 2] - x0, dy = r[i + 3] - y0, l = Math.hypot(dx, dy);
-      for (; d < acc + l; d += SP) {
-        const t = (d - acc) / l, x = x0 + dx * t, y = y0 + dy * t;
-        if (x > v.x - M0 && x < v.right + M0 && y > v.y - M0 && y < v.bottom + M0) gr.fillCircle(x, y, 2.2);
-      }
-      acc += l;
-    }
   }
+
 
   updateMarkers(time, f) {
     const pulse = 0.75 + Math.sin(time / 250) * 0.15;
@@ -3995,11 +3983,14 @@ class Main extends Phaser.Scene {
     // flecha hacia el objetivo
     const g = this.goal(), cam = this.cameras.main;
     if (g && dist(g.x, g.y, f.x, f.y) > 160) {
-      const a = Math.atan2(g.y - f.y, g.x - f.x), r = Math.min(window.innerWidth, window.innerHeight) * 0.36;
+      const a = Math.atan2(g.y - f.y, g.x - f.x), r = Math.max(70, Math.min(window.innerWidth, window.innerHeight) * 0.22); // gira alrededor del jugador (la camara lo sigue al centro)
+      // la flecha gira hacia el destino; la distancia va debajo, derechita
       hud.arrow.style.display = 'block';
-      hud.arrow.style.left = (window.innerWidth / 2 + Math.cos(a) * r - 14) + 'px';
-      hud.arrow.style.top = (window.innerHeight / 2 + Math.sin(a) * r - 15) + 'px';
-      hud.arrow.style.transform = 'rotate(' + (a + Math.PI / 2) + 'rad)';
+      hud.arrow.style.left = (window.innerWidth / 2 + Math.cos(a) * r - 22) + 'px';
+      hud.arrow.style.top = (window.innerHeight / 2 + Math.sin(a) * r - 22) + 'px';
+      hud.arrowRot.style.transform = 'rotate(' + (a + Math.PI / 2) + 'rad)';
+      const m = dist(g.x, g.y, f.x, f.y) / M, txt = m >= 1000 ? (m / 1000).toFixed(1) + ' km' : Math.round(m / 10) * 10 + ' m';
+      if (txt !== this.arrowTxt) { this.arrowTxt = txt; hud.arrowDist.textContent = txt; }
     } else hud.arrow.style.display = 'none';
     // el minimapa a 30 cuadros por segundo basta
     this.miniT = !this.miniT; if (this.miniT) drawMini(this, f);
@@ -4193,7 +4184,7 @@ function setupBigMap(scene) {
       if (x > 0 && y > 0 && x < WORLD_W && y < WORLD_H) {
         const f = scene.focus();
         scene.waypoint = { x, y }; scene.route = findRoute(f.x, f.y, x, y); scene.routeGoal = scene.waypoint; scene.routeGX = x; scene.routeGY = y; scene.routeT = 0.5;
-        scene.setObjective(); toast('Destino marcado', 'Sigue la ruta verde. Cierra el mapa con ✕ o M.', 2.5); bmDraw(true);
+        scene.setObjective(); toast('Destino marcado', 'Sigue la flecha. Cierra el mapa con ✕ o M.', 2.5); bmDraw(true);
       }
     }
   };

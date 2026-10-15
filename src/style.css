@@ -78,8 +78,14 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); c
 /* felicitaciones de la fiesta: franja de papel picado arriba */
 .bubble.fiesta { --bg: #fffdf4; --bd: #e91e63;
   background: repeating-linear-gradient(90deg, #e91e63 0 12px, #ffeb3b 12px 24px, #2196f3 24px 36px, #4caf50 36px 48px, #ff9800 48px 60px) top / 100% 6px no-repeat, #fffdf4; }
-#arrow { width: 0; height: 0; border-left: 14px solid transparent; border-right: 14px solid transparent;
-  border-bottom: 30px solid var(--good); filter: drop-shadow(0 0 3px #000); display: none; transform-origin: 50% 50%; }
+/* flecha al destino: punta de navegacion verde con contorno blanco que late; la distancia va debajo sin girar */
+#arrow { width: 44px; height: 44px; display: none; }
+#arrow .rot { width: 44px; height: 44px; transform-origin: 50% 50%; }
+#arrow svg { width: 100%; height: 100%; display: block; filter: drop-shadow(0 2px 3px rgba(0,0,0,.75)); animation: latido 1.3s ease-in-out infinite; }
+@keyframes latido { 50% { transform: scale(1.12); } }
+#arrow .dist { position: absolute; top: 46px; left: 50%; transform: translateX(-50%); white-space: nowrap;
+  font: 700 12px/1.3 system-ui, sans-serif; color: #fff; background: rgba(0,0,0,.62); border: 1px solid rgba(87,209,107,.7);
+  padding: 1px 7px; border-radius: 9px; text-shadow: 0 1px 1px #000; }
 #optbtn { display: none; top: 202px; right: 12px; width: 40px; height: 40px; border-radius: 50%; background: rgba(0,0,0,.6);
   font-size: 20px; line-height: 40px; text-align: center; cursor: pointer; pointer-events: auto; user-select: none; }
 .touch #optbtn { top: 140px; }
