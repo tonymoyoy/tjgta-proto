@@ -1422,6 +1422,39 @@ const PAROS = [
     pide: '"¡Hoy cumple dos años Señor Bigotes y el pastel de atún sigue aquí! Ya están los invitados: tres gatos y mi tía. ¡Córrele!"',
     fin: 'Señor Bigotes ignoró el pastel, se metió a la caja en que venía y no salió en toda la fiesta. Fue un éxito.',
     mal: 'Los invitados se comieron las botanas. Señor Bigotes se comió una planta. Nadie cantó las mañanitas.' },
+  // los del sur (zona: 'sur'): las colonias entre los cerros y el Campestre, que se quedaban vacias
+  { k: 'carbon', quien: 'Don Chuy', ico: '🥩', prisa: true, zona: 'sur', cosa: 'una bolsa de carbón', a: 'la carne asada de su compadre',
+    pide: '"Llévale el carbón a mi compadre. Ya llegaron los invitados, ya está la carne, ya está la salsa... y no hay con qué prender."',
+    fin: 'Llegó el carbón y por fin arrancó la carne asada. Te dieron la primera tortilla con carne, como a los héroes.',
+    mal: 'Prendieron el asador con cartón y periódico. Salió tanto humo que llegaron los bomberos. Se quedaron a comer.' },
+  { k: 'guitarra', quien: 'Rigo el de la banda', ico: '🎸', prisa: true, zona: 'sur', cosa: 'la guitarra de Rigo', a: 'el salón de la quinceañera',
+    pide: '"Mi grupo toca en unos XV y se me olvidó la guitarra. Sin guitarra soy nomás un señor con sombrero."',
+    fin: 'Tocaron toda la noche y le dedicaron una canción "al compa que trajo la guitarra". Ya eres famoso en un salón de fiestas.',
+    mal: 'Rigo tocó con una guitarra de juguete de un sobrino. Nadie notó la diferencia. Eso le dolió más que nada.' },
+  { k: 'maqueta', quien: 'Doña Lupita', ico: '🪐', prisa: true, zona: 'sur', cosa: 'una maqueta del sistema solar', a: 'la secundaria',
+    pide: '"Mi hijo dejó la maqueta del sistema solar y la entrega es ya. Cuidado con Saturno, que el anillo se despega."',
+    fin: 'Llegó completa, menos Plutón, que se cayó en un tope. El maestro dijo que de todas formas ya no es planeta. Diez.',
+    mal: 'No le aceptaron la maqueta tarde. Expuso el sistema solar con naranjas de la cooperativa. Le pusieron ocho.' },
+  { k: 'album', quien: 'Rocío', ico: '📷', prisa: true, zona: 'sur', cosa: 'un álbum de fotos', a: 'la central de autobuses, con su papá',
+    pide: '"Mi papá se va a vivir a Mexicali y no alcancé a despedirme. Llévale este álbum a la central, su camión sale en un rato."',
+    fin: 'Su papá abrió el álbum en la sala de espera. En la última foto decía "vuelve pronto". Se subió al camión llorando y sonriendo.',
+    mal: 'El camión ya había salido. Rocío dice que se lo manda por paquetería, que lo importante es que le llegue. Se le quebró la voz.' },
+  { k: 'tortuga', quien: 'Ximena', ico: '🐢', zona: 'sur', cosa: 'a Manuelita, su tortuga', a: 'la casa de su tía',
+    pide: '"Me voy de vacaciones y Manuelita se queda con mi tía. No la apures, ella va a su ritmo. Tú sí apúrate."',
+    fin: 'Manuelita llegó bien, se comió una hoja de lechuga en diez minutos y se durmió en el sol. Vida de lujo.',
+    mal: 'Tardaste tanto que la tía dice que la tortuga hubiera llegado antes caminando. Manuelita no opina, está dormida.' },
+  { k: 'menudo', quien: 'Doña Cheli', ico: '🍜', prisa: true, zona: 'sur', cosa: 'un menudo bien caliente', a: 'la casa de su yerno',
+    pide: '"Llévale este menudo a mi yerno, que anoche se desveló viendo la pelea y hoy no es persona. Que no se enfríe."',
+    fin: 'El yerno se tomó el menudo y volvió a ser persona. Dijo que Doña Cheli es la mejor suegra del mundo. Ella lo grabó en video.',
+    mal: 'Llegó tibio. El yerno se lo tomó igual, pero ahora Doña Cheli le recuerda en cada comida que "no fue culpa de ella".' },
+  { k: 'llaves', quien: 'Doña Bertha', ico: '🔑', prisa: true, zona: 'sur', cosa: 'las llaves de la casa', a: 'la casa de su hijo',
+    pide: '"Mi hijo se quedó afuera de la casa con el bebé y yo traigo las llaves. ¡Y ya empezó a lloviznar! Llévaselas, mijo."',
+    fin: 'Abrieron la puerta justo antes del aguacero. El bebé ni se enteró: venía dormido y babeando feliz.',
+    mal: 'Se mojaron todos. El bebé se rió todo el rato. El hijo de Doña Bertha dice que fue el mejor día de la vida del niño.' },
+  { k: 'perico', quien: 'Don Goyo', ico: '🦜', zona: 'sur', cosa: 'a Paco, su perico', a: 'el veterinario',
+    pide: '"Lleva a Paco al veterinario, ya no canta. Bueno, sí habla, pero repite cosas que le enseñó mi sobrino y no se pueden decir."',
+    fin: 'El veterinario dijo que Paco está sano. En la sala de espera gritó "¡ya llegó el pozole!" y todos le aplaudieron.',
+    mal: 'De tanto esperar en el carro, Paco se aprendió el claxon. Ahora pita igualito y los vecinos se asoman a ver quién llegó.' },
 ];
 
 // ---------- HUD ----------
@@ -3479,13 +3512,21 @@ class Main extends Phaser.Scene {
   colocarParos() {
     const lejos = (x, y, list, r) => list.every(q => dist(q.x, q.y, x, y) > r);
     const cands = walkG.edges.filter(e => e.c <= 6 && e.len > 40).sort((a, b) => hash(a.id * 7 + 3) - hash(b.id * 7 + 3));
+    // las zonas de algunos paros (metros): el sur, entre los cerros y el Campestre
+    const ZONAS = { sur: [1300, 2800, 4600, 4755] };
     this.paros = [];
-    for (const e of cands) {
-      if (this.paros.length >= PAROS.length) break;
-      const q = edgePos(e, e.len / 2, 1, e.w / 2 + 1.5 * M, {}), mid = edgePos(e, e.len / 2, 1, 0, {});
-      if (q.y < borderY(q.x) + 300 || q.x < 200 || q.y < 200 || q.x > WORLD_W - 200 || q.y > WORLD_H - 200) continue;
-      if (!lejos(q.x, q.y, landmarks, 450 * M) || !lejos(q.x, q.y, this.paros, 600 * M) || blocked(q.x, q.y) || !walkableTo(q.x, q.y, 10)) continue;
-      const P = PAROS[this.paros.length], face = Math.atan2(mid.y - q.y, mid.x - q.x);
+    for (const P of PAROS) {
+      const z = ZONAS[P.zona];
+      let q = null, mid = null, e = null;
+      for (const c of cands) {
+        const t = edgePos(c, c.len / 2, 1, c.w / 2 + 1.5 * M, {});
+        if (z && (t.x < z[0] * M || t.y < z[1] * M || t.x > z[2] * M || t.y > z[3] * M)) continue;
+        if (t.y < borderY(t.x) + 300 || t.x < 200 || t.y < 200 || t.x > WORLD_W - 200 || t.y > WORLD_H - 200) continue;
+        if (!lejos(t.x, t.y, landmarks, 450 * M) || !lejos(t.x, t.y, this.paros, 600 * M) || blocked(t.x, t.y) || !walkableTo(t.x, t.y, 10)) continue;
+        q = t; mid = edgePos(c, c.len / 2, 1, 0, {}); e = c; break;
+      }
+      if (!q) continue;
+      const face = Math.atan2(mid.y - q.y, mid.x - q.x);
       const npc = this.add.sprite(q.x, q.y, 'ped' + (hash(e.id) % N_PEDS), 0).setDepth(6).setScale(1 / SPR).setRotation(face);
       const ico = this.add.text(q.x, q.y - 20, P.ico, { fontSize: '18px', resolution: TXT_RES }).setOrigin(0.5).setDepth(20);
       this.tweens.add({ targets: ico, y: q.y - 24, duration: 800, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
