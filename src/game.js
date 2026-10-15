@@ -177,7 +177,7 @@ roads.forEach(r => {
   if (r.c > 7) return;
   const half = (ROAD_W[r.c] / 2 + (r.c <= 6 ? SIDEWALK : 0.5)) * M, p = r.p;
   for (let q = 0; q < p.length - 2; q += 2) {
-    const seg = [p[q], p[q + 1], p[q + 2], p[q + 3], half];
+    const seg = [p[q], p[q + 1], p[q + 2], p[q + 3], half, ROAD_W[r.c] / 2 * M]; // franja con banqueta y solo el asfalto
     const x0 = Math.floor((Math.min(p[q], p[q + 2]) - half) / RCELL), x1 = Math.floor((Math.max(p[q], p[q + 2]) + half) / RCELL);
     const y0 = Math.floor((Math.min(p[q + 1], p[q + 3]) - half) / RCELL), y1 = Math.floor((Math.max(p[q + 1], p[q + 3]) + half) / RCELL);
     for (let cx = x0; cx <= x1; cx++) for (let cy = y0; cy <= y1; cy++) {
@@ -190,6 +190,11 @@ function onRoad(x, y) {
   if (a) for (const g of a) if (segDist(x, y, g[0], g[1], g[2], g[3]) < g[4]) return true;
   return false;
 }
+function onAsfalto(x, y, pad) {
+  const a = roadSegGrid.get(Math.floor(x / RCELL) + ',' + Math.floor(y / RCELL));
+  if (a) for (const g of a) if (segDist(x, y, g[0], g[1], g[2], g[3]) < g[5] + pad) return true;
+  return false;
+}
 // agua (el canal del rio Tijuana y demas): las areas de agua y la linea del rio. Como con los edificios,
 // la franja de una calle encima (los puentes) si se puede pasar
 const waterAreas = areas.filter(a => a.k === AREA_AGUA);
@@ -199,7 +204,7 @@ roads.forEach(r => {
   if (r.c !== 11) return;
   const half = ROAD_W[11] / 2 * M, p = r.p;
   for (let q = 0; q < p.length - 2; q += 2) {
-    const seg = [p[q], p[q + 1], p[q + 2], p[q + 3], half];
+    const seg = [p[q], p[q + 1], p[q + 2], p[q + 3], half, ROAD_W[r.c] / 2 * M]; // franja con banqueta y solo el asfalto
     for (let cx = Math.floor((Math.min(p[q], p[q + 2]) - half) / RCELL); cx <= Math.floor((Math.max(p[q], p[q + 2]) + half) / RCELL); cx++)
       for (let cy = Math.floor((Math.min(p[q + 1], p[q + 3]) - half) / RCELL); cy <= Math.floor((Math.max(p[q + 1], p[q + 3]) + half) / RCELL); cy++) {
         const k = cx + ',' + cy; let a = riverSegGrid.get(k); if (!a) riverSegGrid.set(k, a = []); a.push(seg);
@@ -504,6 +509,98 @@ const TCELL = 128;
 const topeGrid = gridIndex(topes, TCELL, 'bb');
 function topesNear(x, y) { return topeGrid.get(Math.floor(x / TCELL) + ',' + Math.floor(y / TCELL)) || []; }
 const chunkBaches = gridIndex(baches, CHUNK, 'bb');
+
+// ---------- arboles ----------
+// Tijuana es seca: pocos y repartidos. Algunas calles tienen arboles en la banqueta y la mayoria casi no;
+// mas en los parques, una que otra palma en las plazas y alguno suelto en lotes y patios.
+// Son de adorno (no chocas con ellos) y se pintan dentro de los trozos del mapa, asi que no cuestan al jugar.
+// tipos: 0 laurel de la India, 1 palma, 2 jacaranda, 3 pirul. (localStorage tjrush-arboles = 'no' los quita)
+const ARB_LAURO = 0, ARB_PALMA = 1, ARB_JACA = 2, ARB_PIRUL = 3, ARB_VAR = 5, ARB_SZ = 80;
+const arboles = [];
+(() => {
+  try { if (localStorage.getItem('tjrush-arboles') === 'no') return; } catch (e) { }
+  const ocupado = new Set();
+  const enArea = (x, y, k) => (chunkAreas.get(Math.floor(x / CHUNK) + ',' + Math.floor(y / CHUNK)) || []).some(i => {
+    const a = areas[i]; return (k < 0 || a.k === k) && x >= a.bb[0] && x <= a.bb[2] && y >= a.bb[1] && y <= a.bb[3] && pip(x, y, a.p);
+  });
+  // ni en el asfalto, ni dentro de un edificio o detras de uno (los techos se elevan hacia el norte y lo taparian),
+  // ni en el agua o la arena, ni pegado a otro arbol
+  const poner = (x, y, t, rnd) => {
+    const c = Math.floor(x / 30) + ',' + Math.floor(y / 30);
+    if (ocupado.has(c) || x < 20 || x > WORLD_W - 20 || y > WORLD_H - 20 || y < borderY(x) + 30) return;
+    if (onAsfalto(x, y, M) || inWater(x, y) || enArea(x, y, AREA_ARENA)) return;
+    for (let d = 0; d <= 48; d += 8) if (inBuilding(x, y + d) || inBuilding(x - 12, y + d) || inBuilding(x + 12, y + d)) return;
+    ocupado.add(c);
+    arboles.push({ x, y, t, v: (rnd() * ARB_VAR) | 0, bb: [x - ARB_SZ / 2, y - ARB_SZ / 2, x + ARB_SZ / 2, y + ARB_SZ / 2] });
+  };
+  const tipo = (rnd, palma, jaca, pirul) => { const q = rnd(); return q < palma ? ARB_PALMA : q < palma + jaca ? ARB_JACA : q < palma + jaca + pirul ? ARB_PIRUL : ARB_LAURO; };
+  // en la banqueta, a la orilla de afuera; las avenidas llevan mas palmas
+  for (const r of roads) {
+    if (r.c < 1 || r.c > 6 || (r.f & 1)) continue;
+    const rnd = mulberry(r.i * 7919 + 5), prob = hash(r.i * 13 + 7) % 10 < 3 ? 0.4 : 0.04;
+    const off = (ROAD_W[r.c] / 2 + SIDEWALK * 0.6) * M, p = r.p;
+    for (let q = 0; q < p.length - 2; q += 2) {
+      const dx = p[q + 2] - p[q], dy = p[q + 3] - p[q + 1], len = Math.hypot(dx, dy); if (len < 1) continue;
+      const nx = -dy / len, ny = dx / len;
+      for (let t = 6 * M; t < len - 6 * M; t += 11 * M) for (const lado of [-1, 1]) {
+        if (rnd() >= prob) continue;
+        poner(p[q] + dx * t / len + nx * off * lado, p[q + 1] + dy * t / len + ny * off * lado, tipo(rnd, r.c <= 3 ? 0.55 : 0.08, 0.12, 0.15), rnd);
+      }
+    }
+  }
+  // parques, plazas, escuelas y casas, y alguno suelto en el resto (lotes baldios)
+  const rejilla = (x0, y0, x1, y1, paso, seed, fn) => {
+    const rnd = mulberry(seed);
+    for (let y = Math.ceil(y0 / paso) * paso; y < y1; y += paso) for (let x = Math.ceil(x0 / paso) * paso; x < x1; x += paso)
+      fn(x + (rnd() - 0.5) * paso * 0.8, y + (rnd() - 0.5) * paso * 0.8, rnd);
+  };
+  const POR_AREA = { 0: [14, 0.45, 0.2, 0.1, 0.1], [AREA_PLAZA]: [16, 0.1, 0.7, 0.1, 0], 3: [20, 0.08, 0.2, 0.1, 0.3], 6: [22, 0.04, 0.2, 0.1, 0.3] };
+  areas.forEach((a, i) => {
+    const c = POR_AREA[a.k]; if (!c) return;
+    rejilla(a.bb[0], a.bb[1], a.bb[2], a.bb[3], c[0] * M, i * 104729 + 3, (x, y, rnd) => {
+      if (rnd() < c[1] && pip(x, y, a.p)) poner(x, y, tipo(rnd, c[2], c[3], c[4]), rnd);
+    });
+  });
+  rejilla(0, 0, WORLD_W, WORLD_H, 24 * M, 4242, (x, y, rnd) => { if (rnd() < 0.05 && !enArea(x, y, -1)) poner(x, y, tipo(rnd, 0.1, 0.05, 0.6), rnd); });
+})();
+const chunkArboles = gridIndex(arboles, CHUNK, 'bb');
+// cada tipo tiene ARB_VAR dibujos; vistos desde arriba, con la sombra hacia el sureste (la luz viene del noroeste)
+const ARB_SPR = {};
+function arbolSprite(t, v) {
+  const key = t * 10 + v; if (ARB_SPR[key]) return ARB_SPR[key];
+  const c = document.createElement('canvas'); c.width = c.height = ARB_SZ * RES;
+  const x = c.getContext('2d', CTX2D); x.scale(RES, RES); x.translate(ARB_SZ / 2, ARB_SZ / 2);
+  const rnd = mulberry(key * 977 + 11);
+  if (t === ARB_PALMA) {
+    // palma de abanico: hojas en estrella, unas secas abajo, y la sombra larga porque es alta
+    const n = 10 + ((rnd() * 4) | 0), L = (2.8 + rnd() * 0.8) * M, a0 = rnd() * 6.3;
+    const hoja = (a, l, w) => {
+      x.beginPath(); x.moveTo(0, 0);
+      x.quadraticCurveTo(Math.cos(a - 0.38) * l * 0.55, Math.sin(a - 0.38) * l * 0.55, Math.cos(a) * l, Math.sin(a) * l);
+      x.quadraticCurveTo(Math.cos(a + 0.38) * l * 0.55, Math.sin(a + 0.38) * l * 0.55, 0, 0); x.fill();
+    };
+    x.fillStyle = 'rgba(0,0,0,0.24)'; x.save(); x.translate(7, 8); for (let i = 0; i < n; i++) hoja(a0 + i / n * 6.283, L, 0); x.restore();
+    x.fillStyle = '#a08850'; for (let i = 0; i < 5; i++) hoja(a0 + 0.3 + i * 1.25, L * 0.8, 0);
+    for (let i = 0; i < n; i++) { const a = a0 + i / n * 6.283 + (rnd() - 0.5) * 0.2; x.fillStyle = i % 2 ? '#7ea23a' : '#9cbc52'; hoja(a, L * (0.85 + rnd() * 0.2), 0); }
+    x.strokeStyle = 'rgba(45,65,20,0.7)'; x.lineWidth = 0.6;
+    for (let i = 0; i < n; i++) { const a = a0 + i / n * 6.283; x.beginPath(); x.moveTo(0, 0); x.lineTo(Math.cos(a) * L * 0.85, Math.sin(a) * L * 0.85); x.stroke(); }
+    x.fillStyle = '#6b5a3a'; x.beginPath(); x.arc(0, 0, 2.2, 0, 7); x.fill();
+  } else {
+    // copa de varias bolitas: base oscura, luz arriba a la izquierda y unas hojitas
+    const COLS = { [ARB_LAURO]: ['#2f5a2a', '#4a7a36', '#6d9a4a'], [ARB_JACA]: ['#4f437a', '#7f66b5', '#b39be0'], [ARB_PIRUL]: ['#4f5f2c', '#728640', '#9aa860'] }[t];
+    const R = (t === ARB_PIRUL ? 2.6 + rnd() * 1 : 3.2 + rnd() * 1.6) * M, n = 6 + ((rnd() * 3) | 0);
+    const lob = [[0, 0, R * 0.62]];
+    for (let i = 0; i < n; i++) { const a = i / n * 6.283 + rnd() * 0.5, d = R * (0.35 + rnd() * 0.15); lob.push([Math.cos(a) * d, Math.sin(a) * d, R * (0.4 + rnd() * 0.15)]); }
+    const bolas = (dx, dy, k, col) => { x.fillStyle = col; x.beginPath(); for (const [a, b, r] of lob) { x.moveTo(a * k + dx + r * k, b * k + dy); x.arc(a * k + dx, b * k + dy, r * k, 0, 7); } x.fill(); };
+    bolas(R * 0.3, R * 0.35, 1, 'rgba(0,0,0,0.26)');
+    if (t === ARB_JACA) bolas(0, 0, 1, '#3f5a2c'); // la jacaranda deja ver hojas verdes entre las flores
+    bolas(0, 0, t === ARB_JACA ? 0.95 : 1, COLS[0]);
+    for (const [a, b, r] of lob) { x.fillStyle = COLS[1]; x.beginPath(); x.arc(a - r * 0.2, b - r * 0.2, r * 0.7, 0, 7); x.fill(); }
+    x.fillStyle = COLS[2];
+    for (let i = 0; i < 26; i++) { const a = rnd() * 6.283, d = rnd() * R * 0.8; x.beginPath(); x.arc(Math.cos(a) * d - R * 0.12, Math.sin(a) * d - R * 0.12, 0.7 + rnd() * 0.9, 0, 7); x.fill(); }
+  }
+  return ARB_SPR[key] = c;
+}
 const bacheGrid = gridIndex(baches, TCELL, 'bb');
 function bachesNear(x, y) { return bacheGrid.get(Math.floor(x / TCELL) + ',' + Math.floor(y / TCELL)) || []; }
 
@@ -947,6 +1044,7 @@ function* chunkSteps(cx, cy) {
   }
   yield;
   yield* drawBuildings(ctx, bl, rs, cx, cy);
+  for (const i of chunkArboles.get(k) || []) { const a = arboles[i]; ctx.drawImage(arbolSprite(a.t, a.v), a.x - ARB_SZ / 2, a.y - ARB_SZ / 2, ARB_SZ, ARB_SZ); }
   // lado de Estados Unidos
   const x0 = cx * CHUNK, x1 = x0 + CHUNK;
   if (borderY(x0) > cy * CHUNK || borderY(x1) > cy * CHUNK) {
@@ -4591,7 +4689,7 @@ function start() {
     scene: [Main], fps: { target: 60, smoothStep: false },
   });
   window.addEventListener('resize', () => game.scale.resize(window.innerWidth * DPR, window.innerHeight * DPR));
-  window.TJGTA = game; game.dbg = { VTYPES, vehicleTexture, state, drawChunk, chunkSteps, areaFill, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, walkableTo, waterAreas, roads, PED_VARIANTS };
+  window.TJGTA = game; game.dbg = { arboles, VTYPES, vehicleTexture, state, drawChunk, chunkSteps, areaFill, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, walkableTo, waterAreas, roads, PED_VARIANTS };
 }
 $('go').addEventListener('click', start);
 
