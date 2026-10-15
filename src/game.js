@@ -509,6 +509,70 @@ function trace(ctx, p, close) {
   for (let i = 2; i < p.length; i += 2) ctx.lineTo(p[i], p[i + 1]);
   if (close) ctx.closePath();
 }
+// texturas del pasto y del agua: un cuadro de TEX px del mundo que se repite sin costura (lo que se sale
+// por una orilla se pinta tambien por la otra). El patron va en coordenadas del mundo, asi que los trozos casan
+const TEX = 160;
+function texTile(base, fn) {
+  const c = document.createElement('canvas'); c.width = c.height = TEX * RES;
+  const x = c.getContext('2d'); x.scale(RES, RES); x.fillStyle = base; x.fillRect(0, 0, TEX, TEX);
+  let s = 7; const rnd = () => (s = Math.imul(s ^ (s >>> 15), 0x2c1b3c6d) + 0x6d2b79f5 >>> 0) / 4294967296;
+  // dibuja algo en (px,py) y sus copias del otro lado si toca la orilla
+  const wrap = (px, py, r, draw) => {
+    for (const dx of [0, -TEX, TEX]) for (const dy of [0, -TEX, TEX]) {
+      if (px + dx + r < 0 || px + dx - r > TEX || py + dy + r < 0 || py + dy - r > TEX) continue;
+      draw(px + dx, py + dy);
+    }
+  };
+  // manchas grandes y suaves para que no se vea parejo
+  const mancha = (n, rmin, rmax, cols) => {
+    for (let i = 0; i < n; i++) {
+      const px = rnd() * TEX, py = rnd() * TEX, r = rmin + rnd() * (rmax - rmin), col = cols[i % cols.length];
+      wrap(px, py, r, (X, Y) => { const g = x.createRadialGradient(X, Y, 0, X, Y, r); g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0)');
+        x.fillStyle = g; x.fillRect(X - r, Y - r, r * 2, r * 2); });
+    }
+  };
+  fn(x, rnd, wrap, mancha); return c;
+}
+// pasto: manchas claras y oscuras, hojitas cortas inclinadas y una que otra florecita o tierrita
+function grassTile(base) {
+  return texTile(base, (x, rnd, wrap, mancha) => {
+    mancha(14, 14, 34, ['rgba(20,45,10,0.22)', 'rgba(200,220,120,0.13)', 'rgba(120,100,50,0.12)']);
+    x.lineCap = 'round';
+    for (let i = 0; i < 2600; i++) {
+      const px = rnd() * TEX, py = rnd() * TEX, l = 1.2 + rnd() * 2.2, a = -Math.PI / 2 + (rnd() - 0.5) * 1.1, v = rnd();
+      x.strokeStyle = v < 0.45 ? 'rgba(25,55,15,0.45)' : v < 0.85 ? 'rgba(150,190,90,0.40)' : 'rgba(215,225,140,0.45)';
+      x.lineWidth = 0.45 + rnd() * 0.35;
+      wrap(px, py, 4, (X, Y) => { x.beginPath(); x.moveTo(X, Y); x.lineTo(X + Math.cos(a) * l, Y + Math.sin(a) * l); x.stroke(); });
+    }
+    for (let i = 0; i < 18; i++) {
+      const px = rnd() * TEX, py = rnd() * TEX, col = ['#f2efe0', '#f5d64a', '#e9a7c4'][i % 3];
+      wrap(px, py, 2, (X, Y) => { x.fillStyle = col; x.beginPath(); x.arc(X, Y, 0.55, 0, 7); x.fill(); });
+    }
+  });
+}
+// agua: tonos que van y vienen y rayitas de olas, claras arriba y con su sombra abajo
+function waterTile(base) {
+  return texTile(base, (x, rnd, wrap, mancha) => {
+    mancha(12, 20, 45, ['rgba(10,30,50,0.25)', 'rgba(120,180,210,0.14)']);
+    x.lineCap = 'round';
+    for (let i = 0; i < 70; i++) {
+      const px = rnd() * TEX, py = rnd() * TEX, w = 4 + rnd() * 9, h = 0.8 + rnd() * 1.2;
+      wrap(px, py, w + 2, (X, Y) => {
+        x.lineWidth = 0.9; x.strokeStyle = 'rgba(15,40,60,0.35)';
+        x.beginPath(); x.moveTo(X - w, Y + 0.9); x.quadraticCurveTo(X, Y - h + 0.9, X + w, Y + 0.9); x.stroke();
+        x.lineWidth = 0.7; x.strokeStyle = 'rgba(210,235,250,' + (0.18 + rnd() * 0.2).toFixed(2) + ')';
+        x.beginPath(); x.moveTo(X - w, Y); x.quadraticCurveTo(X, Y - h, X + w, Y); x.stroke();
+      });
+    }
+  });
+}
+let TEXTURAS = null;
+// relleno para un tipo de area (o null si va de color parejo); el patron se escala para medir TEX px del mundo
+function areaFill(ctx, k) {
+  if (!TEXTURAS) TEXTURAS = { 0: grassTile(AREA_COL[0]), 1: grassTile(AREA_COL[1]), [AREA_COL.length - 1]: waterTile(COL.water) };
+  const t = TEXTURAS[k]; if (!t) return AREA_COL[k];
+  const p = ctx.createPattern(t, 'repeat'); p.setTransform(new DOMMatrix().scale(1 / RES)); return p;
+}
 // mugre: manchas, aceite, grietas, baches y alcantarillas, siempre igual para la misma calle
 function grime(ctx, list, cx, cy) {
   const X0 = cx * CHUNK - 40, Y0 = cy * CHUNK - 40, X1 = X0 + CHUNK + 80, Y1 = Y0 + CHUNK + 80;
@@ -682,7 +746,7 @@ function* chunkSteps(cx, cy) {
   ctx.scale(RES, RES); ctx.translate(1 - cx * CHUNK, 1 - cy * CHUNK);
   ctx.fillStyle = COL.ground; ctx.fillRect(cx * CHUNK - 1, cy * CHUNK - 1, CHUNK + 2, CHUNK + 2);
   const k = cx + ',' + cy;
-  for (const i of chunkAreas.get(k) || []) { const a = areas[i]; ctx.fillStyle = AREA_COL[a.k]; trace(ctx, a.p, true); ctx.fill(); }
+  for (const i of chunkAreas.get(k) || []) { const a = areas[i]; ctx.fillStyle = areaFill(ctx, a.k); trace(ctx, a.p, true); ctx.fill(); }
   const rs = (chunkRoads.get(k) || []).map(i => roads[i]);
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   const pass = (list, width, color, filter, off) => {
@@ -696,7 +760,7 @@ function* chunkSteps(cx, cy) {
   const bridges = rs.filter(r => r.f & 1);
   // debajo de los edificios: agua, andadores y vias del tren
   const under = (list) => {
-    pass(list, r => ROAD_W[r.c] * M, COL.water, r => r.c === 11);
+    pass(list, r => ROAD_W[r.c] * M, areaFill(ctx, AREA_COL.length - 1), r => r.c === 11);
     pass(list, r => ROAD_W[r.c] * M, r => r.c === 8 ? COL.paving : COL.footway, r => r.c === 8 || r.c === 9);
     pass(list, () => 3 * M, COL.rail, r => r.c === 10);
     ctx.setLineDash([2, 6]); pass(list, () => 3 * M, '#3a2d22', r => r.c === 10);
