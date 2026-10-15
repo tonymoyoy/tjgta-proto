@@ -218,8 +218,14 @@ function inWater(x, y) {
   if (s) for (const g of s) if (segDist(x, y, g[0], g[1], g[2], g[3]) < g[4]) return true;
   return false;
 }
+// La ciudad se pierde en la neblina en las orillas del mapa (oeste, sur y este; al norte esta la linea):
+// la neblina es espesa en la orilla y se abre hacia adentro en NIEBLA_ANCHO; no se puede pasar de NIEBLA px
+// (ahi ya casi no se ve nada). La camara puede asomarse NIEBLA_FUERA px mas alla, que es pura neblina.
+const NIEBLA = 40 * M, NIEBLA_ANCHO = 170 * M, NIEBLA_FUERA = 80 * M;
+const NIEBLA_LEJOS = 100 * M; // los paros y los destinos de taxi y entregas no caen tan adentro de la neblina
+function enNiebla(x, y, d) { return x < d || x > WORLD_W - d || y > WORLD_H - d; }
 function blocked(x, y) {
-  return x < 4 || y < 4 || x > WORLD_W - 4 || y > WORLD_H - 4 || y < borderY(x) + 6 || ((inBuilding(x, y) || inWater(x, y)) && !onRoad(x, y));
+  return y < 4 || enNiebla(x, y, NIEBLA) || y < borderY(x) + 6 || ((inBuilding(x, y) || inWater(x, y)) && !onRoad(x, y));
 }
 function laneLat(e, k) {
   if (e.c <= MAJOR) return e.one ? [-3, -1, 1, 3][k & 3] * e.w / 8 : [1, 3][k & 1] * e.w / 8;
@@ -2958,7 +2964,8 @@ class Main extends Phaser.Scene {
     this.chunks = new Map();
     this.cars = []; this.peds = []; this.parked = [];
     this.tmp = {};
-    this.cameras.main.setBounds(0, 0, WORLD_W, WORLD_H);
+    this.cameras.main.setBounds(-NIEBLA_FUERA, 0, WORLD_W + 2 * NIEBLA_FUERA, WORLD_H + NIEBLA_FUERA);
+    this.makeNiebla();
     this.cameras.main.setBackgroundColor('#2a2a2a');
     this.keys = this.input.keyboard.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,SHIFT,SPACE,E,ENTER,F,T,M,R,N,L');
     this.input.keyboard.addCapture('SPACE,UP,DOWN,LEFT,RIGHT');
@@ -3221,6 +3228,7 @@ class Main extends Phaser.Scene {
     this.updateBurning(dt);
 
     const f = this.focus();
+    this.updateNiebla(dt, f);
     const cam = this.cameras.main;
     const sp = this.inCar ? Math.hypot(this.inCar.vx, this.inCar.vy) : 0;
     const z = this.baseZoom() * (this.inCar ? 1 - Math.min(sp / 320, 1) * 0.15 : 1.1) * (this.fiesta && this.fiesta.on ? 0.72 : 1); // la fiesta se ve de mas lejos
@@ -3657,7 +3665,7 @@ class Main extends Phaser.Scene {
         const t = edgePos(c, c.len / 2, 1, c.w / 2 + 1.5 * M, {});
         if (z && (t.x < z[0] * M || t.y < z[1] * M || t.x > z[2] * M || t.y > z[3] * M)) continue;
         if (t.y < borderY(t.x) + 300 || t.x < 200 || t.y < 200 || t.x > WORLD_W - 200 || t.y > WORLD_H - 200) continue;
-        if (!lejos(t.x, t.y, landmarks, 450 * M) || !lejos(t.x, t.y, this.paros, ((z && z[4]) || 600) * M) || blocked(t.x, t.y) || !walkableTo(t.x, t.y, 10)) continue;
+        if (!lejos(t.x, t.y, landmarks, 450 * M) || !lejos(t.x, t.y, this.paros, ((z && z[4]) || 600) * M) || blocked(t.x, t.y) || enNiebla(t.x, t.y, NIEBLA_LEJOS) || !walkableTo(t.x, t.y, 10)) continue;
         q = t; mid = edgePos(c, c.len / 2, 1, 0, {}); e = c; break;
       }
       if (!q) continue;
@@ -3701,7 +3709,7 @@ class Main extends Phaser.Scene {
     for (let i = 0; i < 60 && !spot; i++) {
       const e = randomEdgeNear(walkG, p.x, p.y, 1500, 3500); if (!e || e.c > 6) continue;
       const s = rnd(0, e.len), q = edgePos(e, s, 1, e.w / 2 + 1.5 * M, {});
-      if (!blocked(q.x, q.y) && q.y > borderY(q.x) + 150) { spot = q; mid = edgePos(e, s, 1, 0, {}); }
+      if (!blocked(q.x, q.y) && !enNiebla(q.x, q.y, NIEBLA_LEJOS) && q.y > borderY(q.x) + 150) { spot = q; mid = edgePos(e, s, 1, 0, {}); }
     }
     if (!spot) { this.globo(p, 'paro', '"Mejor al rato, que no me acuerdo ni de la dirección."', 3); this.setObjective(); return; }
     const d = dist(spot.x, spot.y, p.x, p.y), street = streetAt(spot.x, spot.y) || 'una calle de Tijuana';
@@ -3738,6 +3746,66 @@ class Main extends Phaser.Scene {
     const hw = b.el.offsetWidth / 2 + 8; // que no se salga por los lados
     b.el.style.left = Math.max(hw, Math.min(window.innerWidth - hw, (b.ped.x - v.x) * k)) + 'px';
     b.el.style.top = ((b.ped.y - 10 - v.y) * k) + 'px';
+  }
+
+  // ----- neblina en las orillas del mapa -----
+  // Cada orilla lleva una franja con un degradado (pura neblina afuera y en la orilla, que se abre hacia adentro)
+  // y encima dos capas de nubes que se repiten a lo largo y se van moviendo despacio, a distinta velocidad.
+  makeNiebla() {
+    const L = NIEBLA_FUERA + NIEBLA_ANCHO, TW = 512, TH = 256; // las texturas: TW a lo largo de la orilla, TH a lo ancho
+    const alfa = (u) => { const d = u * L - NIEBLA_FUERA; if (d < 15 * M) return 1; const t = Math.min(1, (d - 15 * M) / (NIEBLA_ANCHO - 15 * M)); return (1 - t) * (1 - t) * (1 - t * 0.4); };
+    // degradado: u = 0 afuera, u = 1 adentro. Mide 3 x 250 a proposito: con medidas potencia de 2 la textura
+    // se repite y la orilla de afuera (cerrada) se cuela como una raya en la de adentro
+    const GH = 250, g = this.textures.createCanvas('niebla', 3, GH), gx = g.getContext();
+    for (let i = 0; i < GH; i++) { gx.fillStyle = 'rgba(214,220,224,' + alfa(i / (GH - 1)).toFixed(3) + ')'; gx.fillRect(0, i, 3, 1); }
+    g.refresh();
+    for (const [k, seed, n] of [['nieblaA', 7, 34], ['nieblaB', 21, 22]]) {
+      const t = this.textures.createCanvas(k, TW, TH), x = t.getContext(), rnd = mulberry(seed);
+      for (let i = 0; i < n; i++) { // nubes suaves, repetidas en las dos puntas para que la franja no tenga costura
+        const cx = rnd() * TW, cy = TH * (0.15 + rnd() * 0.75), r = 40 + rnd() * 70;
+        for (const dx of [-TW, 0, TW]) {
+          const gr = x.createRadialGradient(cx + dx, cy, 0, cx + dx, cy, r);
+          gr.addColorStop(0, 'rgba(232,236,240,0.55)'); gr.addColorStop(1, 'rgba(232,236,240,0)');
+          x.fillStyle = gr; x.beginPath(); x.ellipse(cx + dx, cy, r * 1.6, r, 0, 0, 7); x.fill();
+        }
+      }
+      // que se desvanezcan hacia adentro igual que el degradado (y no tapen nada mas alla de la franja).
+      // Las dos puntas van transparentes: la textura tambien se repite a lo ancho y una orilla se colaria en la otra
+      // (afuera no hace falta: ahi el degradado ya es neblina cerrada)
+      x.globalCompositeOperation = 'destination-in';
+      for (let i = 0; i < TH; i++) { x.fillStyle = 'rgba(0,0,0,' + (i < 8 || i > TH - 9 ? 0 : Math.min(1, alfa(i / (TH - 1)) * 1.6)).toFixed(3) + ')'; x.fillRect(0, i, TW, 1); }
+      t.refresh();
+    }
+    // cada orilla: la esquina de donde sale la textura y su giro. Sin girar, la textura va a lo largo hacia +x
+    // y de afuera hacia adentro hacia +y; girada, "adentro" queda hacia el centro del mapa
+    const W = WORLD_W, H = WORLD_H, F = NIEBLA_FUERA;
+    const lados = [
+      { x: -F, y: H + F + L, a: -Math.PI / 2, len: H + F + 2 * L }, // oeste: a lo largo hacia el norte, adentro hacia +x
+      { x: W + F, y: -L, a: Math.PI / 2, len: H + F + 2 * L }, // este: hacia el sur, adentro hacia -x
+      { x: W + F + L, y: H + F, a: Math.PI, len: W + 2 * F + 2 * L }, // sur: hacia el oeste, adentro hacia -y
+    ];
+    this.niebla = [];
+    for (const l of lados) {
+      const im = [this.add.image(0, 0, 'niebla').setDisplaySize(l.len, L)];
+      for (const k of ['nieblaA', 'nieblaB']) im.push(this.add.tileSprite(0, 0, l.len, TH, k).setScale(1, L / TH));
+      for (const o of im) { o.setOrigin(0, 0).setPosition(l.x, l.y).setRotation(l.a).setDepth(22); this.niebla.push(o); }
+    }
+    this.nieblaT = 0; this.nieblaAviso = 0;
+  }
+  updateNiebla(dt, f) {
+    this.nieblaT += dt;
+    const noche = this.night ? this.night.a : 0, c = Phaser.Display.Color.Interpolate.ColorWithColor({ r: 255, g: 255, b: 255 }, { r: 58, g: 64, b: 88 }, 100, noche * 100);
+    const tint = Phaser.Display.Color.GetColor(c.r, c.g, c.b);
+    this.niebla.forEach((o, i) => {
+      o.setTint(tint);
+      if (o.tilePositionX !== undefined) o.tilePositionX = this.nieblaT * (i % 3 === 1 ? 9 : -5) + i * 97;
+    });
+    // al toparte con la neblina, un aviso de vez en cuando
+    this.nieblaAviso -= dt;
+    if (this.nieblaAviso <= 0 && enNiebla(f.x, f.y, NIEBLA + 4 * M)) {
+      this.nieblaAviso = 25;
+      toast('🌫️ Pura neblina', pick(['No se ve nada más allá. Mejor da la vuelta.', 'Se cerró la neblina de la costa. Por aquí ya no se puede.', 'Ni los faros sirven con esta neblina. Regrésate a la ciudad.']), 3.5);
+    }
   }
 
   // ----- Tijuana de noche (premio por conocer todos los lugares) -----
@@ -4037,7 +4105,7 @@ class Main extends Phaser.Scene {
     for (let i = 0; i < 40 && !spot; i++) {
       const e = randomEdgeNear(walkG, f.x, f.y, 700, 1600); if (!e || e.c > 6) continue;
       const s = rnd(0, e.len), q = edgePos(e, s, 1, e.w / 2 + 1.5 * M, {});
-      if (!blocked(q.x, q.y)) { spot = q; mid = edgePos(e, s, 1, 0, {}); }
+      if (!blocked(q.x, q.y) && !enNiebla(q.x, q.y, NIEBLA_LEJOS)) { spot = q; mid = edgePos(e, s, 1, 0, {}); }
     }
     if (!spot) return;
     const d = dist(spot.x, spot.y, f.x, f.y), street = streetAt(spot.x, spot.y) || 'una calle de Tijuana';
@@ -4080,7 +4148,7 @@ class Main extends Phaser.Scene {
     for (let i = 0; i < 30 && !spot; i++) {
       const e = randomEdgeNear(walkG, f.x, f.y, 250, 650); if (!e || e.c > 6) continue;
       const q = edgePos(e, rnd(0, e.len), 1, e.w / 2 + 1.5 * M, {});
-      if (!blocked(q.x, q.y)) spot = q;
+      if (!blocked(q.x, q.y) && !enNiebla(q.x, q.y, NIEBLA_LEJOS)) spot = q;
     }
     if (!spot) { toast('No hay pasaje por aquí', 'Intenta en otra calle.'); return; }
     const ped = this.add.sprite(spot.x, spot.y, 'ped0', 0).setDepth(6).setScale(1 / SPR);
@@ -4689,7 +4757,7 @@ function start() {
     scene: [Main], fps: { target: 60, smoothStep: false },
   });
   window.addEventListener('resize', () => game.scale.resize(window.innerWidth * DPR, window.innerHeight * DPR));
-  window.TJGTA = game; game.dbg = { arboles, VTYPES, vehicleTexture, state, drawChunk, chunkSteps, areaFill, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, walkableTo, waterAreas, roads, PED_VARIANTS };
+  window.TJGTA = game; game.dbg = { WORLD_W, WORLD_H, arboles, VTYPES, vehicleTexture, state, drawChunk, chunkSteps, areaFill, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, walkableTo, waterAreas, roads, PED_VARIANTS };
 }
 $('go').addEventListener('click', start);
 
