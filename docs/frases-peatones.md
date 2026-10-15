@@ -20,16 +20,16 @@ Cada tema tiene su propio globo de diálogo (ver `.bubble` en src/style.css). Ha
 
 ## Sinaloa
 
-13. "¿Eres de Culiacán? Aquí todos tenemos un primo de Sinaloa."
-14. "Media Tijuana es de Sinaloa y la otra media está esperando su raite pa'llá."
+13. "¿Eres de Culiacán? Aquí todos tenemos un vecino de Sinaloa."
+14. "Aquí todo es "estilo Sinaloa": mariscos, carne asada, hot dogs... nomás falta el café estilo Sinaloa."
 15. "Si oyes tambora a las 3 de la mañana es el vecino de Mazatlán celebrando que es martes."
 16. "¿Aguachile? Lo trajeron los sinaloenses y aquí nos lo quedamos, compa."
 17. "Compa, si ves una troca con la tambora a todo volumen, no es fiesta, es un miércoles normal."
 18. "Mi apá llegó de Los Mochis en el 85 "nomás por un rato". Aquí seguimos."
-19. "Aquí le decimos "plebe" a todo: al niño, al perro, al jefe y al que te chocó."
+19. "Vi un letrero de "sushi estilo Sinaloa": empanizado, con queso y chile. Japón no sabe lo que se pierde."
 20. "En Culiacán hace un calor que derrite. Aquí hace un frío que no entiendo. Extraño sudar."
-21. "Si tu tía no te ha ofrecido un chilorio de Sinaloa, no eres de la familia todavía."
-22. "Pa' los sinaloenses Tijuana es como Culiacán, pero con gringos y neblina."
+21. "Le pones "estilo Sinaloa" a un taco y ya cuesta diez pesos más. Así funciona la economía."
+22. "En Culiacán nunca vi un letrero de "estilo Sinaloa". Allá nomás le dicen comida."
 
 ## Pochos
 
