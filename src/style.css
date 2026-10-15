@@ -73,6 +73,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); c
   font-weight: 500; text-shadow: 0 0 6px rgba(57,255,106,.55); }
 .bubble.linea { --bg: #eef2f6; --bd: #475569; --fg: #1e293b; }
 .bubble.barrio { --bg: #fff0f6; --bd: #db2777; }
+.bubble.colonia { --bg: #ecfdf3; --bd: #15803d; --fg: #14532d; }
 /* el coyote habla bajito: globo oscuro, letra chica y cursiva */
 .bubble.coyote { --bg: #262626; --bd: #6d5d4b; --fg: #e8e2d6; font-size: 12px; font-weight: 500; font-style: italic; }
 /* los paros: te piden un favor; globo morado de recado */

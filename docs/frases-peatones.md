@@ -1,7 +1,7 @@
 # Frases de la gente en la calle
 
 Te las dicen cuando caminas pegado a alguien. Salen todas sin repetirse antes de volver a empezar.
-Cada tema tiene su propio globo de diálogo (ver `.bubble` en src/style.css). Hay 150 frases.
+Cada tema tiene su propio globo de diálogo (ver `.bubble` en src/style.css). Hay 171 frases.
 
 ## Historia
 
@@ -182,3 +182,27 @@ Cada tema tiene su propio globo de diálogo (ver `.bubble` en src/style.css). Ha
 148. "En el sobre ruedas encuentras desde un tornillo hasta un sillón de los setenta. Yo compré los dos."
 149. "Si escuchas a alguien decir "ahí nos vidrios", ya estás en confianza."
 150. "La Mona sigue en la colonia Aeropuerto, desnuda y feliz. Más feliz que yo, seguro."
+
+## Mi colonia
+
+151. "La Libertad es de las colonias más viejas de Tijuana. Aquí ya había vecinos cuando lo demás era puro monte."
+152. "En la Libertad tenemos un cine Art Déco de 1932. Ya no pasan películas, pero la fachada sigue de estreno."
+153. "Soy de la Sánchez Taboada. La levantaron las familias que se quedaron sin casa con la crecida del río en el 78. Aquí seguimos, y de pie."
+154. "En la Sánchez los vecinos plantamos árboles en las laderas con nuestras propias manos. Cada uno tiene nombre."
+155. "Sube al Cerro Colorado al amanecer: se ve toda Tijuana y hasta el mar. Las bancas las pusieron los mismos senderistas."
+156. "En La Presa tenemos el Parque Esperanto, con tirolesa y todo. Ir a la presa ya no es nomás ver agua, ahora vuelas."
+157. "Soy de la Mariano Matamoros: es tan grande que tiene su propio sobre ruedas, su propia banda de guerra y su propio taquero favorito."
+158. "En la Matamoros los domingos huele a carne asada de cuadra en cuadra. Ese es nuestro perfume."
+159. "En El Florido las fábricas le dan chamba a media ciudad, y los tacos de la entrada le dan vida a la otra media."
+160. "En Villa Fontana todas las casitas eran iguales, pero cada quien la pintó a su modo. Así la encuentras de noche."
+161. "A Terrazas del Valle llegamos cuando era puro cerro pelón. Ahora hay escuela, parque y panadería. Lo hicimos entre todos."
+162. "A Natura, Villa del Campo y Valle Verde les dicen "allá lejos". Nosotros les decimos "la Tijuana nueva"."
+163. "En Otay está la UABC, y el terreno lo ganaron los estudiantes en el 71. Aquí la universidad se defendió desde el principio."
+164. "Soy de Otay: tengo el aeropuerto, la garita, el Tec y la UABC a diez minutos. El centro del mundo, compa."
+165. "En Otay se hacen teles, aparatos médicos y piezas de avión. Lo que traes en la bolsa capaz salió de aquí."
+166. "En La Mesa tenemos el Parque Morelos. Los domingos ahí se junta media Tijuana con su lonche y su pelota."
+167. "Playas de Tijuana: el atardecer en el malecón no lo cambio por nada. Gratis y todos los días."
+168. "Vivo en Playas: me levanto, veo el mar y el faro, y ya puedo con el tráfico de todo el día."
+169. "En el Parque de la Amistad, en Playas, las familias se ven a través de la reja. Ahí aprendes lo que vale un abrazo."
+170. "En Santa Fe somos tantos que vamos en primera y segunda sección. Cualquier día pedimos ser municipio."
+171. "Santa Fe queda lejos del centro, pero a un brinco del mar. Los domingos de playa son nomás nuestros."

@@ -1364,6 +1364,30 @@ const FRASES = {
     'Si escuchas a alguien decir "ahí nos vidrios", ya estás en confianza.',
     'La Mona sigue en la colonia Aeropuerto, desnuda y feliz. Más feliz que yo, seguro.',
   ],
+  // orgullo de colonia: las populares de fuera del centro (este, sur, Otay, Playas, Santa Fe)
+  colonia: [
+    'La Libertad es de las colonias más viejas de Tijuana. Aquí ya había vecinos cuando lo demás era puro monte.',
+    'En la Libertad tenemos un cine Art Déco de 1932. Ya no pasan películas, pero la fachada sigue de estreno.',
+    'Soy de la Sánchez Taboada. La levantaron las familias que se quedaron sin casa con la crecida del río en el 78. Aquí seguimos, y de pie.',
+    'En la Sánchez los vecinos plantamos árboles en las laderas con nuestras propias manos. Cada uno tiene nombre.',
+    'Sube al Cerro Colorado al amanecer: se ve toda Tijuana y hasta el mar. Las bancas las pusieron los mismos senderistas.',
+    'En La Presa tenemos el Parque Esperanto, con tirolesa y todo. Ir a la presa ya no es nomás ver agua, ahora vuelas.',
+    'Soy de la Mariano Matamoros: es tan grande que tiene su propio sobre ruedas, su propia banda de guerra y su propio taquero favorito.',
+    'En la Matamoros los domingos huele a carne asada de cuadra en cuadra. Ese es nuestro perfume.',
+    'En El Florido las fábricas le dan chamba a media ciudad, y los tacos de la entrada le dan vida a la otra media.',
+    'En Villa Fontana todas las casitas eran iguales, pero cada quien la pintó a su modo. Así la encuentras de noche.',
+    'A Terrazas del Valle llegamos cuando era puro cerro pelón. Ahora hay escuela, parque y panadería. Lo hicimos entre todos.',
+    'A Natura, Villa del Campo y Valle Verde les dicen "allá lejos". Nosotros les decimos "la Tijuana nueva".',
+    'En Otay está la UABC, y el terreno lo ganaron los estudiantes en el 71. Aquí la universidad se defendió desde el principio.',
+    'Soy de Otay: tengo el aeropuerto, la garita, el Tec y la UABC a diez minutos. El centro del mundo, compa.',
+    'En Otay se hacen teles, aparatos médicos y piezas de avión. Lo que traes en la bolsa capaz salió de aquí.',
+    'En La Mesa tenemos el Parque Morelos. Los domingos ahí se junta media Tijuana con su lonche y su pelota.',
+    'Playas de Tijuana: el atardecer en el malecón no lo cambio por nada. Gratis y todos los días.',
+    'Vivo en Playas: me levanto, veo el mar y el faro, y ya puedo con el tráfico de todo el día.',
+    'En el Parque de la Amistad, en Playas, las familias se ven a través de la reja. Ahí aprendes lo que vale un abrazo.',
+    'En Santa Fe somos tantos que vamos en primera y segunda sección. Cualquier día pedimos ser municipio.',
+    'Santa Fe queda lejos del centro, pero a un brinco del mar. Los domingos de playa son nomás nuestros.',
+  ],
 };
 // lo que te dicen en la fiesta de la Plaza Santa Cecilia (al completar todo)
 const FRASES_FIESTA = () => [
