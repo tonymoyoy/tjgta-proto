@@ -518,7 +518,9 @@ function trace(ctx, p, close) {
 const TEX = 160;
 function texTile(base, fn) {
   const c = document.createElement('canvas'); c.width = c.height = TEX * RES;
-  const x = c.getContext('2d'); x.scale(RES, RES); x.fillStyle = base; x.fillRect(0, 0, TEX, TEX);
+  // en memoria normal como los trozos (CTX2D): si el cuadro viviera en la tarjeta de video, cada trozo tendria
+  // que bajarlo para usarlo de patron (en el celular eso da tirones)
+  const x = c.getContext('2d', CTX2D); x.scale(RES, RES); x.fillStyle = base; x.fillRect(0, 0, TEX, TEX);
   let s = 7; const rnd = () => (s = Math.imul(s ^ (s >>> 15), 0x2c1b3c6d) + 0x6d2b79f5 >>> 0) / 4294967296;
   // dibuja algo en (px,py) y sus copias del otro lado si toca la orilla
   const wrap = (px, py, r, draw) => {
@@ -680,15 +682,21 @@ function tierraTile(base) {
     }
   });
 }
-let TEXTURAS = null;
+let TEXTURAS = null; const PATRONES = {};
 // relleno para un tipo de area (o null si va de color parejo); el patron se escala para medir TEX px del mundo
+const SIN_TEXTURAS = (() => { try { return localStorage.getItem('tjrush-texturas') === 'no'; } catch (e) { return false; } })();
+const PLANO = { [TEX_SENDERO]: COL.footway, [TEX_BANQUETA]: COL.sidewalk, [TEX_ASFALTO]: COL.asphalt, [TEX_TIERRA]: COL.ground };
 function areaFill(ctx, k) {
+  if (SIN_TEXTURAS) return PLANO[k] || AREA_COL[k];
   if (!TEXTURAS) TEXTURAS = { 0: grassTile(AREA_COL[0]), 1: grassTile(AREA_COL[1]), [AREA_AGUA]: waterTile(COL.water), [AREA_ARENA]: sandTile(AREA_COL[AREA_ARENA]),
     [AREA_PLAZA]: plazaTile(AREA_COL[AREA_PLAZA]), [TEX_SENDERO]: senderoTile(COL.footway),
     [TEX_BANQUETA]: banquetaTile(COL.sidewalk), [TEX_ASFALTO]: asfaltoTile(COL.asphalt),
     [TEX_TIERRA]: tierraTile(COL.ground), 3: tierraTile(AREA_COL[3]), 4: tierraTile(AREA_COL[4]), 5: tierraTile(AREA_COL[5]), 6: tierraTile(AREA_COL[6]) };
   const t = TEXTURAS[k]; if (!t) return AREA_COL[k];
-  const p = ctx.createPattern(t, 'repeat'); p.setTransform(new DOMMatrix().scale(1 / RES)); return p;
+  // un patron por textura, hecho una sola vez y compartido por todos los trozos (un patron sirve en cualquier lienzo)
+  let p = PATRONES[k];
+  if (!p) { p = PATRONES[k] = ctx.createPattern(t, 'repeat'); p.setTransform(new DOMMatrix().scale(1 / RES)); }
+  return p;
 }
 // mugre: manchas, aceite, grietas, baches y alcantarillas, siempre igual para la misma calle
 function grime(ctx, list, cx, cy) {
@@ -4299,7 +4307,7 @@ function start() {
     scene: [Main], fps: { target: 60, smoothStep: false },
   });
   window.addEventListener('resize', () => game.scale.resize(window.innerWidth * DPR, window.innerHeight * DPR));
-  window.TJGTA = game; game.dbg = { VTYPES, vehicleTexture, state, drawChunk, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, walkableTo, waterAreas, roads, PED_VARIANTS };
+  window.TJGTA = game; game.dbg = { VTYPES, vehicleTexture, state, drawChunk, chunkSteps, areaFill, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, walkableTo, waterAreas, roads, PED_VARIANTS };
 }
 $('go').addEventListener('click', start);
 
