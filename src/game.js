@@ -85,6 +85,13 @@ function axisPoint(px, py, o) {
   return [o.x + c * t, o.y + s * t];
 }
 function axisDist(px, py, o) { const q = axisPoint(px, py, o); return Math.hypot(px - q[0], py - q[1]); }
+// ¿el punto cae dentro de la carroceria de un carro (rectangulo girado)? r es el margen para el cuerpo de la persona
+function insideCar(c, x, y, r) {
+  const dx = x - c.x, dy = y - c.y, L = c.hl + r, W = c.hw + r;
+  if (dx * dx + dy * dy > L * L + W * W) return false;
+  const ca = Math.cos(c.a), sa = Math.sin(c.a);
+  return Math.abs(dx * ca + dy * sa) < L && Math.abs(dy * ca - dx * sa) < W;
+}
 function hash(i) { i = Math.imul(i ^ 61, 0x9e3779b1); i ^= i >>> 15; return (i >>> 0); }
 const dist = (ax, ay, bx, by) => Math.hypot(ax - bx, ay - by);
 const angDiff = (a, b) => { let d = b - a; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; };
@@ -2680,8 +2687,8 @@ class Main extends Phaser.Scene {
       const run = running ? 1.8 : 1, sp = (this.perk.cafe ? 70 : 62) * run * Math.min(1, m);
       mx /= m; my /= m;
       const nx = p.x + mx * sp * dt, ny = p.y + my * sp * dt;
-      if (!blocked(nx, p.y)) p.x = nx;
-      if (!blocked(p.x, ny)) p.y = ny;
+      if (!blocked(nx, p.y) && !this.carBlocks(p.x, p.y, nx, p.y, 3)) p.x = nx;
+      if (!blocked(p.x, ny) && !this.carBlocks(p.x, p.y, p.x, ny, 3)) p.y = ny;
       p.a = Math.atan2(my, mx);
       if (!p.sprite.anims.isPlaying) p.sprite.play('walk' + PLAYER_SHIRT);
       p.sprite.anims.timeScale = run * Math.min(1, m) * 1.2;
@@ -2699,6 +2706,12 @@ class Main extends Phaser.Scene {
       sb.fillStyle(this.tired ? 0xe74c3c : 0x7fd3ff, 1).fillRect(bx, by, w * f, 3);
     }
     p.sprite.setPosition(p.x, p.y).setRotation(p.a);
+  }
+
+  // a pie los carros son solidos: no te puedes meter en uno, pero si uno se te encima si puedes salirte
+  carBlocks(x0, y0, x1, y1, r) {
+    for (const list of [this.cars, this.parked]) for (const c of list) if (insideCar(c, x1, y1, r) && !insideCar(c, x0, y0, r)) return true;
+    return false;
   }
 
   driveCar(car, c, dt) {
@@ -2978,6 +2991,15 @@ class Main extends Phaser.Scene {
         if (!p.sprite.anims.isPlaying) p.sprite.play({ key: 'walkC', startFrame: 1 });
       }
       const sp = p.st === 'flee' ? 70 : p.speed;
+      // si tiene un carro enfrente se espera; si no se quita en un rato, se da la vuelta
+      const ax = p.x + Math.cos(p.a) * 5, ay = p.y + Math.sin(p.a) * 5;
+      if (this.carBlocks(p.x, p.y, ax, ay, 2)) {
+        p.wait = (p.wait || 0) + dt;
+        if (p.sprite.anims.isPlaying) p.sprite.anims.pause();
+        if (p.wait > 2.5) { p.wait = 0; p.dir = -p.dir; p.s = p.e.len - p.s; p.side = -p.side; p.a += Math.PI; }
+        continue;
+      }
+      if (p.wait) { p.wait = 0; p.sprite.anims.resume(); }
       p.s += sp * dt;
       if (p.s > p.e.len) {
         const nx = nextEdge(walkG, p.e, p.dir);
