@@ -52,7 +52,7 @@ const COL = {
 // tipos de area (ver tools/prep_data.py): 0 parque, 1 cancha, 2 plaza, 3 escuela, 4 comercio, 5 industria,
 // 6 vivienda, 7 agua, 8 arena (las trampas del golf)
 const AREA_COL = ['#5f8a3f', '#6a9a48', '#c9bc9f', '#a39a82', '#9b927d', '#a08c66', '#958e7a', '#2f5f7f', '#dcc89a'];
-const AREA_AGUA = 7, AREA_ARENA = 8;
+const AREA_PLAZA = 2, AREA_AGUA = 7, AREA_ARENA = 8;
 const ROOFS = ['#b9a98c', '#c9b89c', '#a39483', '#8f8a84', '#c3a27b', '#d2c5ae', '#9d7c64', '#7f8a90',
   '#b07d62', '#a8a8a0', '#c7b18a', '#8d9a86', '#bfa99a', '#d6cfc0'];
 
@@ -588,10 +588,31 @@ function sandTile(base) {
     }
   });
 }
+// plaza: losetas de 2 m, cada una de un tono un poco distinto, con sus juntas y manchas de uso
+function plazaTile(base) {
+  return texTile(base, (x, rnd, wrap, mancha) => {
+    const L = 10; // 2 m (TEX es multiplo de L, asi las juntas casan al repetir)
+    for (let j = 0; j < TEX; j += L) for (let i = 0; i < TEX; i += L) {
+      const v = rnd();
+      x.fillStyle = v < 0.4 ? 'rgba(255,250,235,' + (rnd() * 0.18).toFixed(2) + ')' : 'rgba(90,75,50,' + (rnd() * 0.12).toFixed(2) + ')';
+      x.fillRect(i, j, L, L);
+      x.fillStyle = 'rgba(255,255,255,0.12)'; x.fillRect(i + 0.5, j + 0.5, L - 1, 0.5); x.fillRect(i + 0.5, j + 0.5, 0.5, L - 1); // canto con luz
+    }
+    x.fillStyle = 'rgba(80,65,45,0.38)';
+    for (let k = 0; k < TEX; k += L) { x.fillRect(k, 0, 0.55, TEX); x.fillRect(0, k, TEX, 0.55); } // juntas
+    mancha(9, 10, 26, ['rgba(70,55,35,0.14)', 'rgba(255,250,230,0.12)']);
+    for (let i = 0; i < 500; i++) { // polvito y piedritas
+      const px = rnd() * TEX, py = rnd() * TEX;
+      x.fillStyle = rnd() < 0.6 ? 'rgba(90,75,55,0.35)' : 'rgba(255,250,235,0.4)';
+      wrap(px, py, 1, (X, Y) => x.fillRect(X, Y, 0.5, 0.5));
+    }
+  });
+}
 let TEXTURAS = null;
 // relleno para un tipo de area (o null si va de color parejo); el patron se escala para medir TEX px del mundo
 function areaFill(ctx, k) {
-  if (!TEXTURAS) TEXTURAS = { 0: grassTile(AREA_COL[0]), 1: grassTile(AREA_COL[1]), [AREA_AGUA]: waterTile(COL.water), [AREA_ARENA]: sandTile(AREA_COL[AREA_ARENA]) };
+  if (!TEXTURAS) TEXTURAS = { 0: grassTile(AREA_COL[0]), 1: grassTile(AREA_COL[1]), [AREA_AGUA]: waterTile(COL.water), [AREA_ARENA]: sandTile(AREA_COL[AREA_ARENA]),
+    [AREA_PLAZA]: plazaTile(AREA_COL[AREA_PLAZA]) };
   const t = TEXTURAS[k]; if (!t) return AREA_COL[k];
   const p = ctx.createPattern(t, 'repeat'); p.setTransform(new DOMMatrix().scale(1 / RES)); return p;
 }
@@ -783,7 +804,7 @@ function* chunkSteps(cx, cy) {
   // debajo de los edificios: agua, andadores y vias del tren
   const under = (list) => {
     pass(list, r => ROAD_W[r.c] * M, areaFill(ctx, AREA_AGUA), r => r.c === 11);
-    pass(list, r => ROAD_W[r.c] * M, r => r.c === 8 ? COL.paving : COL.footway, r => r.c === 8 || r.c === 9);
+    pass(list, r => ROAD_W[r.c] * M, r => r.c === 8 ? areaFill(ctx, AREA_PLAZA) : COL.footway, r => r.c === 8 || r.c === 9);
     pass(list, () => 3 * M, COL.rail, r => r.c === 10);
     ctx.setLineDash([2, 6]); pass(list, () => 3 * M, '#3a2d22', r => r.c === 10);
     ctx.setLineDash([]); pass(list, () => 1, '#9a9aa0', r => r.c === 10);
