@@ -53,7 +53,7 @@ const COL = {
 // 6 vivienda, 7 agua, 8 arena (las trampas del golf)
 const AREA_COL = ['#5f8a3f', '#6a9a48', '#c9bc9f', '#a39a82', '#9b927d', '#a08c66', '#958e7a', '#2f5f7f', '#dcc89a'];
 const AREA_PLAZA = 2, AREA_AGUA = 7, AREA_ARENA = 8;
-const TEX_SENDERO = 'sendero', TEX_BANQUETA = 'banqueta'; // los andadores (clase 9) no son area, pero usan su propia textura
+const TEX_SENDERO = 'sendero', TEX_BANQUETA = 'banqueta', TEX_ASFALTO = 'asfalto'; // los andadores (clase 9) no son area, pero usan su propia textura
 const ROOFS = ['#b9a98c', '#c9b89c', '#a39483', '#8f8a84', '#c3a27b', '#d2c5ae', '#9d7c64', '#7f8a90',
   '#b07d62', '#a8a8a0', '#c7b18a', '#8d9a86', '#bfa99a', '#d6cfc0'];
 
@@ -643,12 +643,23 @@ function banquetaTile(base) {
     }
   });
 }
+// asfalto: piedrita fina clara y oscura y tonos que van y vienen (las manchas, grietas y baches van aparte)
+function asfaltoTile(base) {
+  return texTile(base, (x, rnd, wrap, mancha) => {
+    mancha(16, 10, 30, ['rgba(0,0,0,0.16)', 'rgba(120,120,125,0.10)', 'rgba(90,80,70,0.08)']);
+    for (let i = 0; i < 3200; i++) {
+      const px = rnd() * TEX, py = rnd() * TEX, v = rnd();
+      x.fillStyle = v < 0.45 ? 'rgba(20,20,22,0.40)' : v < 0.9 ? 'rgba(150,150,155,0.30)' : 'rgba(190,185,175,0.35)';
+      wrap(px, py, 1, (X, Y) => x.fillRect(X, Y, 0.45, 0.45));
+    }
+  });
+}
 let TEXTURAS = null;
 // relleno para un tipo de area (o null si va de color parejo); el patron se escala para medir TEX px del mundo
 function areaFill(ctx, k) {
   if (!TEXTURAS) TEXTURAS = { 0: grassTile(AREA_COL[0]), 1: grassTile(AREA_COL[1]), [AREA_AGUA]: waterTile(COL.water), [AREA_ARENA]: sandTile(AREA_COL[AREA_ARENA]),
     [AREA_PLAZA]: plazaTile(AREA_COL[AREA_PLAZA]), [TEX_SENDERO]: senderoTile(COL.footway),
-    [TEX_BANQUETA]: banquetaTile(COL.sidewalk) };
+    [TEX_BANQUETA]: banquetaTile(COL.sidewalk), [TEX_ASFALTO]: asfaltoTile(COL.asphalt) };
   const t = TEXTURAS[k]; if (!t) return AREA_COL[k];
   const p = ctx.createPattern(t, 'repeat'); p.setTransform(new DOMMatrix().scale(1 / RES)); return p;
 }
@@ -853,7 +864,7 @@ function* chunkSteps(cx, cy) {
     pass(list, r => (ROAD_W[r.c] + 1) * M, banq, r => r.c === 7);
     // orilla polvosa junto a la banqueta; el asfalto limpio de los cruces la tapa
     pass(list, r => ROAD_W[r.c] * M, '#4b4842', r => r.c <= 7);
-    pass(list, r => ROAD_W[r.c] * M - 9, COL.asphalt, r => r.c <= 7);
+    pass(list, r => ROAD_W[r.c] * M - 9, areaFill(ctx, TEX_ASFALTO), r => r.c <= 7);
     // solo la raya de en medio que separa los dos sentidos (doble en avenidas, punteada en calles);
     // sin lineas de carril ni rayas en calles de un sentido: se mezclaban y ensuciaban el dibujo
     ctx.setLineDash([]);
