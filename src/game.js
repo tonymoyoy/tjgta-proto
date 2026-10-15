@@ -1323,6 +1323,75 @@ const CANCELADOS = [
   'El cliente ya se había dormido. Tocaste y salió su abuela con la chancla.', 'La app dice que entregaste. La app miente.',
   'Llegaste a la dirección y era un lote baldío con un perro muy enojado.',
 ];
+// paros: gente de las colonias (lejos de los lugares tipicos) que te pide que le lleves algo a alguien.
+// quien te lo pide, su icono, lo que dice, lo que llevas, a donde, como termina (fin) o si tardas (mal);
+// prisa: el tiempo es mas justo (se enfria, ya empezo la fiesta...)
+const PAROS = [
+  { k: 'gato', quien: 'Doña Cuca', ico: '🐱', prisa: true, cosa: 'a Michi en su jaula', a: 'la veterinaria',
+    pide: '"Mijo, ¿me haces un paro? Lleva a Michi al veterinario, se tragó una liga del pelo. Ya ni maúlla, nomás me juzga."',
+    fin: '"Ya salió la liga... y un arete de la vecina", dijo el veterinario. Doña Cuca dice que de eso no se habla.',
+    mal: 'Michi se salió de la jaula en un semáforo. Ahora vive en un taller mecánico y lo tratan como rey.' },
+  { k: 'pozole', quien: 'Don Beto', ico: '🍲', prisa: true, cosa: 'una olla de pozole', a: 'la casa de la jefa de Don Beto',
+    pide: '"Hazme el paro: llévale este pozole a mi jefa. Si le llega frío, me deshereda. Otra vez."',
+    fin: '"¡Ay, mi Beto! Ni viene, pero manda pozole." La señora te dio una tostada y la bendición.',
+    mal: 'Llegó frío. La jefa de Don Beto ya cambió el testamento. Le dejó todo al perico.' },
+  { k: 'carta', quien: 'Ramiro', ico: '💌', cosa: 'una carta', a: 'la casa de Yesenia, su ex',
+    pide: '"Llévale esta carta a Yesenia. No le digas que lloré... bueno, si pregunta, dile que tantito."',
+    fin: 'Yesenia leyó la carta, suspiró y dijo: "Dile que lo quise mucho, pero ya me voy a Ensenada." Te dio para un refresco.',
+    mal: 'La neblina mojó la carta y se corrió la tinta. Ramiro dice que es una señal del universo.' },
+  { k: 'flores', quien: 'Don Chema', ico: '🌹', cosa: 'un ramo de flores', a: 'el panteón, con su Rosita',
+    pide: '"Hoy cumplimos cincuenta años de casados. Llévale estas flores a mi Rosita al panteón; mis rodillas ya no llegan."',
+    fin: 'Dejaste las flores. Un colibrí se paró en ellas un ratito. Don Chema dice que fue Rosita, que le mandó decir que sí se acuerda.',
+    mal: 'Se marchitaron en el camino. Don Chema dice que no importa, que Rosita siempre prefirió las de plástico. Se le quebró la voz.' },
+  { k: 'aro', quien: 'Kevin', ico: '💡', prisa: true, cosa: 'su aro de luz', a: 'el sobre ruedas',
+    pide: '"Bro, hazme el paro, llévame el aro de luz al sobre ruedas. Tengo live en cinco minutos y sin luz me veo de verdad."',
+    fin: '"¡Ya estamos en vivo, banda!" Lo vieron tres personas. Dos son su mamá desde dos celulares.',
+    mal: 'Empezó el live sin luz. Los comentarios dicen "¿eres tú o es el Chupacabras?". Va a ser viral, pero no como él quería.' },
+  { k: 'pinata', quien: 'Doña Mago', ico: '🎉', prisa: true, cosa: 'una piñata de dinosaurio', a: 'una fiesta infantil',
+    pide: '"¡La fiesta ya empezó y no llegó la piñata! Hay treinta niños con palos y azúcar. Corre, mijo."',
+    fin: 'Los niños deshicieron la piñata en cuatro segundos. Uno lloró porque no le tocó nada. Otro se llevó la cabeza del dinosaurio.',
+    mal: 'Sin piñata, los niños le pegaron al pastel. La fiesta ahora es leyenda en la colonia.' },
+  { k: 'dentadura', quien: 'Doña Mary', ico: '🦷', prisa: true, cosa: 'la dentadura de Don Toño', a: 'la birriería donde está Don Toño',
+    pide: '"Mi viejo se fue a la birria y dejó la dentadura en el vaso. Llévasela antes de que pida, que luego nomás sorbe."',
+    fin: 'Don Toño se puso la dentadura, sonrió como comercial y pidió doble de birria. Te invitó un taco.',
+    mal: 'Llegaste tarde: Don Toño ya se había tomado el consomé... con popote. Dice que así sabe igual.' },
+  { k: 'lonche', quien: 'Doña Toñita', ico: '🥪', cosa: 'el lonche de su hijo', a: 'la fila de la garita, donde está su hijo',
+    pide: '"Mi hijo cruza a trabajar y se le olvidó el lonche. Va a estar horas en la fila y no come nada allá. Llévaselo, ándale."',
+    fin: 'Su hijo abrió el lonche: burritos de machaca y una notita que dice "pórtate bien, te quiero". No dijo nada. Se le hizo un nudo en la garganta.',
+    mal: 'La fila avanzó y su hijo ya cruzó sin lonche. Doña Toñita dice que mañana le pone el doble.' },
+  { k: 'gallo', quien: 'El Güero de la tiendita', ico: '🐓', cosa: 'un gallo', a: 'la casa de su compadre',
+    pide: '"Llévale este gallo a mi compadre, es regalo. Canta a las tres de la mañana y ya no lo aguanto... digo, para que lo disfrute."',
+    fin: 'El compadre lo recibió feliz. Esa misma noche, a las tres de la mañana, dejó de estar feliz.',
+    mal: 'El gallo se escapó y se subió a un poste. Ahora le canta a toda la colonia. Nadie sabe de quién es. Todos sospechan del Güero.' },
+  { k: 'vestido', quien: 'Brenda', ico: '👗', prisa: true, cosa: 'el vestido de XV años', a: 'el salón de fiestas',
+    pide: '"¡Mi prima ya está en el salón en bata y el vestido sigue aquí! El chambelán está temblando. ¡Vuela!"',
+    fin: 'Llegó el vestido justo a tiempo. Bailaron el vals y lloró hasta el DJ.',
+    mal: 'La quinceañera bailó el vals en bata. Dice que fue un "estilo". Las tías no opinan igual.' },
+  { k: 'tupper', quien: 'Don Ruperto', ico: '🥡', cosa: 'el tupper de la vecina', a: 'la casa de la vecina',
+    pide: '"Devuélvele el tupper a la vecina. Ya pasaron tres meses. Si no se lo regreso, me declara la guerra."',
+    fin: '"¿Y la tapa?", te preguntó. Te miró feo. La tapa nunca se recupera, así es la vida.',
+    mal: 'La vecina ya compró tuppers nuevos y puso un letrero en su puerta: "No se prestan tuppers. Sí, Ruperto, va por ti".' },
+  { k: 'control', quien: 'Doña Licha', ico: '📺', prisa: true, cosa: 'el control de la tele', a: 'la casa del compadre, donde está su esposo',
+    pide: '"Mi viejo se llevó el control a ver los Xolos con su compadre. ¡Y ya va a empezar mi novela! Tráemelo... digo, llévaselo a él, que lo devuelva."',
+    fin: 'El esposo devolvió el control "sin querer". Doña Licha ganó la guerra del control. Por esta semana.',
+    mal: 'Se acabó la novela. Doña Licha no le habla a su esposo. El esposo dice que es lo más tranquilo que ha estado.' },
+  { k: 'pez', quien: 'Chuyito', ico: '🐟', cosa: 'a Nemo, su pez', a: 'la casa de su abuela',
+    pide: '"¿Me haces un paro? Lleva a mi pez a casa de mi abuela. Mi mamá dice que en mi cuarto se va a morir de tristeza."',
+    fin: 'La abuela le puso nombre nuevo: Don Pescado. Ya tiene pecera con castillo y le cuenta chismes.',
+    mal: 'Nemo llegó mareado pero vivo. La abuela dice que así llega todo el que viene por la Vía Rápida.' },
+  { k: 'anillo', quien: 'Paty', ico: '💍', prisa: true, cosa: 'un anillo', a: 'el mirador, con el novio de Paty',
+    pide: '"Mi novio me va a pedir matrimonio en el mirador y dejó el anillo en mi casa. ¡Pero yo no sé nada, eh! Llévaselo."',
+    fin: '"¡Sí, sí quiero!", gritó Paty, que no sabía nada. Te invitaron a la boda. Va a haber carne asada.',
+    mal: 'El novio se le declaró con un anillo de la máquina de chicles. Paty dijo que sí. Dice que lo que vale es la intención.' },
+  { k: 'medicina', quien: 'Doña Ofelia', ico: '💊', cosa: 'las medicinas de su comadre', a: 'la casa de su comadre',
+    pide: '"Mi comadre vive sola y se le acabaron sus pastillas de la presión. Yo ya no manejo. ¿Me haces el paro?"',
+    fin: 'La comadre te agarró la mano: "Dios te lo pague, mijo." Luego te pagó ella, por si Dios se tarda.',
+    mal: 'Su vecino llegó antes con las pastillas. La comadre está bien. Doña Ofelia dice que igual eres buena gente.' },
+  { k: 'trofeo', quien: 'El Profe Chuy', ico: '🏆', cosa: 'el trofeo del torneo', a: 'la cancha de la colonia',
+    pide: '"Hoy es la final del torneo de la colonia y el trofeo está en mi casa. Sin trofeo, no hay final. Sin final, hay pleito."',
+    fin: 'Ganó el equipo de los señores de cincuenta. Los jóvenes piden revancha. Los señores piden pomada.',
+    mal: 'Jugaron sin trofeo. Al ganador le dieron un garrafón de agua. Lo levantó igual de orgulloso.' },
+];
 
 // ---------- HUD ----------
 const $ = (id) => document.getElementById(id);
@@ -1345,7 +1414,8 @@ function updateStats() {
   bigSound = false;
   hud.money.textContent = '$' + state.money.toLocaleString('es-MX');
   hud.counts.textContent = `★ ${landmarks.filter(l => l.found).length}/${landmarks.length} · 🌮 ${tacos.filter(t => t.eaten).length}/${tacos.length} · ☕ ${cafes.filter(c => c.drunk).length}/${cafes.length}` +
-    (EGGS.some(e => e.got) ? ` · 🥚 ${EGGS.filter(e => e.got).length}/${EGGS.length}` : '');
+    (EGGS.some(e => e.got) ? ` · 🥚 ${EGGS.filter(e => e.got).length}/${EGGS.length}` : '') +
+    ((state.paros || []).length ? ` · 🤝 ${state.paros.length}/${PAROS.length}` : '');
 }
 
 // ---------- texturas ----------
@@ -2708,6 +2778,7 @@ class Main extends Phaser.Scene {
       const label = this.add.text(l.x, l.y - 34, l.name, { fontSize: '15px', fontStyle: 'bold', color: '#fff', stroke: '#000', strokeThickness: 4, resolution: TXT_RES }).setOrigin(0.5).setDepth(20);
       this.marks.push({ l, ring, star, label });
     }
+    this.paroCool = 0; this.colocarParos();
     for (const t of tacos) {
       const [sx, sy, rot] = sidewalkSpot(t.x, t.y);
       t.x = sx; t.y = sy;
@@ -3170,6 +3241,7 @@ class Main extends Phaser.Scene {
 
   toggleCar() {
     if (!this.inCar && this.coy) { this.pagarCoyote(); return; }
+    if (!this.inCar && this.paroOfer) { this.aceptarParo(); return; }
     if (this.inCar) {
       const car = this.inCar, a = car.a;
       if (Math.hypot(car.vx, car.vy) > 60) return;
@@ -3367,6 +3439,82 @@ class Main extends Phaser.Scene {
     // se va "por la camioneta" y ya no vuelve
     p.paid = true; p.st = 'flee'; p.t = 5; p.sprite.play({ key: 'walkC', startFrame: 1 }); p.sprite.anims.timeScale = 2.2;
     this.time.delayedCall(9000, () => toast('🤫 Te estafó el coyote (-$' + price + ')', pick(COYOTE_ESTAFA), 5));
+    this.setObjective();
+  }
+
+  // ----- paros: cada personaje se para en una banqueta de colonia, lejos de los lugares tipicos y de los otros;
+  // siempre en el mismo lugar (se recorren las calles en un orden fijo) -----
+  colocarParos() {
+    const lejos = (x, y, list, r) => list.every(q => dist(q.x, q.y, x, y) > r);
+    const cands = walkG.edges.filter(e => e.c <= 6 && e.len > 40).sort((a, b) => hash(a.id * 7 + 3) - hash(b.id * 7 + 3));
+    this.paros = [];
+    for (const e of cands) {
+      if (this.paros.length >= PAROS.length) break;
+      const q = edgePos(e, e.len / 2, 1, e.w / 2 + 1.5 * M, {}), mid = edgePos(e, e.len / 2, 1, 0, {});
+      if (q.y < borderY(q.x) + 300 || q.x < 200 || q.y < 200 || q.x > WORLD_W - 200 || q.y > WORLD_H - 200) continue;
+      if (!lejos(q.x, q.y, landmarks, 450 * M) || !lejos(q.x, q.y, this.paros, 600 * M) || blocked(q.x, q.y) || !walkableTo(q.x, q.y, 10)) continue;
+      const P = PAROS[this.paros.length], face = Math.atan2(mid.y - q.y, mid.x - q.x);
+      const npc = this.add.sprite(q.x, q.y, 'ped' + (hash(e.id) % N_PEDS), 0).setDepth(6).setScale(1 / SPR).setRotation(face);
+      const ico = this.add.text(q.x, q.y - 20, P.ico, { fontSize: '18px', resolution: TXT_RES }).setOrigin(0.5).setDepth(20);
+      this.tweens.add({ targets: ico, y: q.y - 24, duration: 800, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+      this.paros.push({ ...P, x: q.x, y: q.y, npc, ico, hecho: (state.paros || []).includes(P.k) });
+    }
+  }
+  checkParos(dt, f, sp) {
+    const of = this.paroOfer;
+    if (of) { of.t -= dt; if (of.t <= 0 || this.inCar || dist(of.p.x, of.p.y, this.player.x, this.player.y) > 70) { this.paroOfer = null; this.setObjective(); } }
+    for (const p of this.paros) p.ico.setAlpha(p.hecho ? 0.35 : 1);
+    // el paro en curso: llegar a tiempo (a pie o en carro, despacio)
+    const pr = this.paro;
+    if (pr) {
+      pr.time -= dt;
+      if (pr.time <= 0) this.endParo(false);
+      else if (dist(pr.x, pr.y, f.x, f.y) < 50 && sp < 60) this.endParo(true);
+    }
+    if (this.inCar || this.paroOfer || this.paroCool > 0) { this.paroCool -= dt; return; }
+    const pl = this.player;
+    for (const p of this.paros) {
+      if (dist(p.x, p.y, pl.x, pl.y) > 30 || (pr && pr.de === p)) continue;
+      this.paroCool = 6;
+      if (p.hecho) { this.globo(p, 'paro', pick(['"¡Gracias otra vez por el paro!"', '"Ya quedó, ¿eh? Te debo una."', '"Cuando ocupes algo, aquí andamos."']), 3); break; }
+      if (this.paro || this.delivery || this.taxi) { this.globo(p, 'paro', '"Te iba a pedir un paro, pero ya andas ocupado. Termina lo tuyo y vuelve."', 4); break; }
+      const how = document.body.classList.contains('touch') ? 'toca ACEPTAR' : 'E para aceptar';
+      this.paroOfer = { p, t: 9 };
+      this.globo(p, 'paro', p.pide + '  (' + how + ')', 9);
+      if (window.SND) SND.play('chat');
+      this.setObjective();
+      break;
+    }
+  }
+  aceptarParo() {
+    const p = this.paroOfer.p; this.paroOfer = null;
+    let spot = null, mid = null;
+    for (let i = 0; i < 60 && !spot; i++) {
+      const e = randomEdgeNear(walkG, p.x, p.y, 1500, 3500); if (!e || e.c > 6) continue;
+      const s = rnd(0, e.len), q = edgePos(e, s, 1, e.w / 2 + 1.5 * M, {});
+      if (!blocked(q.x, q.y) && q.y > borderY(q.x) + 150) { spot = q; mid = edgePos(e, s, 1, 0, {}); }
+    }
+    if (!spot) { this.globo(p, 'paro', '"Mejor al rato, que no me acuerdo ni de la dirección."', 3); this.setObjective(); return; }
+    const d = dist(spot.x, spot.y, p.x, p.y), street = streetAt(spot.x, spot.y) || 'una calle de Tijuana';
+    // quien recibe espera en la banqueta, viendo hacia la calle
+    const who = this.add.sprite(spot.x, spot.y, 'ped' + pedVariant(), 0).setDepth(6).setScale(1 / SPR).setRotation(Math.atan2(mid.y - spot.y, mid.x - spot.x));
+    this.tweens.add({ targets: who, angle: who.angle + 8, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+    this.paro = { de: p, x: spot.x, y: spot.y, street, d, who, time: p.prisa ? d / 80 + 25 : d / 55 + 60 };
+    toast('🤝 Paro para ' + p.quien, 'Lleva ' + p.cosa + ' a ' + p.a + ', en ' + street + '.' + (p.prisa ? ' ¡Tiene prisa!' : ''), 5);
+    this.setObjective();
+  }
+  endParo(ok) {
+    const pr = this.paro, p = pr.de; this.paro = null; hud.timer.style.display = 'none';
+    if (ok) {
+      const pay = Math.round((60 + pr.d / 9 + pr.time * 2) / 5) * 5, nuevo = !p.hecho;
+      p.hecho = true; state.paros = this.paros.filter(q => q.hecho).map(q => q.k);
+      state.money += pay; save(); bigSound = nuevo; updateStats();
+      const n = state.paros.length;
+      toast('🤝 ¡Paro cumplido! (+$' + pay + ')', p.fin + (nuevo ? (n === this.paros.length ? '  ¡Ya le hiciste el paro a toda la ciudad!' : '  Paro ' + n + ' de ' + this.paros.length + '.') : ''), 7);
+    } else toast('🤝 Se te pasó el tiempo', p.mal + '  (' + p.quien + ' te espera para intentarlo otra vez)', 6);
+    const w = pr.who; this.tweens.killTweensOf(w);
+    if (ok) this.tweens.add({ targets: w, scale: 1.4 / SPR, duration: 160, yoyo: true, repeat: 1 });
+    this.tweens.add({ targets: w, alpha: 0, delay: ok ? 1500 : 0, duration: 600, onComplete: () => w.destroy() });
     this.setObjective();
   }
 
@@ -3609,6 +3757,7 @@ class Main extends Phaser.Scene {
         'Entraste por unas costillitas y salió carísimo.', 'La cuenta llegó más larga que el menú.']) + '  (-$' + loss + ')', 4);
     }
     this.checkYonke(dt, f, sp);
+    this.checkParos(dt, f, sp);
     const dl = this.delivery;
     if (dl) {
       dl.time -= dt;
@@ -3736,14 +3885,16 @@ class Main extends Phaser.Scene {
     let t = '';
     if (this.taxi) t = this.taxi.phase === 'pick' ? 'Taxi: recoge al pasajero' : 'Taxi: lleva al pasajero a ' + this.taxi.name;
     else if (this.delivery) t = 'Entrega: ' + this.delivery.order + ' en ' + this.delivery.street;
+    else if (this.paro) t = '🤝 Paro: lleva ' + this.paro.de.cosa + ' a ' + this.paro.de.a;
     else if (this.waypoint && this.waypoint.fiesta) t = '🎉 Ve a la fiesta en la Plaza Santa Cecilia';
     else if (this.waypoint) t = '📍 Sigue la ruta verde a tu destino';
     hud.obj.textContent = t; // vacio = no se muestra (las instrucciones estan en Opciones)
-    $('bE').textContent = this.inCar ? 'BAJAR' : this.coy ? 'PAGAR' : 'SUBIR'; // el boton tactil dice lo que va a hacer
+    $('bE').textContent = this.inCar ? 'BAJAR' : this.coy ? 'PAGAR' : this.paroOfer ? 'ACEPTAR' : 'SUBIR'; // el boton tactil dice lo que va a hacer
   }
   goal() {
     if (this.taxi) return this.taxi;
     if (this.delivery) return this.delivery;
+    if (this.paro) return this.paro;
     if (this.waypoint) return this.waypoint;
     return null;
   }
@@ -3801,7 +3952,7 @@ class Main extends Phaser.Scene {
       if (n && n !== lastStreet) { lastStreet = n; hud.street.innerHTML = ''; hud.street.textContent = n; const sm = document.createElement('small'); sm.textContent = (z => z === 'Tijuana' ? 'Tijuana, B.C.' : z + ' · Tijuana')(zonaDe(f.x, f.y)); hud.street.appendChild(sm); layoutTop(); hud.street.classList.add('on'); streetT = 3; }
     }
     if (streetT > 0) { streetT -= dt; if (streetT <= 0) hud.street.classList.remove('on'); }
-    const tt = this.taxi && this.taxi.phase === 'drop' ? Math.ceil(this.taxi.time) + 's' : this.delivery ? '🛵 ' + Math.ceil(this.delivery.time) + 's' : null;
+    const tt = this.taxi && this.taxi.phase === 'drop' ? Math.ceil(this.taxi.time) + 's' : this.delivery ? '🛵 ' + Math.ceil(this.delivery.time) + 's' : this.paro ? '🤝 ' + Math.ceil(this.paro.time) + 's' : null;
     if (tt && tt !== this.lastTimer) { this.lastTimer = tt; if (hud.timer.style.display !== 'block') layoutTop(); hud.timer.style.display = 'block'; hud.timer.textContent = tt; }
     if (!tt) this.lastTimer = null;
     // flecha hacia el objetivo
@@ -3825,6 +3976,7 @@ function drawMarkers(c, sx, sy, ox, oy, scene, f, big) {
   for (const t of tacos) if (!t.eaten) { const [x, y] = P(t.x, t.y); c.fillStyle = '#ff9f1c'; c.beginPath(); c.arc(x, y, big ? 4 : 2.5, 0, 7); c.fill(); }
   for (const k of cafes) if (!k.drunk) { const [x, y] = P(k.x, k.y); c.fillStyle = '#a0662f'; c.strokeStyle = '#f3e1c8'; c.lineWidth = 1; c.beginPath(); c.arc(x, y, big ? 4 : 2.5, 0, 7); c.fill(); c.stroke(); }
   for (const k of chinas) { const [x, y] = P(k.x, k.y); c.fillStyle = '#e53935'; c.fillRect(x - (big ? 4 : 2.5), y - (big ? 4 : 2.5), big ? 8 : 5, big ? 8 : 5); }
+  for (const p of scene.paros || []) if (!p.hecho) { const [x, y] = P(p.x, p.y); c.fillStyle = '#b388ff'; c.strokeStyle = '#2e1065'; c.lineWidth = 1; c.beginPath(); c.arc(x, y, big ? 4.5 : 3, 0, 7); c.fill(); c.stroke(); }
   { const [x, y] = P(YONKE.x, YONKE.y), r = big ? 5 : 3.5; c.fillStyle = '#fdd835'; c.strokeStyle = '#000'; c.lineWidth = 1.5; c.beginPath(); c.rect(x - r, y - r, r * 2, r * 2); c.fill(); c.stroke(); }
   for (const l of landmarks) {
     const [x, y] = P(l.x, l.y);
@@ -3945,6 +4097,7 @@ function renderBig(detail) {
   for (const k of chinas) { const X = bmX(k.x), Y = bmY(k.y); if (on(X, Y)) farol(X, Y, icons ? 1.1 : 0.6); }
   { const X = bmX(YONKE.x), Y = bmY(YONKE.y); if (on(X, Y)) { if (icons) { c.font = '17px sans-serif'; c.fillText('🔧', X, Y); c.font = 'bold 11px sans-serif'; c.lineWidth = 3; c.strokeStyle = '#000'; c.strokeText('Yonke', X, Y + 14); c.fillStyle = '#fdd835'; c.fillText('Yonke', X, Y + 14); }
     else { c.fillStyle = '#fdd835'; c.strokeStyle = '#000'; c.lineWidth = 1; c.fillRect(X - 3.5, Y - 3.5, 7, 7); c.strokeRect(X - 3.5, Y - 3.5, 7, 7); } } }
+  for (const p of bigScene.paros || []) { const X = bmX(p.x), Y = bmY(p.y); if (on(X, Y)) { if (icons) emoji('🤝', X, Y, p.hecho); else if (!p.hecho) { c.fillStyle = '#b388ff'; c.beginPath(); c.arc(X, Y, 3.5, 0, 7); c.fill(); } } }
   for (const t of tacos) { const X = bmX(t.x), Y = bmY(t.y); if (on(X, Y)) { if (icons) emoji('🌮', X, Y, t.eaten); else if (!t.eaten) { c.fillStyle = '#ff9f1c'; c.beginPath(); c.arc(X, Y, 3, 0, 7); c.fill(); } } }
   for (const k of cafes) { const X = bmX(k.x), Y = bmY(k.y); if (on(X, Y)) { if (icons) emoji('☕', X, Y, k.drunk); else if (!k.drunk) { c.fillStyle = '#a0662f'; c.beginPath(); c.arc(X, Y, 3, 0, 7); c.fill(); } } }
   const lsz = icons ? 30 : 20;
@@ -3962,7 +4115,7 @@ function renderBig(detail) {
   c.save(); c.translate(PX, PY); c.rotate(f.a); c.fillStyle = '#ffd23f'; c.strokeStyle = '#000'; c.lineWidth = 2;
   c.beginPath(); c.moveTo(13, 0); c.lineTo(-8, 8); c.lineTo(-3, 0); c.lineTo(-8, -8); c.closePath(); c.fill(); c.stroke(); c.restore();
   // leyenda con lo que llevas
-  $('mlegend').textContent = `📍 Tú · ★ ${landmarks.filter(l => l.found).length}/${landmarks.length} · 🌮 ${tacos.filter(t => t.eaten).length}/${tacos.length} · ☕ ${cafes.filter(k => k.drunk).length}/${cafes.length} · 🔧 yonke · 🏮 cuidado`;
+  $('mlegend').textContent = `📍 Tú · ★ ${landmarks.filter(l => l.found).length}/${landmarks.length} · 🌮 ${tacos.filter(t => t.eaten).length}/${tacos.length} · ☕ ${cafes.filter(k => k.drunk).length}/${cafes.length} · 🤝 paros · 🔧 yonke · 🏮 cuidado`;
 }
 function bmZoomAt(factor, sx, sy) {
   const wx = BM.cx + (sx - BM.W / 2) / BM.s, wy = BM.cy + (sy - BM.H / 2) / BM.s;
@@ -4253,7 +4406,7 @@ function partidaValida(p) {
   const num = (v, max) => Number.isInteger(v) && v >= 0 && v <= max;
   if (!p || typeof p !== 'object' || !Number.isFinite(p.money) || Math.abs(p.money) > 1e7) return false;
   if (!subset(p.found, landmarks.map(l => l.name)) || !subset(p.eaten || [], tacos.map(t => t.name)) ||
-      !subset(p.cafes || [], cafes.map(c => c.name)) || !subset(p.eggs || [], EGGS.map(e => e.k))) return false;
+      !subset(p.cafes || [], cafes.map(c => c.name)) || !subset(p.eggs || [], EGGS.map(e => e.k)) || !subset(p.paros || [], PAROS.map(q => q.k))) return false;
   if (!num(p.deliveries || 0, 1e5) || !num(p.rides || 0, 1e5) || !num(p.vendidos || 0, 1e5) || (p.name != null && (typeof p.name !== 'string' || p.name.length > 32))) return false;
   const ok = { cafe: completa('cafe', nombres(cafes), p.cafes || [], p.celebrated), taco: completa('taco', nombres(tacos), p.eaten || [], p.celebrated),
     noche: completa('noche', nombres(landmarks), p.found, p.celebrated) };
@@ -4351,7 +4504,7 @@ function renderIntro() {
   const b = $('reset');
   b.addEventListener('click', () => {
     if (!b.classList.contains('confirm')) { b.classList.add('confirm'); b.textContent = '¿Seguro? Toca otra vez para borrar todo'; return; }
-    Object.assign(state, { money: 0, celebrated: [], deliveries: 0, rides: 0, vendidos: 0, night: false });
+    Object.assign(state, { money: 0, celebrated: [], deliveries: 0, rides: 0, vendidos: 0, night: false, paros: [] });
     landmarks.forEach(l => { l.found = false; }); tacos.forEach(t => { t.eaten = false; }); cafes.forEach(c => { c.drunk = false; }); EGGS.forEach(e => { e.got = false; });
     save(); updateStats();
     start();

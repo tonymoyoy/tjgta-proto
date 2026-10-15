@@ -50,6 +50,8 @@ En `android/app/build.gradle` sube `versionCode` (entero, siempre mayor) y `vers
 >
 > 🚕 Súbete a lo que encuentres: vochos, tsuritos, trocas, calafias, lowriders y hasta el taxi libre de la Revu. Trabaja de taxista o róbale la moto a un repartidor y entrega su pedido antes de que se enfríe.
 >
+> 🤝 Hazle el paro a la gente de las colonias: lleva al gato al veterinario, el pozole a la jefa de Don Beto o el anillo que se le olvidó al novio de Paty.
+>
 > ★ Descubre los lugares de siempre: el Frontón Jai Alai, el Pasaje Rodríguez, el Hotel Caesar's, el Mercado Hidalgo, el Estadio Caliente y muchos más.
 >
 > 🌮 Haz la ruta del taco y colecciona los cafés de la ciudad. Cada colección completa tiene premio: correr sin cansarte, taquerías que te reparan el carro, la troca de tacos, Tijuana de noche… y si completas todo, el burro cebra dorado, una fiesta con mariachis y tu Acta de Tijuanense.

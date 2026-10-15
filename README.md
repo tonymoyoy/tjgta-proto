@@ -27,6 +27,7 @@ T trabajar de taxista · M mapa grande (toca para marcar destino). En celular ha
 - Comida china 🏮: 6 locales ficticios en la Calle Coahuila; al entrar pierdes dinero (no se coleccionan).
 - Repartidor 🛵: roba una moto de repartidor y entrega el pedido antes de que se acabe el tiempo.
 - Taxi: recoge pasajeros y llévalos a un lugar antes de que se acabe el tiempo.
+- Paros 🤝: 16 personajes en las colonias (lejos de los lugares típicos) te piden un favor: llevar al gato al veterinario, pozole a la jefa, flores al panteón... Se aceptan con E (botón ACEPTAR), tienen tiempo y pagan según la distancia. Están en `PAROS` de src/game.js.
 - Vehículos: 10 tipos (sedán, vocho, troca, camioneta, tsurito, combi, muscle car, lowrider, calafia, camión de carga), cada uno limpio o sucio y madreado. Los sucios aguantan menos golpes y corren un poco menos. Se dibujan en `vehicleTexture()` de src/game.js.
 - Patrullas 🚓: trocas de policía en el tráfico (máximo 3). Si las chocas te cobran multa ($150–800 según la velocidad, una cada 5 s). No se pueden robar.
 El progreso se guarda en el navegador.
