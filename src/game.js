@@ -2547,6 +2547,43 @@ function reachable(x, y, R) {
   for (let r = 0; r <= R; r += 4) for (let k = 0; k < 16; k++) { const a = k / 16 * Math.PI * 2; if (!blocked(x + Math.cos(a) * r, y + Math.sin(a) * r)) return true; }
   return false;
 }
+// como reachable, pero ademas de ahi se puede salir caminando a una calle (un patio dentro de un edificio
+// no cuenta): busqueda a lo ancho en una rejilla de 4 px. Si llega al tope de celdas es un area abierta grande
+// (un parque, el golf), no un patio encerrado: tambien cuenta
+function walkableTo(x, y, R) {
+  const G = 4, seen = new Set(), q = [];
+  for (let dx = -R; dx <= R; dx += G) for (let dy = -R; dy <= R; dy += G) {
+    if (dx * dx + dy * dy > R * R) continue;
+    const i = Math.round((x + dx) / G), j = Math.round((y + dy) / G), k = i + ',' + j;
+    if (!seen.has(k)) { seen.add(k); if (!blocked(i * G, j * G)) q.push(i, j); }
+  }
+  for (let h = 0; h < q.length; h += 2) {
+    const i = q[h], j = q[h + 1];
+    if (h >= 16000 || onRoad(i * G, j * G)) return true;
+    for (const [a, c] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const k = (i + a) + ',' + (j + c); if (seen.has(k)) continue; seen.add(k);
+      if (!blocked((i + a) * G, (j + c) * G)) q.push(i + a, j + c);
+    }
+  }
+  return false;
+}
+// la banqueta mas cercana de verdad (el punto mas cercano de cualquier calle, por lejos que este), a la mitad
+// de la banqueta y del lado del lugar: ahi siempre se puede caminar. Para los lugares dentro de edificios enormes
+function nearestSidewalk(x, y) {
+  let best = null;
+  for (const r of roads) {
+    if (r.c > 6 || r.f & 1) continue;
+    const p = r.p;
+    for (let i = 0; i < p.length - 2; i += 2) {
+      const ax = p[i], ay = p[i + 1], dx = p[i + 2] - ax, dy = p[i + 3] - ay, L2 = dx * dx + dy * dy || 1;
+      const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / L2)), qx = ax + dx * t, qy = ay + dy * t, d = Math.hypot(x - qx, y - qy);
+      if (!best || d < best.d) best = { d, qx, qy, r };
+    }
+  }
+  if (!best || best.d < 1) return [x, y];
+  const off = (ROAD_W[best.r.c] / 2 + SIDEWALK / 2) * M, k = off / best.d;
+  return [best.qx + (x - best.qx) * k, best.qy + (y - best.qy) * k];
+}
 function sidewalkSpot(x, y, extra = 17) {
   const cands = [];
   for (const r of roads) {
@@ -2589,9 +2626,10 @@ class Main extends Phaser.Scene {
     // marcadores de lugares y tacos
     this.marks = [];
     for (const l of landmarks) {
-      // si el lugar queda en medio de un edificio enorme o del agua (Palacio Municipal, Plaza Rio), su marca
-      // se pasa a la banqueta mas cercana; si no, nunca se podria descubrir (se descubre a menos de 110 px)
-      if (!reachable(l.x, l.y, 95)) { const [sx, sy] = sidewalkSpot(l.x, l.y, (SIDEWALK + 0.5) * M); l.x = sx; l.y = sy; }
+      // si el lugar queda en medio de un edificio grande o del agua (Palacio Municipal, Hipodromo, Estadio), su
+      // marca se pasa a la banqueta mas cercana; si no, habria que atinarle a un rincon para descubrirlo
+      // (se descubre a menos de 110 px) o de plano no se podria
+      if (!walkableTo(l.x, l.y, 40)) { const [sx, sy] = nearestSidewalk(l.x, l.y); l.x = sx; l.y = sy; }
       const ring = this.add.image(l.x, l.y, 'ring').setDepth(3).setTint(0xffd23f).setAlpha(0.8);
       // la insignia del lugar flota un poco (cada una a su ritmo)
       const star = this.add.image(l.x, l.y, l.icon).setDepth(20).setScale(0.62 / SPR);
@@ -4223,7 +4261,7 @@ function start() {
     scene: [Main], fps: { target: 60, smoothStep: false },
   });
   window.addEventListener('resize', () => game.scale.resize(window.innerWidth * DPR, window.innerHeight * DPR));
-  window.TJGTA = game; game.dbg = { VTYPES, vehicleTexture, state, drawChunk, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, waterAreas, roads, PED_VARIANTS };
+  window.TJGTA = game; game.dbg = { VTYPES, vehicleTexture, state, drawChunk, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, walkableTo, waterAreas, roads, PED_VARIANTS };
 }
 $('go').addEventListener('click', start);
 
