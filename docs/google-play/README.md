@@ -42,17 +42,17 @@ En `android/app/build.gradle` sube `versionCode` (entero, siempre mayor) y `vers
 **Nombre** (máx. 30): `TJ Rush`
 
 **Descripción breve** (máx. 80):
-> Roba autos, haz taxi y descubre la Zona Centro de Tijuana con calles reales.
+> Roba autos, haz taxi y recorre Tijuana del Centro al Hipódromo. Calles reales.
 
 **Descripción completa** (máx. 4000):
 
-> Recorre la Zona Centro y la Zona Río de Tijuana en un juego de vista desde arriba, con las calles, los edificios y los lugares reales de la ciudad.
+> Recorre la Zona Centro, la Zona Norte, la Zona Río, Chapultepec y el Hipódromo de Tijuana en un juego de vista desde arriba, con las calles, los edificios y los lugares reales de la ciudad.
 >
 > 🚕 Súbete a lo que encuentres: vochos, tsuritos, trocas, calafias, lowriders y hasta el taxi libre de la Revu. Trabaja de taxista o róbale la moto a un repartidor y entrega su pedido antes de que se enfríe.
 >
-> ★ Descubre los lugares de siempre: el Frontón Jai Alai, el Pasaje Rodríguez, el Hotel Caesar's, el Mercado Hidalgo y muchos más.
+> ★ Descubre los lugares de siempre: el Frontón Jai Alai, el Pasaje Rodríguez, el Hotel Caesar's, el Mercado Hidalgo, el Estadio Caliente y muchos más.
 >
-> 🌮 Haz la ruta del taco y colecciona los cafés del Centro. Cada colección completa tiene premio: correr sin cansarte, taquerías que te reparan el carro, la troca de tacos, Tijuana de noche… y si completas todo, el burro cebra dorado, una fiesta con mariachis y tu Acta de Tijuanense.
+> 🌮 Haz la ruta del taco y colecciona los cafés de la ciudad. Cada colección completa tiene premio: correr sin cansarte, taquerías que te reparan el carro, la troca de tacos, Tijuana de noche… y si completas todo, el burro cebra dorado, una fiesta con mariachis y tu Acta de Tijuanense.
 >
 > 💬 La gente en la calle te habla: historia de la ciudad, futbol, la línea, el pocho, la comida y una que otra filosofía de banqueta.
 >

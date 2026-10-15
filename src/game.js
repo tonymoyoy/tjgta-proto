@@ -234,6 +234,17 @@ function segDist(px, py, ax, ay, bx, by) {
   let t = l ? ((px - ax) * dx + (py - ay) * dy) / l : 0; t = t < 0 ? 0 : t > 1 ? 1 : t;
   return Math.hypot(px - ax - t * dx, py - ay - t * dy);
 }
+// la zona de la ciudad (para el letrero de la calle), aproximada en metros desde la esquina noroeste del mapa:
+// el canal del rio va de (500, 60) a (5900, 2950); 'a' es lo que se avanza a lo largo del canal y 'p' lo que
+// se aleja de el hacia el surponiente. Donde no hay una zona clara (los cerros del sur) dice solo Tijuana.
+function zonaDe(px, py) {
+  const x = px / M, y = py / M, a = (x - 500) * 0.8816 + (y - 60) * 0.4718, p = -(x - 500) * 0.4718 + (y - 60) * 0.8816;
+  if (y < 780 && x < 1350) return 'Zona Norte';
+  if ((x < 1800 && y < 2150) || (p >= -500 && a < 1800)) return 'Zona Centro';
+  if (p >= -700 && p < 1400 && a < 3900) return 'Zona Río';
+  if (p > 0 && a >= 3900) return x > 4450 ? 'Hipódromo' : y > 3200 ? 'Chapultepec' : 'Agua Caliente';
+  return 'Tijuana';
+}
 function streetAt(x, y) {
   let best = null, bd = 70;
   const cx = Math.floor(x / NCELL), cy = Math.floor(y / NCELL);
@@ -770,13 +781,16 @@ state.eggs = state.eggs || [];
 EGGS.forEach(e => { e.got = state.eggs.includes(e.k); });
 // premios por completar colecciones (ver checkPerks) y contadores para el Acta de Tijuanense
 state.celebrated = state.celebrated || []; state.deliveries = state.deliveries || 0; state.rides = state.rides || 0;
-// los lugares que se agregaron despues (Zona Norte y alrededores): quien ya tenia Tijuana de noche con los 25
-// de antes no la pierde; para los demas cuentan todos
-const LUGARES_NUEVOS = ['Plaza de la Tecnología', 'FrikiPlaza', 'Parque México', 'Templo de San Francisco'];
-const nocheOk = (found, cel) => landmarks.every(l => found.includes(l.name)) ||
-  ((cel || []).includes('noche') && landmarks.every(l => LUGARES_NUEVOS.includes(l.name) || found.includes(l.name)));
+// lo que se fue agregando despues (D.nuevos: Zona Norte, Chapultepec, Hipodromo...): quien ya habia completado
+// una coleccion no pierde su premio por las cosas nuevas; para los demas cuentan todas
+const NUEVOS = D.nuevos || {};
+const completa = (k, all, have, cel) => all.every(n => have.includes(n)) ||
+  ((cel || []).includes(k) && all.every(n => (NUEVOS[k] || []).includes(n) || have.includes(n)));
+const nombres = (a) => a.map(q => q.name);
 const perks = () => {
-  const p = { cafe: cafes.every(c => c.drunk), taco: tacos.every(t => t.eaten), noche: nocheOk(landmarks.filter(l => l.found).map(l => l.name), state.celebrated) };
+  const cel = state.celebrated;
+  const p = { cafe: completa('cafe', nombres(cafes), nombres(cafes.filter(c => c.drunk)), cel), taco: completa('taco', nombres(tacos), nombres(tacos.filter(t => t.eaten)), cel),
+    noche: completa('noche', nombres(landmarks), nombres(landmarks.filter(l => l.found)), cel) };
   p.final = p.cafe && p.taco && p.noche;
   return p;
 };
@@ -2055,6 +2069,39 @@ function makeLandmarkIcons(scene) {
       circ('#90caf9', 0, 1, 2.4); ring('#a1887f', 0.8, 0, 1, 2.4);
       line('#c8a46a', 1, [[-14, -2], [-10, 1], [-14, 4], [-10, 7]]); circ('#c8a46a', -10, 7, 1); // cordon con nudo
     }],
+    'Antiguo Casino Agua Caliente': ['#00695c', () => { // el minarete con su cupula y unas palmas
+      rect('rgba(255,255,255,0.18)', -22, 16, 44, 3);
+      rect('#f3e3c3', -4.5, -8, 9, 25); for (let i = 0; i < 4; i++) rect('#d9c49c', -4.5, -4 + i * 5.5, 9, 0.8);
+      rect('#e0b46c', -6.5, -10, 13, 2.5); rect('#e0b46c', -6, 6, 12, 1.6);
+      x.beginPath(); x.moveTo(-5, -10); x.quadraticCurveTo(-5, -19, 0, -21); x.quadraticCurveTo(5, -19, 5, -10); fill('#2e9d8f');
+      for (const cx2 of [-2.4, 2.4]) { x.beginPath(); x.moveTo(cx2 - 1.2, 2); x.lineTo(cx2 - 1.2, -1); x.arc(cx2, -1, 1.2, Math.PI, 0); x.lineTo(cx2 + 1.2, 2); fill('#5d4037'); }
+      line('#ffd23f', 1, [[0, -21], [0, -25]]); circ('#ffd23f', 0, -25.5, 1);
+      for (const sx of [-1, 1]) { line('#6d4c41', 1.6, [[sx * 15, 17], [sx * 14, 2]]); for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + (i - 2) * 0.6; ell('#43a047', sx * 14 + Math.cos(a) * 5, 2 + Math.sin(a) * 3 + 2, 4.5, 1.3, a); } }
+    }],
+    'Club Campestre': ['#2e7d32', () => { // green con banderita y pelota de golf
+      ell('#66bb6a', 0, 8, 20, 10); ell('#81c784', -2, 6, 13, 6);
+      ell('#1b1b1b', 4, 7, 2.6, 1.3);
+      line('#eceff1', 1.2, [[4, 7], [4, -18]]); poly('#e53935', [[4, -18], [16, -14], [4, -10]]);
+      circ('#ffffff', -9, 9, 2.6); for (const [dx, dy] of [[-0.8, -0.6], [0.6, 0.2], [-0.2, 0.9]]) circ('#cfd8dc', -9 + dx, 9 + dy, 0.4);
+    }],
+    'Hipódromo de Agua Caliente': ['#6d4c41', () => { // herradura de la suerte con sus clavos (abierta hacia abajo)
+      const a0 = Math.PI / 2 + 0.75, a1 = Math.PI * 2.5 - 0.75;
+      ring('#78909c', 8, 0, -1, 12, a0, a1); ring('#cfd8dc', 5, 0, -1, 12, a0, a1); ring('rgba(255,255,255,0.6)', 1, 0, -1, 13.5, a0 + 0.3, a1 - 0.3);
+      for (let i = 0; i < 6; i++) { const a = a0 + 0.35 + i * (a1 - a0 - 0.7) / 5; circ('#37474f', Math.cos(a) * 12, -1 + Math.sin(a) * 12, 1.1); }
+    }],
+    'Estadio Caliente': ['#b71c1c', () => { // balon con los colores de los Xolos
+      circ('#1a1a1a', 0, 0, 16); circ('#fafafa', 0, 0, 14.5);
+      const pent = (cx2, cy2, r, c) => { x.beginPath(); for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + i * Math.PI * 2 / 5; i ? x.lineTo(cx2 + Math.cos(a) * r, cy2 + Math.sin(a) * r) : x.moveTo(cx2 + Math.cos(a) * r, cy2 + Math.sin(a) * r); } x.closePath(); fill(c); };
+      pent(0, 0, 5, '#c62828');
+      for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + i * Math.PI * 2 / 5 + Math.PI / 5; pent(Math.cos(a) * 11.5, Math.sin(a) * 11.5, 4, i % 2 ? '#1a1a1a' : '#c62828'); line('#1a1a1a', 0.8, [[Math.cos(a) * 4.4, Math.sin(a) * 4.4], [Math.cos(a) * 8, Math.sin(a) * 8]]); }
+      ring('rgba(0,0,0,0.25)', 1, 0, 0, 14.5);
+    }],
+    'Galerías Hipódromo': ['#4527a0', () => { // palomitas del cine
+      x.beginPath(); x.moveTo(-11, -4); x.lineTo(11, -4); x.lineTo(8, 18); x.lineTo(-8, 18); x.closePath(); fill('#fafafa');
+      x.save(); x.clip(); for (let i = -10; i < 12; i += 5) rect('#e53935', i, -4, 2.5, 22); x.restore();
+      for (const [px, py, r] of [[-8, -6, 4], [-2, -8, 4.5], [5, -7, 4.2], [9, -4, 3.4], [-5, -11, 3.6], [2, -13, 3.8], [8, -10, 3]]) circ('#fff3c4', px, py, r);
+      for (const [px, py] of [[-7, -8], [0, -11], [6, -9], [3, -6]]) circ('#ffd54f', px, py, 1.2);
+    }],
   };
   // insignia de respaldo (un lugar nuevo sin dibujo): la estrella de siempre
   const fallback = ['#5d4037', () => txt('#ffd23f', 30, '★', 0, 1)];
@@ -3269,7 +3316,7 @@ class Main extends Phaser.Scene {
       if (l.found || dist(l.x, l.y, f.x, f.y) > 110) continue;
       l.found = true; state.money += 100; save(); bigSound = true; updateStats();
       const n = landmarks.filter(q => q.found).length;
-      toast('★ ' + l.name, l.desc + '  (+$100)' + (n === landmarks.length ? ' ¡Conoces todo el Centro!' : ''), 5);
+      toast('★ ' + l.name, l.desc + '  (+$100)' + (n === landmarks.length ? ' ¡Ya conoces todos los lugares!' : ''), 5);
       this.setObjective();
     }
     for (const t of tacos) {
@@ -3377,7 +3424,7 @@ class Main extends Phaser.Scene {
       if (!blocked(q.x, q.y)) { spot = q; mid = edgePos(e, s, 1, 0, {}); }
     }
     if (!spot) return;
-    const d = dist(spot.x, spot.y, f.x, f.y), street = streetAt(spot.x, spot.y) || 'una calle del Centro';
+    const d = dist(spot.x, spot.y, f.x, f.y), street = streetAt(spot.x, spot.y) || 'una calle de Tijuana';
     const order = pick(PEDIDOS), dog = order === PERRO_PEDIDO || Math.random() < 0.15;
     // quien recibe espera en la banqueta viendo hacia la calle
     const face = Math.atan2(mid.y - spot.y, mid.x - spot.x);
@@ -3498,7 +3545,7 @@ class Main extends Phaser.Scene {
     if (this.nameT <= 0) {
       this.nameT = 0.4;
       const n = streetAt(f.x, f.y);
-      if (n && n !== lastStreet) { lastStreet = n; hud.street.innerHTML = ''; hud.street.textContent = n; const sm = document.createElement('small'); sm.textContent = 'Zona Centro · Tijuana'; hud.street.appendChild(sm); layoutTop(); hud.street.classList.add('on'); streetT = 3; }
+      if (n && n !== lastStreet) { lastStreet = n; hud.street.innerHTML = ''; hud.street.textContent = n; const sm = document.createElement('small'); sm.textContent = (z => z === 'Tijuana' ? 'Tijuana, B.C.' : z + ' · Tijuana')(zonaDe(f.x, f.y)); hud.street.appendChild(sm); layoutTop(); hud.street.classList.add('on'); streetT = 3; }
     }
     if (streetT > 0) { streetT -= dt; if (streetT <= 0) hud.street.classList.remove('on'); }
     const tt = this.taxi && this.taxi.phase === 'drop' ? Math.ceil(this.taxi.time) + 's' : this.delivery ? '🛵 ' + Math.ceil(this.delivery.time) + 's' : null;
@@ -3955,8 +4002,8 @@ function partidaValida(p) {
   if (!subset(p.found, landmarks.map(l => l.name)) || !subset(p.eaten || [], tacos.map(t => t.name)) ||
       !subset(p.cafes || [], cafes.map(c => c.name)) || !subset(p.eggs || [], EGGS.map(e => e.k))) return false;
   if (!num(p.deliveries || 0, 1e5) || !num(p.rides || 0, 1e5) || !num(p.vendidos || 0, 1e5) || (p.name != null && (typeof p.name !== 'string' || p.name.length > 32))) return false;
-  const lleno = (a, all) => (a || []).length === all.length;
-  const ok = { cafe: lleno(p.cafes, cafes), taco: lleno(p.eaten, tacos), noche: nocheOk(p.found, p.celebrated) };
+  const ok = { cafe: completa('cafe', nombres(cafes), p.cafes || [], p.celebrated), taco: completa('taco', nombres(tacos), p.eaten || [], p.celebrated),
+    noche: completa('noche', nombres(landmarks), p.found, p.celebrated) };
   ok.final = ok.cafe && ok.taco && ok.noche;
   const cel = p.celebrated || [];
   if (!subset(cel, ['cafe', 'taco', 'noche', 'final', 'fiesta'])) return false;
@@ -4032,7 +4079,7 @@ function start() {
     scene: [Main], fps: { target: 60, smoothStep: false },
   });
   window.addEventListener('resize', () => game.scale.resize(window.innerWidth * DPR, window.innerHeight * DPR));
-  window.TJGTA = game; game.dbg = { VTYPES, vehicleTexture, state, drawChunk, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, blocked, inWater, onRoad, waterAreas, roads, PED_VARIANTS };
+  window.TJGTA = game; game.dbg = { VTYPES, vehicleTexture, state, drawChunk, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, waterAreas, roads, PED_VARIANTS };
 }
 $('go').addEventListener('click', start);
 

@@ -10,9 +10,18 @@ import json, math, sys, os
 RAW = sys.argv[1] if len(sys.argv) > 1 else "raw"
 OUT = sys.argv[2] if len(sys.argv) > 2 else os.path.join(os.path.dirname(__file__), "..", "data", "centro.js")
 
-# mismo recuadro que download_overture.py (Centro + Zona Rio)
-LON0, LAT0, LON1, LAT1 = map(float, os.environ.get("TJ_BBOX", "-117.048,32.517,-117.004,32.543").split(","))
-KX = 111320 * math.cos(math.radians((LAT0 + LAT1) / 2))
+# mismo recuadro que download_overture.py: Centro, Zona Norte, Zona Rio, Chapultepec, Hipodromo y Agua Caliente.
+# La esquina noroeste no se mueve al agrandar el mapa (ahi esta el origen), y la escala este-oeste se queda
+# con la latitud del primer recuadro (32.517-32.543): asi lo que ya estaba no cambia de lugar.
+LON0, LAT0, LON1, LAT1 = map(float, os.environ.get("TJ_BBOX", "-117.048,32.500,-116.985,32.543").split(","))
+KX = 111320 * math.cos(math.radians(32.53))
+# el primer recuadro: lo de afuera es la ampliacion (ahi se buscan taquerias y cafes nuevos)
+VIEJO = (-117.048, 32.517, -117.004, 32.543)
+# lo ya publicado: sus lugares, tacos y cafes se conservan tal cual para no romper las partidas guardadas
+PREV = None
+if os.path.exists(OUT):
+    t = open(OUT, encoding="utf-8").read()
+    PREV = json.loads(t[t.index("=") + 1:t.rstrip().rindex(";")])
 KY = 110574
 
 def border_lat(lon):
@@ -159,6 +168,22 @@ LANDMARKS_OSM = [
     ("Templo de San Francisco", "El templo de San Francisco de Asís, a una cuadra del Parque Teniente Guerrero.", 32.53336, -117.04645),
 ]
 landmarks += [[title, desc] + P(lon, lat) for title, desc, lat, lon in LANDMARKS_OSM]
+# ampliacion al sur y al oriente (Chapultepec, Hipodromo, Agua Caliente), con coordenadas de OpenStreetMap
+LANDMARKS_P1 = [
+    ("Antiguo Casino Agua Caliente", "El casino más lujoso del mundo en los años 30. Hoy es la Prepa Lázaro Cárdenas, con su minarete y su alberca.", 32.51608, -117.00357),
+    ("Club Campestre", "El campo de golf de Tijuana, entre Chapultepec y el Hipódromo.", 32.50934, -117.00510),
+    ("Hipódromo de Agua Caliente", "Carreras de caballos desde 1929 y luego de galgos; hoy casino y apuestas.", 32.50744, -116.99613),
+    ("Estadio Caliente", "La casa de los Xolos. ¡Xolos, Xolos, Xolos!", 32.50620, -116.99322),
+    ("Galerías Hipódromo", "Centro comercial frente al Estadio Caliente: cine, comida y aire acondicionado.", 32.50835, -116.99261),
+]
+landmarks += [[title, desc] + P(lon, lat) for title, desc, lat, lon in LANDMARKS_P1]
+# lo que se fue agregando despues de la primera version: quien ya habia completado una coleccion no pierde su premio
+NUEVOS = {"noche": [t for t, *_ in LANDMARKS_OSM + LANDMARKS_P1], "taco": [], "cafe": []}
+if PREV:
+    viejos = {l[0] for l in PREV["landmarks"]}
+    landmarks = PREV["landmarks"] + [l for l in landmarks if l[0] not in viejos]
+    for k, v in (PREV.get("nuevos") or {}).items():
+        NUEVOS[k] = sorted(set(NUEVOS[k]) | set(v))
 
 TACOS = ["Tacos El Gordo", "Tacos Fiesta", "Tacos Guanajuato", "Tacos de Birria la 4ta", "Tacos El REY",
          "Tacos de Birria Noe", "Tacos al Pastor El Meño", "Tacos Rodriguez", "Taco Loco",
@@ -176,11 +201,26 @@ for n in TACOS_RIO:
     t = [n.strip().replace('"', '')] + at(n)
     if all(math.hypot(t[1] - o[1], t[2] - o[2]) > 2500 for o in tacos):
         tacos.append(t)
+if PREV:
+    tacos = PREV["tacos"][:]
+
+def en_ampliacion(lo, la):
+    return (LON0 < lo < LON1 and LAT0 < la < LAT1) and not (VIEJO[0] < lo < VIEJO[2] and VIEJO[1] < la < VIEJO[3])
+
+# ampliacion: taquerias reales (nombre con taco, birria o taqueria), a mas de 700 m una de otra
+import re
+ES_TACO = re.compile(r"\b(tacos?|taquer[ií]a|birria)\b", re.I)
+NO_TACO = re.compile(r"\b(bell|shop|bar|sushi|pizza|burger)\b", re.I)
+for n, (lo, la) in sorted(places.items()):
+    if not ES_TACO.search(n) or NO_TACO.search(n) or not en_ampliacion(lo, la) or not in_mx(lo, la, 0.0003):
+        continue
+    t = [n.strip().replace('"', '')] + P(lo, la)
+    if all(math.hypot(t[1] - o[1], t[2] - o[2]) > 7000 for o in tacos) and t[0] not in {o[0] for o in tacos}:
+        tacos.append(t); NUEVOS["taco"].append(t[0])
 
 # cafes reales: los que tienen cafe en el nombre, sin bares ni negocios que no son cafeteria,
-# repartidos para que queden al menos a 300 m uno de otro
-import re
-NOT_CAFE = re.compile(r"\b(bar|smoke|restaurant|restaurante|agency|barbershop|shopping|bistro|deli|pizza|taquer|cantina)", re.I)
+# repartidos para que queden al menos a 300 m uno de otro (en la ampliacion, a 700 m)
+NOT_CAFE = re.compile(r"\b(bar|smoke|restaurant|restaurante|agency|barbershop|shopping|bistro|deli|pizza|taquer|cantina|distribuci|ganoderma)", re.I)
 cafes = []
 for n, (lo, la) in sorted(places.items()):
     if n.strip().lower() == "café" or not re.search(r"\b(caf[eé]|coffee|cafeter[ií]a|espresso)\b", n, re.I) or NOT_CAFE.search(n):
@@ -188,12 +228,18 @@ for n, (lo, la) in sorted(places.items()):
     if not in_mx(lo, la, 0.0003) or not (LON0 < lo < LON1 and LAT0 < la < LAT1):
         continue
     x, y = P(lo, la)
-    if all(math.hypot(x - c[1], y - c[2]) > 3000 for c in cafes):
+    if PREV and not en_ampliacion(lo, la):
+        continue
+    if all(math.hypot(x - c[1], y - c[2]) > (7000 if PREV else 3000) for c in (PREV["cafes"] if PREV else []) + cafes) and \
+            n.strip() not in {c[0] for c in (PREV["cafes"] if PREV else []) + cafes}:
         cafes.append([n.strip(), x, y])
+        if PREV: NUEVOS["cafe"].append(n.strip())
+if PREV:
+    cafes = PREV["cafes"] + cafes
 
 border = flat([[LON0, border_lat(LON0)], [LON1, border_lat(LON1)]])
 
-data = dict(w=W, h=H, names=names, roads=roads, blds=blds, areas=areas, landmarks=landmarks, tacos=tacos, cafes=cafes, border=border,
+data = dict(w=W, h=H, names=names, roads=roads, blds=blds, areas=areas, landmarks=landmarks, tacos=tacos, cafes=cafes, border=border, nuevos=NUEVOS,
             src="Datos de mapa: Overture Maps Foundation / © colaboradores de OpenStreetMap (ODbL)")
 s = json.dumps(data, separators=(",", ":"), ensure_ascii=False)
 open(OUT, "w").write("window.TJ_DATA=" + s + ";\n")
