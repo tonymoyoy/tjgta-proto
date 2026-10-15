@@ -103,7 +103,7 @@ LU = {"park": 0, "grass": 0, "garden": 0, "meadow": 0, "playground": 0, "pitch":
       "pedestrian": 2, "plaza": 2, "school": 3, "retail": 4, "commercial": 4, "construction": 5,
       "brownfield": 5, "industrial": 5, "railway": 5, "residential": 6,
       # el Club Campestre: el campo entero de pasto, fairways y greens mas claros, trampas de arena y lagos
-      "golf_course": 0, "driving_range": 0, "fairway": 1, "green": 1, "bunker": 2, "water_hazard": 7}
+      "golf_course": 0, "driving_range": 0, "fairway": 1, "green": 1, "bunker": 8, "water_hazard": 7}
 areas = []
 # el campo de golf completo va primero, para que sus greens, trampas y lagos queden encima
 for f in sorted(load("land_use"), key=lambda f: f["properties"]["class"] != "golf_course"):

@@ -49,7 +49,10 @@ const COL = {
   footway: '#c9bda3', rail: '#6b5a48', water: '#2f5f7f', yellow: '#e6c13a', white: '#8a8a90',
   us: 'rgba(52,60,48,0.82)', fence: '#5b3f2a',
 };
-const AREA_COL = ['#5f8a3f', '#6a9a48', '#c9bc9f', '#a39a82', '#9b927d', '#a08c66', '#958e7a', '#2f5f7f'];
+// tipos de area (ver tools/prep_data.py): 0 parque, 1 cancha, 2 plaza, 3 escuela, 4 comercio, 5 industria,
+// 6 vivienda, 7 agua, 8 arena (las trampas del golf)
+const AREA_COL = ['#5f8a3f', '#6a9a48', '#c9bc9f', '#a39a82', '#9b927d', '#a08c66', '#958e7a', '#2f5f7f', '#dcc89a'];
+const AREA_AGUA = 7, AREA_ARENA = 8;
 const ROOFS = ['#b9a98c', '#c9b89c', '#a39483', '#8f8a84', '#c3a27b', '#d2c5ae', '#9d7c64', '#7f8a90',
   '#b07d62', '#a8a8a0', '#c7b18a', '#8d9a86', '#bfa99a', '#d6cfc0'];
 
@@ -188,7 +191,7 @@ function onRoad(x, y) {
 }
 // agua (el canal del rio Tijuana y demas): las areas de agua y la linea del rio. Como con los edificios,
 // la franja de una calle encima (los puentes) si se puede pasar
-const waterAreas = areas.filter(a => a.k === AREA_COL.length - 1);
+const waterAreas = areas.filter(a => a.k === AREA_AGUA);
 const waterGrid = gridIndex(waterAreas, BCELL, 'bb');
 const riverSegGrid = new Map();
 roads.forEach(r => {
@@ -566,10 +569,29 @@ function waterTile(base) {
     }
   });
 }
+// arena: granitos claros y oscuros y las rayas del rastrillo, en curvas suaves
+function sandTile(base) {
+  return texTile(base, (x, rnd, wrap, mancha) => {
+    mancha(10, 16, 36, ['rgba(150,120,60,0.16)', 'rgba(255,245,215,0.20)']);
+    x.lineCap = 'round';
+    for (let j = 0; j < TEX; j += 3.2) { // rayas del rastrillo: ondulan y cierran en la orilla del cuadro
+      for (const [dy, col] of [[0.6, 'rgba(130,100,50,0.20)'], [0, 'rgba(255,248,225,0.30)']]) {
+        x.strokeStyle = col; x.lineWidth = 0.6; x.beginPath();
+        for (let i = 0; i <= TEX; i += 4) { const y = j + dy + Math.sin(i / TEX * Math.PI * 2 * 2) * 2.2; i ? x.lineTo(i, y) : x.moveTo(i, y); }
+        x.stroke();
+      }
+    }
+    for (let i = 0; i < 1800; i++) {
+      const px = rnd() * TEX, py = rnd() * TEX, v = rnd();
+      x.fillStyle = v < 0.5 ? 'rgba(120,95,50,0.35)' : v < 0.9 ? 'rgba(255,250,230,0.45)' : 'rgba(90,80,70,0.4)';
+      wrap(px, py, 1, (X, Y) => x.fillRect(X, Y, 0.45, 0.45));
+    }
+  });
+}
 let TEXTURAS = null;
 // relleno para un tipo de area (o null si va de color parejo); el patron se escala para medir TEX px del mundo
 function areaFill(ctx, k) {
-  if (!TEXTURAS) TEXTURAS = { 0: grassTile(AREA_COL[0]), 1: grassTile(AREA_COL[1]), [AREA_COL.length - 1]: waterTile(COL.water) };
+  if (!TEXTURAS) TEXTURAS = { 0: grassTile(AREA_COL[0]), 1: grassTile(AREA_COL[1]), [AREA_AGUA]: waterTile(COL.water), [AREA_ARENA]: sandTile(AREA_COL[AREA_ARENA]) };
   const t = TEXTURAS[k]; if (!t) return AREA_COL[k];
   const p = ctx.createPattern(t, 'repeat'); p.setTransform(new DOMMatrix().scale(1 / RES)); return p;
 }
@@ -760,7 +782,7 @@ function* chunkSteps(cx, cy) {
   const bridges = rs.filter(r => r.f & 1);
   // debajo de los edificios: agua, andadores y vias del tren
   const under = (list) => {
-    pass(list, r => ROAD_W[r.c] * M, areaFill(ctx, AREA_COL.length - 1), r => r.c === 11);
+    pass(list, r => ROAD_W[r.c] * M, areaFill(ctx, AREA_AGUA), r => r.c === 11);
     pass(list, r => ROAD_W[r.c] * M, r => r.c === 8 ? COL.paving : COL.footway, r => r.c === 8 || r.c === 9);
     pass(list, () => 3 * M, COL.rail, r => r.c === 10);
     ctx.setLineDash([2, 6]); pass(list, () => 3 * M, '#3a2d22', r => r.c === 10);
