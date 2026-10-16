@@ -2301,41 +2301,77 @@ function makeTaxi(scene) {
 const PED_FRAME = 24;
 // puesto callejero de tacos visto desde arriba: lona a rayas, trompo de pastor, comal y bancos de plastico.
 // Tres combinaciones de colores de lona; se dibuja al doble y se muestra a escala 0.5.
-const LONAS = [['#d62828', '#f4efe6'], ['#f77f00', '#fcbf49'], ['#2a9d8f', '#e9f5db']];
+const LONAS = [['#d62828', '#f4efe6'], ['#f77f00', '#fcbf49'], ['#2a9d8f', '#e9f5db'], ['#1d4e89', '#f4efe6'], ['#2e7d32', '#f1f8e9']];
+// medidas del puesto en px del mundo (la textura va a SPR veces la resolucion)
+const PUESTO_W = 58, PUESTO_H = 52;
 function makeTacoStands(scene) {
   LONAS.forEach(([c1, c2], v) => {
-    const t = scene.textures.createCanvas('puesto' + v, 88, 76), x = t.getContext();
-    x.scale(2, 2); x.translate(4, 3);
-    // sombra
-    x.fillStyle = 'rgba(0,0,0,0.3)'; x.fillRect(3, 3, 32, 22);
-    // carrito y mostrador de lamina al frente (abajo)
-    x.fillStyle = '#9aa1a6'; x.fillRect(2, 15, 30, 9); x.strokeStyle = '#5d6469'; x.lineWidth = 0.6; x.strokeRect(2, 15, 30, 9);
-    x.fillStyle = '#2b2b2b'; x.fillRect(5, 17, 9, 5); // comal
-    x.fillStyle = '#c96f2d'; for (const [a, b] of [[7, 18.5], [10, 19.5], [8.5, 20.8], [11.5, 18]]) { x.beginPath(); x.arc(a, b, 0.9, 0, 7); x.fill(); }
-    // salsas: roja y verde
-    x.fillStyle = '#b3201b'; x.beginPath(); x.arc(18, 19.5, 1.5, 0, 7); x.fill();
-    x.fillStyle = '#3f8f2f'; x.beginPath(); x.arc(22, 19.5, 1.5, 0, 7); x.fill();
-    x.fillStyle = '#f2e6c9'; x.fillRect(25, 17.5, 5, 4); // tortillas
-    // lona a rayas encima
-    for (let i = 0; i < 6; i++) { x.fillStyle = i % 2 ? c2 : c1; x.fillRect(i * 5.5, 0, 5.5, 15); }
-    x.strokeStyle = 'rgba(0,0,0,0.45)'; x.lineWidth = 0.7; x.strokeRect(0, 0, 33, 15);
-    x.fillStyle = 'rgba(255,255,255,0.18)'; x.fillRect(0, 0, 33, 4);
-    // letrero pintado a mano
-    x.fillStyle = 'rgba(0,0,0,0.55)'; x.fillRect(7, 5, 19, 6.5);
-    x.fillStyle = '#ffe066'; x.font = 'bold 6px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('TACOS', 16.5, 8.4);
-    // trompo de pastor a un lado, con su pina arriba
-    x.fillStyle = '#3a3a3a'; x.fillRect(33, 9, 4, 4);
-    x.fillStyle = '#b5521b'; x.beginPath(); x.arc(35, 11, 3.2, 0, 7); x.fill();
-    x.fillStyle = '#e07b2e'; x.beginPath(); x.arc(34.3, 10.3, 1.9, 0, 7); x.fill();
-    x.fillStyle = '#f2c94c'; x.beginPath(); x.arc(35, 11, 1, 0, 7); x.fill();
-    // bancos de plastico
-    for (const [a, b, c] of [[6, 30, '#c62828'], [15, 31, '#1565c0'], [24, 30, '#c62828']]) {
-      x.fillStyle = 'rgba(0,0,0,0.25)'; x.beginPath(); x.arc(a + 0.8, b + 0.8, 2.4, 0, 7); x.fill();
-      x.fillStyle = c; x.beginPath(); x.arc(a, b, 2.4, 0, 7); x.fill();
-      x.fillStyle = 'rgba(255,255,255,0.25)'; x.beginPath(); x.arc(a - 0.6, b - 0.6, 0.9, 0, 7); x.fill();
+    const t = scene.textures.createCanvas('puesto' + v, PUESTO_W * SPR, PUESTO_H * SPR), x = t.getContext();
+    x.scale(SPR, SPR); x.translate(5, 3);
+    const rnd = mulberry(v * 71 + 5);
+    const circ = (c, cx, cy, r) => { x.fillStyle = c; x.beginPath(); x.arc(cx, cy, r, 0, 7); x.fill(); };
+    const rrect = (c, x0, y0, w, h, r) => { x.fillStyle = c; x.beginPath(); x.roundRect(x0, y0, w, h, r); x.fill(); };
+    // sombra suave de todo el puesto (hacia abajo a la derecha)
+    x.save(); x.shadowColor = 'rgba(0,0,0,0.45)'; x.shadowBlur = 4; x.shadowOffsetX = 2; x.shadowOffsetY = 2.5;
+    rrect('rgba(0,0,0,0.01)', 0, 0, 42, 18, 1); rrect('rgba(0,0,0,0.01)', 1, 17, 40, 12, 1.5); x.restore();
+    // ---- el carrito de lamina (abajo de la lona, se asoma al frente) ----
+    const lam = x.createLinearGradient(0, 17, 0, 29); lam.addColorStop(0, '#d5dadd'); lam.addColorStop(0.5, '#a9b0b5'); lam.addColorStop(1, '#868d92');
+    rrect(lam, 1, 17, 40, 12, 1.5); x.strokeStyle = '#5d6469'; x.lineWidth = 0.6; x.beginPath(); x.roundRect(1, 17, 40, 12, 1.5); x.stroke();
+    x.strokeStyle = 'rgba(255,255,255,0.55)'; x.lineWidth = 0.5; x.beginPath(); x.moveTo(2.5, 18.2); x.lineTo(39.5, 18.2); x.stroke(); // brillo del filo
+    // comal con la carne picada, cebolla y cilantro
+    rrect('#1e1e1e', 4, 19.5, 13, 7.5, 2.5); rrect('#3a3a3a', 4.6, 20, 11.8, 6.5, 2.2);
+    for (let i = 0; i < 22; i++) { const px = 5.5 + rnd() * 10, py = 21 + rnd() * 4.5; circ(['#8a3b12', '#b5521b', '#6e2c0c', '#c9672a'][i % 4], px, py, 0.55 + rnd() * 0.45); }
+    for (let i = 0; i < 7; i++) circ('#f4f1e6', 5.8 + rnd() * 9.5, 21.2 + rnd() * 4, 0.35);
+    for (let i = 0; i < 7; i++) circ('#3f9a2f', 5.8 + rnd() * 9.5, 21.2 + rnd() * 4, 0.35);
+    // salsas en molcajete: roja, verde y la de aguacate
+    for (const [cx, col] of [[20.5, '#b3201b'], [24.5, '#3f8f2f'], [28.5, '#9ccc65']]) { circ('#4e4a45', cx, 21, 1.9); circ(col, cx, 21, 1.4); circ('rgba(255,255,255,0.35)', cx - 0.5, 20.5, 0.45); }
+    // limones partidos
+    for (const [cx, cy] of [[20, 25.5], [22.2, 26.3], [24.4, 25.6]]) { circ('#5c9e2f', cx, cy, 1.1); circ('#c5e1a5', cx, cy, 0.75); }
+    // platos con su bolsita y las tortillas
+    for (let i = 0; i < 3; i++) { circ('rgba(0,0,0,0.15)', 31.5 + i * 0.4, 25.3 - i * 0.6, 2.6); circ('#f7f7f2', 31.2 + i * 0.4, 25 - i * 0.6, 2.5); }
+    circ('rgba(255,255,255,0.7)', 30.4, 23.3, 0.6);
+    circ('#e9d9b0', 37.2, 22.8, 2.6); circ('#f5e8c6', 37, 22.6, 2.1); x.strokeStyle = 'rgba(150,120,70,0.5)'; x.lineWidth = 0.3; x.beginPath(); x.arc(37, 22.6, 1.3, 0, 7); x.stroke();
+    // ---- la lona a rayas, con los olanes al frente ----
+    const W = 42, H = 15, n = 7;
+    for (let i = 0; i < n; i++) { x.fillStyle = i % 2 ? c2 : c1; x.fillRect(i * W / n, 0, W / n + 0.05, H); }
+    for (let i = 0; i < n * 2; i++) { x.fillStyle = Math.floor(i / 2) % 2 ? c2 : c1; x.beginPath(); x.arc(i * W / n / 2 + W / n / 4, H, W / n / 4, 0, Math.PI); x.fill(); }
+    const som = x.createLinearGradient(0, 0, 0, H + 1.5); som.addColorStop(0, 'rgba(255,255,255,0.28)'); som.addColorStop(0.35, 'rgba(255,255,255,0)'); som.addColorStop(1, 'rgba(0,0,0,0.22)');
+    x.fillStyle = som; x.fillRect(0, 0, W, H + 1.6);
+    x.strokeStyle = 'rgba(0,0,0,0.35)'; x.lineWidth = 0.4; x.beginPath(); x.moveTo(0, H / 2); x.lineTo(W, H / 2); x.stroke(); // la costura (la lona va en dos aguas)
+    x.strokeStyle = 'rgba(0,0,0,0.5)'; x.lineWidth = 0.7; x.strokeRect(0, 0, W, H);
+    for (const [px, py] of [[0, 0], [W, 0], [0, H], [W, H]]) { circ('#3a3a3a', px, py, 1); circ('#9e9e9e', px - 0.25, py - 0.25, 0.4); } // los tubos
+    // letrero pintado a mano, con un taquito
+    rrect('rgba(0,0,0,0.35)', 8.4, 3.6, 25.5, 8.4, 1.6); rrect('#fff4d6', 8, 3.2, 25.5, 8.4, 1.6);
+    x.strokeStyle = c1; x.lineWidth = 0.7; x.beginPath(); x.roundRect(8.6, 3.8, 24.3, 7.2, 1.2); x.stroke();
+    x.font = 'bold 5.4px "Trebuchet MS", sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.lineWidth = 1; x.strokeStyle = '#3b2a17'; x.strokeText('TACOS', 23.5, 7.6); x.fillStyle = c1 === '#f77f00' ? '#c1121f' : c1; x.fillText('TACOS', 23.5, 7.6);
+    // taquito: tortilla doblada con su relleno
+    x.save(); x.translate(12.7, 7.8); x.rotate(-0.25);
+    x.fillStyle = '#e8c27a'; x.beginPath(); x.arc(0, 0.6, 2.8, Math.PI, 0); x.closePath(); x.fill();
+    circ('#b5521b', -1, -0.5, 0.6); circ('#3f9a2f', 0.2, -0.9, 0.45); circ('#b5521b', 1, -0.4, 0.55); circ('#f4f1e6', 0.1, 0, 0.4);
+    x.strokeStyle = '#a57b35'; x.lineWidth = 0.4; x.beginPath(); x.arc(0, 0.6, 2.8, Math.PI, 0); x.stroke(); x.restore();
+    // ---- el trompo de pastor a un lado: la carne en capas, la pina arriba y la lumbre detras ----
+    const tx = 45.5, ty = 11;
+    const fuego = x.createRadialGradient(tx + 2, ty, 0, tx + 2, ty, 6); fuego.addColorStop(0, 'rgba(255,170,40,0.75)'); fuego.addColorStop(1, 'rgba(255,90,0,0)');
+    x.fillStyle = fuego; x.beginPath(); x.arc(tx + 2, ty, 6, 0, 7); x.fill();
+    circ('#2b2b2b', tx, ty, 4.6);
+    for (const [r, c] of [[4.1, '#7a2e0e'], [3.4, '#b5521b'], [2.7, '#d9742c'], [2, '#a8441a']]) circ(c, tx, ty, r);
+    x.strokeStyle = 'rgba(60,20,5,0.6)'; x.lineWidth = 0.35; for (const r of [3.7, 3, 2.3]) { x.beginPath(); x.arc(tx, ty, r, 0.4, 5.6); x.stroke(); }
+    circ('#f2c94c', tx, ty, 1.3); circ('#ffe082', tx - 0.3, ty - 0.3, 0.6);
+    x.fillStyle = '#4caf50'; for (let k = 0; k < 5; k++) { const a = k / 5 * 6.283; x.beginPath(); x.ellipse(tx + Math.cos(a) * 1.3, ty + Math.sin(a) * 1.3, 1.1, 0.35, a, 0, 7); x.fill(); }
+    // ---- bancos de plastico, viendo a la calle ----
+    for (const [a, b, c] of [[7, 37, '#c62828'], [17, 39, '#1565c0'], [27, 37, '#f5f5f5'], [36, 39, '#c62828']]) {
+      circ('rgba(0,0,0,0.28)', a + 1, b + 1.2, 3.1);
+      const g = x.createRadialGradient(a - 1, b - 1, 0.3, a, b, 3.1); g.addColorStop(0, 'rgba(255,255,255,0.45)'); g.addColorStop(0.35, c); g.addColorStop(1, c);
+      circ(g, a, b, 3.1); x.strokeStyle = 'rgba(0,0,0,0.35)'; x.lineWidth = 0.4; x.beginPath(); x.arc(a, b, 3.1, 0, 7); x.stroke();
+      circ('rgba(0,0,0,0.22)', a, b, 0.9); // el hoyito del asiento
     }
     t.refresh();
   });
+  // el vapor del comal
+  const vp = scene.textures.createCanvas('vapor', 16 * SPR, 16 * SPR), vx = vp.getContext();
+  const vg = vx.createRadialGradient(8 * SPR, 8 * SPR, 0, 8 * SPR, 8 * SPR, 8 * SPR); vg.addColorStop(0, 'rgba(255,255,255,0.7)'); vg.addColorStop(1, 'rgba(255,255,255,0)');
+  vx.fillStyle = vg; vx.fillRect(0, 0, 16 * SPR, 16 * SPR); vp.refresh();
 }
 // el puesto va en la banqueta de la calle mas cercana (del lado donde esta la taqueria),
 // con el mostrador y los bancos viendo hacia la calle. Devuelve [x, y, rotacion].
@@ -3118,8 +3154,12 @@ class Main extends Phaser.Scene {
     for (const t of tacos) {
       const [sx, sy, rot] = sidewalkSpot(t.x, t.y);
       t.x = sx; t.y = sy;
-      t.icon = this.add.image(t.x, t.y, 'puesto' + (hash(t.name.length * 31 + (t.x | 0)) % LONAS.length)).setScale(0.55).setRotation(rot).setDepth(6);
-      t.label = this.add.text(t.x, t.y - 26, t.name, { fontSize: '12px', color: '#ffe0a0', stroke: '#000', strokeThickness: 3, resolution: TXT_RES }).setOrigin(0.5).setDepth(19);
+      t.icon = this.add.image(t.x, t.y, 'puesto' + (hash(t.name.length * 31 + (t.x | 0)) % LONAS.length)).setScale(1 / SPR).setRotation(rot).setDepth(6);
+      // vapor que sale del comal (el comal queda abajo a la izquierda del dibujo, girado con el puesto)
+      const ox = 10.5 + 5 - PUESTO_W / 2, oy = 23 + 3 - PUESTO_H / 2, c = Math.cos(rot), sn = Math.sin(rot);
+      t.vapor = [0, 1].map(i => this.add.image(t.x + ox * c - oy * sn, t.y + ox * sn + oy * c, 'vapor').setDepth(6.5).setAlpha(0).setScale(0.4 / SPR));
+      t.vapor.forEach((v, i) => this.tweens.add({ targets: v, y: v.y - 10, alpha: { from: 0.55, to: 0 }, scale: { from: 0.35 / SPR, to: 0.9 / SPR }, duration: 1600, delay: i * 800 + Math.random() * 400, repeat: -1 }));
+      t.label = this.add.text(t.x, t.y - 34, t.name, { fontSize: '12px', color: '#ffe0a0', stroke: '#000', strokeThickness: 3, resolution: TXT_RES }).setOrigin(0.5).setDepth(19);
     }
     for (const c of cafes) {
       // el toldo queda pegado a la fachada, del lado de la banqueta que da al edificio
