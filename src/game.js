@@ -2051,9 +2051,50 @@ function makeTextures(scene) {
   PED_VARIANTS.forEach((V, i) => sheet(i, V));
   sheet(PLAYER_SHIRT, PLAYER_LOOK);
   sheet('C', COYOTE_LOOK);
-  // aro de los lugares y del destino: a SPR veces la resolucion (las escalas de abajo se dividen entre SPR)
-  const r = scene.textures.createCanvas('ring', 64 * SPR, 64 * SPR), x = r.getContext();
-  x.scale(SPR, SPR); x.strokeStyle = '#fff'; x.lineWidth = 5; x.beginPath(); x.arc(32, 32, 28, 0, 7); x.stroke(); r.refresh();
+  makeAros(scene);
+}
+// aros de los lugares y de los destinos (ver crearAro): cuatro capas en blanco que se tiñen del color del aro,
+// de ARO x ARO unidades a SPR veces la resolucion. Las orillas oscuras no se tiñen y lo separan del piso.
+const ARO = 128;
+function makeAros(scene) {
+  const capa = (k, fn) => { const t = scene.textures.createCanvas(k, ARO * SPR, ARO * SPR), x = t.getContext(); x.scale(SPR, SPR); x.translate(ARO / 2, ARO / 2); fn(x); t.refresh(); };
+  const arco = (x, r, w, col, a0 = 0, a1 = 7) => { x.strokeStyle = col; x.lineWidth = w; x.beginPath(); x.arc(0, 0, r, a0, a1); x.stroke(); };
+  // la luz en el piso: un disco suave, mas fuerte en la orilla del aro
+  capa('aroLuz', (x) => {
+    const g = x.createRadialGradient(0, 0, 0, 0, 0, 60);
+    g.addColorStop(0, 'rgba(255,255,255,0.10)'); g.addColorStop(0.75, 'rgba(255,255,255,0.28)'); g.addColorStop(0.88, 'rgba(255,255,255,0.18)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+    x.fillStyle = g; x.beginPath(); x.arc(0, 0, 60, 0, 7); x.fill();
+  });
+  // el aro: grueso, con orilla oscura y una linea delgada por dentro
+  capa('aroBase', (x) => {
+    arco(x, 50, 11, 'rgba(0,0,0,0.45)'); arco(x, 50, 6.5, '#fff');
+    arco(x, 50, 1.6, 'rgba(255,255,255,0.9)'); // brillo
+    arco(x, 41, 3.2, 'rgba(0,0,0,0.3)'); arco(x, 41, 1.6, 'rgba(255,255,255,0.75)');
+    // cuatro marcas hacia el centro
+    x.lineCap = 'round';
+    for (let i = 0; i < 4; i++) {
+      const a = i * Math.PI / 2 + Math.PI / 4, c = Math.cos(a), sn = Math.sin(a);
+      x.strokeStyle = 'rgba(0,0,0,0.45)'; x.lineWidth = 6; x.beginPath(); x.moveTo(c * 34, sn * 34); x.lineTo(c * 27, sn * 27); x.stroke();
+      x.strokeStyle = '#fff'; x.lineWidth = 3; x.stroke();
+    }
+  });
+  // por fuera, un anillo de rayitas que gira
+  capa('aroGiro', (x) => {
+    x.lineCap = 'round';
+    for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2; arco(x, 59, 5, 'rgba(0,0,0,0.35)', a, a + 0.22); arco(x, 59, 2.6, '#fff', a, a + 0.22); }
+  });
+  // la onda que sale del aro y se desvanece
+  capa('aroOnda', (x) => { arco(x, 58, 3, 'rgba(255,255,255,0.9)'); arco(x, 58, 7, 'rgba(255,255,255,0.25)'); });
+  // el pin que flota sobre los destinos (y su sombra en el piso, que no se tine)
+  const pin = (x) => { x.beginPath(); x.moveTo(0, 26); x.bezierCurveTo(-6, 14, -20, 4, -20, -12); x.arc(0, -12, 20, Math.PI, 0); x.bezierCurveTo(20, 4, 6, 14, 0, 26); x.closePath(); };
+  capa('aroPin', (x) => {
+    pin(x); x.fillStyle = '#fff'; x.fill(); x.lineWidth = 4; x.strokeStyle = 'rgba(0,0,0,0.55)'; x.stroke();
+    x.fillStyle = 'rgba(0,0,0,0.18)'; x.beginPath(); x.arc(5, -8, 18, 0, 7); x.save(); pin(x); x.clip(); x.fill(); x.restore(); // sombreado
+    x.fillStyle = 'rgba(255,255,255,0.85)'; x.beginPath(); x.ellipse(-7, -19, 5, 3, -0.6, 0, 7); x.fill(); // brillo
+    x.fillStyle = 'rgba(0,0,0,0.5)'; x.beginPath(); x.arc(0, -12, 7.5, 0, 7); x.fill();
+    x.fillStyle = '#fff'; x.beginPath(); x.arc(0, -12, 5.5, 0, 7); x.fill();
+  });
+  capa('aroSombra', (x) => { const g = x.createRadialGradient(0, 0, 0, 0, 0, 14); g.addColorStop(0, 'rgba(0,0,0,0.45)'); g.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = g; x.beginPath(); x.ellipse(0, 0, 14, 7, 0, 0, 7); x.fill(); });
 }
 const PLAYER_SHIRT = 'P'; // textura 'pedP' y animacion 'walkP'
 // el jugador: camisa amarilla, pantalon de mezclilla y gorra roja (como siempre)
@@ -3066,7 +3107,7 @@ class Main extends Phaser.Scene {
       // marca se pasa a la banqueta mas cercana; si no, habria que atinarle a un rincon para descubrirlo
       // (se descubre a menos de 110 px) o de plano no se podria
       if (!walkableTo(l.x, l.y, 40)) { const [sx, sy] = nearestSidewalk(l.x, l.y); l.x = sx; l.y = sy; }
-      const ring = this.add.image(l.x, l.y, 'ring').setDepth(3).setTint(0xffd23f).setAlpha(0.8);
+      const ring = this.crearAro(0xffd23f, 3);
       // la insignia del lugar flota un poco (cada una a su ritmo)
       const star = this.add.image(l.x, l.y, l.icon).setDepth(20).setScale(0.62 / SPR);
       this.tweens.add({ targets: star, y: l.y - 3, duration: 900 + Math.random() * 300, yoyo: true, repeat: -1, ease: 'Sine.inOut', delay: Math.random() * 900 });
@@ -3115,7 +3156,7 @@ class Main extends Phaser.Scene {
     this.chatDeck = []; this.chatCool = 0;
     this.bubble = { el: $('bubble'), ped: null, t: 0 };
     this.staminaBar = this.add.graphics().setDepth(20);
-    this.target = this.add.image(0, 0, 'ring').setDepth(4).setTint(0x57d16b).setVisible(false);
+    this.target = this.crearAro(0x57d16b, 4, true);
     this.route = null; this.routeT = 0;
 
     // el jugador aparece en una calle al azar, en la banqueta y con un auto estacionado al lado
@@ -4283,11 +4324,38 @@ class Main extends Phaser.Scene {
   }
 
 
+  // un aro (ver makeAros): luz en el piso, el aro, las rayitas que giran y una onda que sale cada tanto
+  // con pin: ademas un pin que flota en medio (para los destinos, que no traen insignia)
+  crearAro(color, depth, conPin) {
+    const a = { partes: ['aroLuz', 'aroBase', 'aroGiro', 'aroOnda'].map((k, i) => this.add.image(0, 0, k).setDepth(depth + i * 0.01).setTint(color)), color, fase: Math.random() * 1000 };
+    if (conPin) { a.sombra = this.add.image(0, 0, 'aroSombra').setDepth(depth + 0.05); a.pin = this.add.image(0, 0, 'aroPin').setDepth(20).setTint(color).setOrigin(0.5, 0.7); }
+    return a;
+  }
+  // d = diametro en px del mundo
+  moverAro(a, x, y, d, time, visible, color) {
+    for (const o of a.partes) o.setVisible(visible);
+    if (a.pin) { a.pin.setVisible(visible); a.sombra.setVisible(visible); }
+    if (!visible) return;
+    if (color !== undefined && color !== a.color) { a.color = color; for (const o of a.partes) o.setTint(color); if (a.pin) a.pin.setTint(color); }
+    const [luz, base, giro, onda] = a.partes, t = time + a.fase, k = d / ARO / SPR;
+    const late = 1 + Math.sin(t / 260) * 0.05, ola = (t % 1400) / 1400;
+    for (const o of a.partes) o.setPosition(x, y);
+    luz.setScale(k * late).setAlpha(0.9);
+    base.setScale(k * late * 0.92);
+    giro.setScale(k).setRotation(t / 1800);
+    onda.setScale(k * (0.85 + ola * 0.5)).setAlpha((1 - ola) * 0.8);
+    if (a.pin) {
+      // el pin sube y baja; la sombra se achica cuando sube
+      const alto = (Math.sin(t / 300) + 1) / 2, kp = Math.max(0.55, d / 115) / SPR;
+      a.pin.setPosition(x, y - 6 - alto * 8).setScale(kp);
+      a.sombra.setPosition(x, y + 2).setScale(kp * (1.1 - alto * 0.3)).setAlpha(0.9 - alto * 0.3);
+    }
+  }
+
   updateMarkers(time, f) {
-    const pulse = 0.75 + Math.sin(time / 250) * 0.15;
     for (const m of this.marks) {
       const near = dist(m.l.x, m.l.y, f.x, f.y) < 700;
-      m.ring.setVisible(!m.l.found).setScale(pulse * 3.4 / SPR);
+      this.moverAro(m.ring, m.l.x, m.l.y, 165, time, !m.l.found && dist(m.l.x, m.l.y, f.x, f.y) < 1600);
       if (m.found !== m.l.found) { m.found = m.l.found; if (m.l.found) m.star.setTint(0x9a9a9a).setAlpha(0.85); else m.star.clearTint().setAlpha(1); }
       m.label.setVisible(near);
     }
@@ -4296,8 +4364,10 @@ class Main extends Phaser.Scene {
     for (const c of chinas) c.label.setVisible(dist(c.x, c.y, f.x, f.y) < 300);
     YONKE.label.setVisible(dist(YONKE.x, YONKE.y, f.x, f.y) < 400);
     const g = this.goal();
-    this.target.setVisible(!!g);
-    if (g) this.target.setPosition(g.x, g.y).setScale(pulse * (this.taxi && this.taxi.phase === 'pick' ? 1.3 : 2) / SPR);
+    // verde el destino; ambar donde recoges al pasajero y morado el de los paros (como su globo)
+    const pick = this.taxi && this.taxi.phase === 'pick';
+    if (g) this.moverAro(this.target, g.x, g.y, pick ? 80 : 115, time, true, pick ? 0xffb300 : g === this.paro ? 0xb07cff : 0x57d16b);
+    else this.moverAro(this.target, 0, 0, 0, time, false);
     if (this.waypoint && !this.waypoint.fiesta && dist(this.waypoint.x, this.waypoint.y, f.x, f.y) < 60) { this.waypoint = null; toast('Llegaste a tu destino', '', 1.5); }
   }
 
