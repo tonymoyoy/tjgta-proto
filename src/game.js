@@ -105,7 +105,12 @@ const angDiff = (a, b) => { let d = b - a; while (d > Math.PI) d -= 2 * Math.PI;
 const rnd = (a, b) => a + Math.random() * (b - a);
 const pick = (arr) => arr[(Math.random() * arr.length) | 0];
 
-const roads = D.roads.map(([c, n, f, co], i) => { const p = pts(co); return { i, c, n, f, p, bb: bbox(p, (ROAD_W[c] / 2 + 3) * M), curvy: curviness(p) > 0.0024 }; });
+// ancho de cada calle (m): las avenidas divididas vienen como una linea por sentido, y cada una con el ancho de la
+// avenida completa se enciman en una plancha de asfalto sin camellon (Via Rapida, Paseo Centenario, Paseo de los
+// Heroes...); un sentido lleva 3 carriles
+const ANCHO_UN_SENTIDO = [12, 12, 11, 11, 8];
+const roadW = (c, f) => (f & 2) && c < ANCHO_UN_SENTIDO.length ? ANCHO_UN_SENTIDO[c] : ROAD_W[c];
+const roads = D.roads.map(([c, n, f, co], i) => { const p = pts(co), w = roadW(c, f); return { i, c, n, f, p, w, bb: bbox(p, (w / 2 + 3) * M), curvy: curviness(p) > 0.0024 }; });
 const blds = D.blds.map(([h, co], i) => { const p = pts(co); const sh = Math.min(h * 0.45, 22) * M / 5 * 1.6; return { h, p, sh, bb: bbox(p, 0), sbb: bbox(p, Math.max(sh, EXTRA_UP) + 2), col: ROOFS[hash(i) % ROOFS.length] }; });
 const areas = D.areas.map(([k, co]) => { const p = pts(co); return { k, p, bb: bbox(p, 0) }; });
 const B = pts(D.border);
@@ -178,9 +183,9 @@ const RCELL = 64;
 const roadSegGrid = new Map();
 roads.forEach(r => {
   if (r.c > 7) return;
-  const half = (ROAD_W[r.c] / 2 + (r.c <= 6 ? SIDEWALK : 0.5)) * M, p = r.p;
+  const half = (r.w / 2 + (r.c <= 6 ? SIDEWALK : 0.5)) * M, p = r.p;
   for (let q = 0; q < p.length - 2; q += 2) {
-    const seg = [p[q], p[q + 1], p[q + 2], p[q + 3], half, ROAD_W[r.c] / 2 * M]; // franja con banqueta y solo el asfalto
+    const seg = [p[q], p[q + 1], p[q + 2], p[q + 3], half, r.w / 2 * M]; // franja con banqueta y solo el asfalto
     const x0 = Math.floor((Math.min(p[q], p[q + 2]) - half) / RCELL), x1 = Math.floor((Math.max(p[q], p[q + 2]) + half) / RCELL);
     const y0 = Math.floor((Math.min(p[q + 1], p[q + 3]) - half) / RCELL), y1 = Math.floor((Math.max(p[q + 1], p[q + 3]) + half) / RCELL);
     for (let cx = x0; cx <= x1; cx++) for (let cy = y0; cy <= y1; cy++) {
@@ -207,7 +212,7 @@ roads.forEach(r => {
   if (r.c !== 11) return;
   const half = ROAD_W[11] / 2 * M, p = r.p;
   for (let q = 0; q < p.length - 2; q += 2) {
-    const seg = [p[q], p[q + 1], p[q + 2], p[q + 3], half, ROAD_W[r.c] / 2 * M]; // franja con banqueta y solo el asfalto
+    const seg = [p[q], p[q + 1], p[q + 2], p[q + 3], half, r.w / 2 * M]; // franja con banqueta y solo el asfalto
     for (let cx = Math.floor((Math.min(p[q], p[q + 2]) - half) / RCELL); cx <= Math.floor((Math.max(p[q], p[q + 2]) + half) / RCELL); cx++)
       for (let cy = Math.floor((Math.min(p[q + 1], p[q + 3]) - half) / RCELL); cy <= Math.floor((Math.max(p[q + 1], p[q + 3]) + half) / RCELL); cy++) {
         const k = cx + ',' + cy; let a = riverSegGrid.get(k); if (!a) riverSegGrid.set(k, a = []); a.push(seg);
@@ -231,7 +236,7 @@ function blocked(x, y) {
   return y < 4 || enNiebla(x, y, NIEBLA) || y < borderY(x) + 6 || ((inBuilding(x, y) || inWater(x, y)) && !onRoad(x, y));
 }
 function laneLat(e, k) {
-  if (e.c <= MAJOR) return e.one ? [-3, -1, 1, 3][k & 3] * e.w / 8 : [1, 3][k & 1] * e.w / 8;
+  if (e.c <= MAJOR) return e.one ? [-1, 0, 1, 1][k & 3] * e.w / 3 : [1, 3][k & 1] * e.w / 8; // un sentido: 3 carriles (el 3 es el de la derecha)
   return e.one ? 0 : e.w / 4;
 }
 function offsetLine(r, d) {
@@ -301,7 +306,7 @@ function buildGraph(filter, oneways) {
       const len = cum[cum.length - 1];
       if (len > 2) {
         const e = { p: ep, cum, len, a: node(ep[0], ep[1]), b: node(ep[ep.length - 2], ep[ep.length - 1]),
-          one: oneways && (r.f & 2) !== 0, w: ROAD_W[r.c] * M, c: r.c, id: edges.length };
+          one: oneways && (r.f & 2) !== 0, w: r.w * M, c: r.c, id: edges.length };
         edges.push(e);
         adj[e.a].push({ e, dir: 1 });
         if (!e.one) adj[e.b].push({ e, dir: -1 });
@@ -582,7 +587,7 @@ const arboles = [];
   for (const r of roads) {
     if (r.c < 1 || r.c > 6 || (r.f & 1)) continue;
     const rnd = mulberry(r.i * 7919 + 5), prob = hash(r.i * 13 + 7) % 10 < 3 ? 0.4 : 0.04;
-    const off = (ROAD_W[r.c] / 2 + SIDEWALK * 0.6) * M, p = r.p;
+    const off = (r.w / 2 + SIDEWALK * 0.6) * M, p = r.p;
     for (let q = 0; q < p.length - 2; q += 2) {
       const dx = p[q + 2] - p[q], dy = p[q + 3] - p[q + 1], len = Math.hypot(dx, dy); if (len < 1) continue;
       const nx = -dy / len, ny = dx / len;
@@ -864,7 +869,7 @@ function grime(ctx, list, cx, cy) {
   const X0 = cx * CHUNK - 40, Y0 = cy * CHUNK - 40, X1 = X0 + CHUNK + 80, Y1 = Y0 + CHUNK + 80;
   for (const r of list) {
     if (r.c > 7) continue;
-    const w = ROAD_W[r.c] * M;
+    const w = r.w * M;
     const rng = mulberry(r.i * 9973 + 17), p = r.p;
     for (let q = 0; q < p.length - 2; q += 2) {
       const ax = p[q], ay = p[q + 1], dx = p[q + 2] - ax, dy = p[q + 3] - ay, len = Math.hypot(dx, dy);
@@ -988,7 +993,7 @@ function* drawBuildings(ctx, bl, rs, cx, cy) {
     g.globalCompositeOperation = 'destination-out'; g.lineCap = 'round'; g.strokeStyle = '#000';
     for (const r of rs) {
       if (r.c > 7) continue;
-      g.lineWidth = (r.c <= 6 ? ROAD_W[r.c] + SIDEWALK * 2 : ROAD_W[r.c] + 1) * M;
+      g.lineWidth = (r.c <= 6 ? r.w + SIDEWALK * 2 : r.w + 1) * M;
       trace(g, r.p); g.stroke();
     }
     g.globalCompositeOperation = 'source-over';
@@ -1064,25 +1069,25 @@ function* chunkSteps(cx, cy) {
   const bridges = rs.filter(r => r.f & 1);
   // debajo de los edificios: agua, andadores y vias del tren
   const under = (list) => {
-    pass(list, r => ROAD_W[r.c] * M, areaFill(ctx, AREA_AGUA), r => r.c === 11);
-    pass(list, r => ROAD_W[r.c] * M, r => areaFill(ctx, r.c === 8 ? AREA_PLAZA : TEX_SENDERO), r => r.c === 8 || r.c === 9);
+    pass(list, r => r.w * M, areaFill(ctx, AREA_AGUA), r => r.c === 11);
+    pass(list, r => r.w * M, r => areaFill(ctx, r.c === 8 ? AREA_PLAZA : TEX_SENDERO), r => r.c === 8 || r.c === 9);
     pass(list, () => 3 * M, COL.rail, r => r.c === 10);
     ctx.setLineDash([2, 6]); pass(list, () => 3 * M, '#3a2d22', r => r.c === 10);
     ctx.setLineDash([]); pass(list, () => 1, '#9a9aa0', r => r.c === 10);
   };
   // encima de los edificios: calles con banqueta y lineas de carril
   const over = (list) => {
-    pass(list, r => (ROAD_W[r.c] + BANQ[r.c] * 2 + 0.5) * M, COL.curb, r => r.c <= 6);
+    pass(list, r => (r.w + BANQ[r.c] * 2 + 0.5) * M, COL.curb, r => r.c <= 6);
     const banq = areaFill(ctx, TEX_BANQUETA);
-    pass(list, r => (ROAD_W[r.c] + BANQ[r.c] * 2) * M, banq, r => r.c <= 6);
+    pass(list, r => (r.w + BANQ[r.c] * 2) * M, banq, r => r.c <= 6);
     // los accesos, estacionamientos y callejones (clase 7) van por debajo de las calles, sin banqueta y de concreto
     // mas claro: se distinguen de las calles de verdad (el trafico no entra ahi) y no parecen calles que no llevan a nada
-    pass(list, r => (ROAD_W[r.c] + 0.6) * M, '#77715f', r => r.c === 7);
-    pass(list, r => ROAD_W[r.c] * M - 2, asfalto, r => r.c === 7);
-    pass(list, r => ROAD_W[r.c] * M - 2, 'rgba(225,215,190,0.2)', r => r.c === 7);
+    pass(list, r => (r.w + 0.6) * M, '#77715f', r => r.c === 7);
+    pass(list, r => r.w * M - 2, asfalto, r => r.c === 7);
+    pass(list, r => r.w * M - 2, 'rgba(225,215,190,0.2)', r => r.c === 7);
     // orilla polvosa junto a la banqueta; el asfalto limpio de los cruces la tapa
-    pass(list, r => ROAD_W[r.c] * M, '#4b4842', r => r.c <= 6);
-    pass(list, r => ROAD_W[r.c] * M - 9, asfalto, r => r.c <= 6);
+    pass(list, r => r.w * M, '#4b4842', r => r.c <= 6);
+    pass(list, r => r.w * M - 9, asfalto, r => r.c <= 6);
     // solo la raya de en medio que separa los dos sentidos (doble en avenidas, punteada en calles);
     // sin lineas de carril ni rayas en calles de un sentido: se mezclaban y ensuciaban el dibujo
     ctx.setLineDash([]);
@@ -1106,7 +1111,7 @@ function* chunkSteps(cx, cy) {
       if (r.c > 7) continue;
       for (const [k, w] of [[0, 6], [1, 4.5], [2, 3]]) {
         const q = recorte(r.p, r.cabos[0][2] ? PUENTE_RAMPA + k * 8 * M : 0, r.cabos[1][2] ? PUENTE_RAMPA + k * 8 * M : 0); if (!q) continue;
-        ctx.lineWidth = (ROAD_W[r.c] + w) * M; trace(ctx, q); ctx.stroke();
+        ctx.lineWidth = (r.w + w) * M; trace(ctx, q); ctx.stroke();
       }
     }
     ctx.lineCap = 'round'; under(bridges); // los puentes peatonales y del tren, con la punta redonda
@@ -1147,7 +1152,7 @@ miniFull.width = Math.ceil(WORLD_W * MS); miniFull.height = Math.ceil(WORLD_H * 
   for (const r of roads) {
     if (r.c > 9) { if (r.c === 11) { c.strokeStyle = COL.water; c.lineWidth = 60; trace(c, r.p); c.stroke(); } continue; }
     c.strokeStyle = r.c <= 2 ? '#f2d16b' : r.c <= 6 ? '#2e2e33' : r.c === 7 ? '#55555a' : '#c8bda4';
-    c.lineWidth = Math.max(ROAD_W[r.c] * M, r.c <= 6 ? 50 : 25); trace(c, r.p); c.stroke();
+    c.lineWidth = Math.max(r.w * M, r.c <= 6 ? 50 : 25); trace(c, r.p); c.stroke();
   }
   c.fillStyle = 'rgba(30,36,30,0.85)';
   c.beginPath(); c.moveTo(0, 0); c.lineTo(WORLD_W, 0); c.lineTo(WORLD_W, borderY(WORLD_W)); c.lineTo(0, borderY(0)); c.closePath(); c.fill();
@@ -3183,7 +3188,7 @@ function makeEggs(scene) {
 function onAsphalt(x, y, pad) {
   for (const r of roads) {
     if (r.c > 7 || x < r.bb[0] || x > r.bb[2] || y < r.bb[1] || y > r.bb[3]) continue;
-    for (let i = 0; i < r.p.length - 2; i += 2) if (segDist(x, y, r.p[i], r.p[i + 1], r.p[i + 2], r.p[i + 3]) < ROAD_W[r.c] / 2 * M + pad) return true;
+    for (let i = 0; i < r.p.length - 2; i += 2) if (segDist(x, y, r.p[i], r.p[i + 1], r.p[i + 2], r.p[i + 3]) < r.w / 2 * M + pad) return true;
   }
   return false;
 }
@@ -3226,7 +3231,7 @@ function nearestSidewalk(x, y) {
     }
   }
   if (!best || best.d < 1) return [x, y];
-  const off = (ROAD_W[best.r.c] / 2 + SIDEWALK / 2) * M, k = off / best.d;
+  const off = (best.r.w / 2 + SIDEWALK / 2) * M, k = off / best.d;
   return [best.qx + (x - best.qx) * k, best.qy + (y - best.qy) * k];
 }
 function sidewalkSpot(x, y, extra = 17) {
@@ -3247,7 +3252,7 @@ function sidewalkSpot(x, y, extra = 17) {
     for (const side of [1, -1]) {
       let nx = -dy / nl * side, ny = dx / nl * side;
       if (side === 1 && (x - qx) * nx + (y - qy) * ny < 0) { nx = -nx; ny = -ny; }
-      const off = ROAD_W[r.c] / 2 * M + extra, px = qx + nx * off, py = qy + ny * off;
+      const off = r.w / 2 * M + extra, px = qx + nx * off, py = qy + ny * off;
       if (!onAsphalt(px, py, 15)) return [px, py, Math.atan2(-ny, -nx) - Math.PI / 2];
     }
   }
@@ -4660,7 +4665,7 @@ function renderBig(detail) {
     for (const r of rs) {
       if (r.c > 9) { if (r.c === 11) { c.strokeStyle = COL.water; c.lineWidth = ROAD_W[11] * M; trace(c, r.p); c.stroke(); } continue; }
       c.strokeStyle = r.c <= 2 ? '#f2d16b' : r.c <= 6 ? '#2e2e33' : r.c === 7 ? '#55555a' : '#c8bda4';
-      c.lineWidth = Math.max(ROAD_W[r.c] * M, (r.c <= 2 ? 5 : r.c <= 6 ? 3.5 : 2) / s); trace(c, r.p); c.stroke();
+      c.lineWidth = Math.max(r.w * M, (r.c <= 2 ? 5 : r.c <= 6 ? 3.5 : 2) / s); trace(c, r.p); c.stroke();
     }
     c.fillStyle = 'rgba(30,36,30,0.85)';
     c.beginPath(); c.moveTo(x0, 0); c.lineTo(x1, 0); c.lineTo(x1, borderY(x1)); c.lineTo(x0, borderY(x0)); c.closePath(); c.fill();
