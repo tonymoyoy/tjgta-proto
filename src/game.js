@@ -2532,46 +2532,93 @@ function makeChinas(scene) {
 // el yonke visto desde arriba: terreno de tierra con malla ciclonica, carros deshuesados apilados, llantas,
 // la caseta del yonkero y el letrero en el porton. El porton va hacia abajo; 'u' voltea el letrero.
 function makeYonke(scene) {
+  // 100 x 70 unidades a 1.5 px del mundo por unidad (el tamano de siempre) y a SPR veces la resolucion
+  const K = 1.5;
   for (const k of ['', 'u']) {
-    const t = scene.textures.createCanvas('yonke' + k, 200, 140), x = t.getContext(), r = mulberry(23);
-    x.scale(2, 2); x.translate(3, 3);
+    const t = scene.textures.createCanvas('yonke' + k, Math.round(100 * K * SPR), Math.round(70 * K * SPR)), x = t.getContext(), r = mulberry(23);
+    x.scale(K * SPR, K * SPR); x.translate(3, 3);
     const W = 92, H = 56;
-    x.fillStyle = 'rgba(0,0,0,0.3)'; x.fillRect(2, 2, W, H);
-    x.fillStyle = '#7d6b52'; x.fillRect(0, 0, W, H);
-    for (let i = 0; i < 40; i++) { x.fillStyle = r() < 0.5 ? 'rgba(60,45,30,0.35)' : 'rgba(170,150,115,0.3)'; x.beginPath(); x.ellipse(r() * W, r() * H, 1 + r() * 4, 0.6 + r() * 2.4, r() * 3, 0, 7); x.fill(); }
-    for (let i = 0; i < 6; i++) { x.fillStyle = 'rgba(10,10,15,0.45)'; x.beginPath(); x.ellipse(8 + r() * (W - 16), 8 + r() * (H - 16), 2 + r() * 3, 1.5 + r() * 2, r() * 3, 0, 7); x.fill(); } // aceite
-    // carros deshuesados: unos encima de otros, oxidados y sin puertas
-    const cols = ['#8e3b2f', '#3f5f7a', '#6b6b4a', '#7a7a7a', '#5b3f6b', '#a0522d', '#2f5a3f', '#c2a14a'];
-    const car = (cx, cy, a, c) => {
+    const circ = (c, cx, cy, rr) => { x.fillStyle = c; x.beginPath(); x.arc(cx, cy, rr, 0, 7); x.fill(); };
+    // ---- el terreno: tierra con charcos de aceite, huellas de llanta y basurita ----
+    x.save(); x.shadowColor = 'rgba(0,0,0,0.45)'; x.shadowBlur = 4; x.shadowOffsetX = 2; x.shadowOffsetY = 2.5; x.fillStyle = '#7d6b52'; x.fillRect(0, 0, W, H); x.restore();
+    const tierra = x.createLinearGradient(0, 0, W, H); tierra.addColorStop(0, '#8a7759'); tierra.addColorStop(1, '#6f5e46'); x.fillStyle = tierra; x.fillRect(0, 0, W, H);
+    for (let i = 0; i < 90; i++) { x.fillStyle = r() < 0.5 ? 'rgba(60,45,30,0.3)' : 'rgba(180,160,125,0.28)'; x.beginPath(); x.ellipse(r() * W, r() * H, 0.6 + r() * 3.5, 0.4 + r() * 2, r() * 3, 0, 7); x.fill(); }
+    x.strokeStyle = 'rgba(50,38,25,0.35)'; x.lineWidth = 1.4; x.setLineDash([1.2, 0.8]); // huellas que entran por el porton
+    for (const dx of [-3, 3]) { x.beginPath(); x.moveTo(46 + dx, H); x.quadraticCurveTo(44 + dx, 40, 34 + dx, 30); x.stroke(); }
+    x.setLineDash([]);
+    for (let i = 0; i < 7; i++) { // charcos de aceite con su brillo tornasol
+      const cx = 8 + r() * (W - 16), cy = 8 + r() * (H - 16), rx = 2 + r() * 3.5, ry = 1.4 + r() * 2.2, a = r() * 3;
+      x.fillStyle = 'rgba(12,12,18,0.55)'; x.beginPath(); x.ellipse(cx, cy, rx, ry, a, 0, 7); x.fill();
+      const g = x.createLinearGradient(cx - rx, cy, cx + rx, cy); g.addColorStop(0, 'rgba(120,60,200,0.25)'); g.addColorStop(0.5, 'rgba(40,200,180,0.2)'); g.addColorStop(1, 'rgba(230,180,40,0.2)');
+      x.fillStyle = g; x.beginPath(); x.ellipse(cx - rx * 0.2, cy - ry * 0.2, rx * 0.5, ry * 0.4, a, 0, 7); x.fill();
+    }
+    for (let i = 0; i < 14; i++) { x.fillStyle = ['#9e9e9e', '#5d4037', '#b0bec5', '#795548'][i % 4]; x.save(); x.translate(4 + r() * (W - 8), 4 + r() * (H - 8)); x.rotate(r() * 3); x.fillRect(-0.8, -0.3, 1.6, 0.6); x.restore(); } // fierritos
+    // ---- carros deshuesados: oxidados, sin puertas ni llantas, unos con el cofre abierto ----
+    const cols = ['#8e3b2f', '#3f5f7a', '#6b6b4a', '#7a7a7a', '#5b3f6b', '#a0522d', '#2f5a3f', '#c2a14a', '#2e4a6b', '#9a8a6a'];
+    const car = (cx, cy, a, c, alto) => {
       x.save(); x.translate(cx, cy); x.rotate(a);
-      x.fillStyle = 'rgba(0,0,0,0.35)'; x.fillRect(-6.4, -3, 14, 7);
-      x.fillStyle = c; x.beginPath(); x.roundRect(-7, -3.4, 14, 6.8, 1.4); x.fill();
-      x.fillStyle = 'rgba(120,60,20,0.55)'; for (let i = 0; i < 4; i++) { x.beginPath(); x.ellipse(-5 + r() * 10, -2 + r() * 4, 0.8 + r() * 1.6, 0.6 + r(), 0, 0, 7); x.fill(); } // oxido
-      x.fillStyle = '#1d2a33'; x.fillRect(-2.6, -2.6, 5.6, 5.2); x.fillStyle = shade(c, 0.75); x.fillRect(-1.6, -2.2, 3.6, 4.4);
-      x.strokeStyle = 'rgba(0,0,0,0.5)'; x.lineWidth = 0.3; x.strokeRect(-7, -3.4, 14, 6.8);
+      x.fillStyle = 'rgba(0,0,0,' + (alto ? 0.45 : 0.32) + ')'; x.beginPath(); x.roundRect(-6.4 + (alto ? 1.2 : 0.6), -3 + (alto ? 1.4 : 0.7), 14, 6.8, 1.4); x.fill();
+      const g = x.createLinearGradient(0, -3.4, 0, 3.4); g.addColorStop(0, shade(c, 1.2)); g.addColorStop(1, shade(c, 0.75));
+      x.fillStyle = g; x.beginPath(); x.roundRect(-7, -3.4, 14, 6.8, 1.6); x.fill();
+      for (let i = 0; i < 6; i++) { x.fillStyle = r() < 0.6 ? 'rgba(140,70,20,0.6)' : 'rgba(90,45,15,0.6)'; x.beginPath(); x.ellipse(-6 + r() * 12, -2.6 + r() * 5.2, 0.5 + r() * 1.4, 0.4 + r() * 0.9, r() * 3, 0, 7); x.fill(); } // oxido
+      // cabina sin vidrios: se ven los asientos
+      x.fillStyle = '#1d2a33'; x.fillRect(-2.8, -2.8, 6, 5.6);
+      x.fillStyle = '#4e342e'; x.fillRect(-2.1, -2.2, 1.8, 1.8); x.fillRect(-2.1, 0.4, 1.8, 1.8); x.fillRect(0.8, -2.2, 1.8, 4.4);
+      x.strokeStyle = 'rgba(200,220,230,0.5)'; x.lineWidth = 0.25; x.beginPath(); x.moveTo(3.2, -2.6); x.lineTo(3.8, -0.4); x.lineTo(3.3, 1.2); x.stroke(); // vidrio estrellado
+      if (r() < 0.4) { x.fillStyle = shade(c, 0.6); x.fillRect(4, -3, 2.6, 6); x.fillStyle = '#37474f'; x.fillRect(4.4, -2, 1.8, 4); } // cofre abierto, el motor
+      x.strokeStyle = 'rgba(0,0,0,0.55)'; x.lineWidth = 0.35; x.beginPath(); x.roundRect(-7, -3.4, 14, 6.8, 1.6); x.stroke();
+      x.fillStyle = 'rgba(255,255,255,0.18)'; x.fillRect(-6.4, -3, 12.8, 0.6);
       x.restore();
     };
-    [[12, 10, 0.05], [12, 18.5, -0.04], [26, 10, 0.1], [26, 18, 0.02], [44, 9, -0.08], [70, 12, 1.4], [79, 12, 1.5], [70, 30, 1.6]].forEach(([cx, cy, a], i) => car(cx, cy, a, cols[i % cols.length]));
-    car(19, 14, 0.3, cols[5]); car(35, 13.5, -0.2, cols[6]); // los de arriba de la pila
-    // llantas apiladas
-    for (let i = 0; i < 9; i++) { const lx = 48 + (i % 3) * 4.2, ly = 26 + ((i / 3) | 0) * 4.2;
-      x.fillStyle = '#151515'; x.beginPath(); x.arc(lx, ly, 2.2, 0, 7); x.fill(); x.fillStyle = '#5a5a5a'; x.beginPath(); x.arc(lx, ly, 0.9, 0, 7); x.fill(); }
-    // motor sobre una tarima y un gancho de grua
-    x.fillStyle = '#8d6e63'; x.fillRect(30, 27, 9, 7); x.fillStyle = '#455a64'; x.fillRect(31.5, 28.5, 6, 4); x.fillStyle = '#263238'; x.fillRect(32.5, 27.4, 1.2, 1.2); x.fillRect(35, 27.4, 1.2, 1.2);
-    // caseta del yonkero con techo de lamina
-    x.fillStyle = '#9e9e9e'; x.fillRect(6, 32, 18, 13); x.strokeStyle = '#757575'; x.lineWidth = 0.5;
-    for (let i = 7.5; i < 24; i += 2.2) { x.beginPath(); x.moveTo(i, 32); x.lineTo(i, 45); x.stroke(); }
-    x.fillStyle = 'rgba(120,60,20,0.45)'; x.fillRect(16, 38, 6, 5);
-    // malla ciclonica alrededor, con el porton abierto abajo al centro
-    x.strokeStyle = '#b0bec5'; x.lineWidth = 0.9;
+    [[12, 10, 0.05], [12, 18.5, -0.04], [26, 10, 0.1], [26, 18, 0.02], [44, 9, -0.08], [70, 12, 1.4], [79, 12, 1.5], [70, 30, 1.6], [83, 36, 1.45], [58, 10, 0.12]].forEach(([cx, cy, a], i) => car(cx, cy, a, cols[i % cols.length]));
+    car(19, 14, 0.3, cols[5], true); car(35, 13.5, -0.2, cols[6], true); car(74.5, 21, 1.5, cols[8], true); // los de arriba de la pila
+    // ---- pila de llantas, una con agua y otra ya tirada ----
+    const llanta = (lx, ly, rr) => { circ('rgba(0,0,0,0.3)', lx + 0.5, ly + 0.6, rr); circ('#151515', lx, ly, rr); x.strokeStyle = '#2b2b2b'; x.lineWidth = 0.35; x.beginPath(); x.arc(lx, ly, rr * 0.75, 0, 7); x.stroke(); circ('#4a4a4a', lx, ly, rr * 0.42); circ('#6b6b6b', lx - 0.2, ly - 0.2, rr * 0.2); };
+    for (let i = 0; i < 9; i++) llanta(48 + (i % 3) * 4.4, 26 + ((i / 3) | 0) * 4.4, 2.3);
+    llanta(51.5, 30, 2.3); llanta(54, 28, 2.3); // las de arriba
+    circ('#1f3a4a', 52.4, 34.8, 0.9); // agua estancada
+    llanta(62, 44, 2.4); llanta(26, 50, 2.2);
+    // ---- motor sobre una tarima, una grua con su gancho ----
+    x.fillStyle = '#a1887f'; x.fillRect(30, 27, 10, 8); x.strokeStyle = '#6d4c41'; x.lineWidth = 0.3; for (const yy of [29, 31, 33]) { x.beginPath(); x.moveTo(30, yy); x.lineTo(40, yy); x.stroke(); }
+    x.fillStyle = '#455a64'; x.beginPath(); x.roundRect(31.3, 28.2, 7.4, 5.4, 0.8); x.fill(); x.fillStyle = '#263238';
+    for (let i = 0; i < 3; i++) { x.fillRect(32.2 + i * 2.2, 27.6, 1.3, 1.3); } x.fillStyle = '#90a4ae'; x.fillRect(31.8, 30.4, 6.4, 0.5);
+    x.strokeStyle = '#f9a825'; x.lineWidth = 1.2; x.beginPath(); x.moveTo(41, 36); x.lineTo(36.5, 31); x.stroke(); // pluma de la grua
+    x.strokeStyle = '#424242'; x.lineWidth = 0.35; x.beginPath(); x.moveTo(36.5, 31); x.lineTo(36.5, 29.5); x.stroke(); circ('#616161', 36.5, 29.3, 0.5);
+    circ('#f9a825', 41, 36, 1.4);
+    // ---- caseta del yonkero: lamina acanalada, ventanita, tinaco y un perro echado ----
+    x.save(); x.shadowColor = 'rgba(0,0,0,0.4)'; x.shadowBlur = 2; x.shadowOffsetX = 1; x.shadowOffsetY = 1.2; x.fillStyle = '#9e9e9e'; x.fillRect(6, 32, 18, 13); x.restore();
+    const lam = x.createLinearGradient(6, 0, 24, 0); for (let i = 0; i <= 8; i++) lam.addColorStop(i / 8, i % 2 ? '#8a8f93' : '#b5babd'); x.fillStyle = lam; x.fillRect(6, 32, 18, 13);
+    x.fillStyle = 'rgba(140,70,20,0.5)'; x.fillRect(16, 38, 6, 5); x.fillRect(7, 33, 3, 2);
+    x.strokeStyle = 'rgba(0,0,0,0.4)'; x.lineWidth = 0.4; x.strokeRect(6, 32, 18, 13);
+    circ('#1c1c1c', 10, 41.5, 2.2); circ('#3a3a3a', 9.5, 41, 1); // tinaco
+    x.fillStyle = '#c68b4e'; x.beginPath(); x.ellipse(27.5, 46, 2.6, 1.4, 0.2, 0, 7); x.fill(); circ('#a8713c', 29.8, 45.5, 1.1); // el perro del yonke
+    x.fillStyle = '#7a4a22'; x.beginPath(); x.ellipse(30.4, 44.9, 0.5, 0.35, 0.5, 0, 7); x.fill();
+    // ---- malla ciclonica con postes, alambre de puas arriba y el porton abierto abajo ----
+    x.save(); x.strokeStyle = 'rgba(176,190,197,0.35)'; x.lineWidth = 0.18;
+    x.beginPath(); x.rect(-1, -1, W + 2, H + 2); x.rect(1.2, 1.2, W - 2.4, H - 2.4); x.clip('evenodd');
+    for (let i = -H; i < W + H; i += 1.4) { x.beginPath(); x.moveTo(i, -1); x.lineTo(i + H + 2, H + 1); x.moveTo(i, H + 1); x.lineTo(i + H + 2, -1); x.stroke(); }
+    x.restore();
+    x.strokeStyle = '#b0bec5'; x.lineWidth = 0.7;
     x.beginPath(); x.moveTo(34, H); x.lineTo(0, H); x.lineTo(0, 0); x.lineTo(W, 0); x.lineTo(W, H); x.lineTo(58, H); x.stroke();
-    x.fillStyle = '#78909c'; for (const [px, py] of [[0, 0], [W, 0], [0, H], [W, H], [34, H], [58, H], [W / 2, 0], [0, H / 2], [W, H / 2]]) { x.beginPath(); x.arc(px, py, 1.1, 0, 7); x.fill(); }
-    x.strokeStyle = '#90a4ae'; x.lineWidth = 0.8; x.beginPath(); x.moveTo(34, H); x.lineTo(30, H + 9); x.moveTo(58, H); x.lineTo(62, H + 9); x.stroke(); // hojas del porton
-    // letrero sobre el porton
+    x.strokeStyle = '#78909c'; x.lineWidth = 0.35; x.setLineDash([0.5, 1]);
+    x.beginPath(); x.moveTo(34, H + 0.9); x.lineTo(-0.9, H + 0.9); x.lineTo(-0.9, -0.9); x.lineTo(W + 0.9, -0.9); x.lineTo(W + 0.9, H + 0.9); x.lineTo(58, H + 0.9); x.stroke(); x.setLineDash([]);
+    for (let i = 0; i <= 8; i++) for (const [px, py] of [[i * W / 8, 0], ...(i * W / 8 < 34 || i * W / 8 > 58 ? [[i * W / 8, H]] : [])]) { circ('rgba(0,0,0,0.3)', px + 0.4, py + 0.4, 1.1); circ('#78909c', px, py, 1); circ('#cfd8dc', px - 0.3, py - 0.3, 0.35); }
+    for (let i = 1; i < 6; i++) for (const px of [0, W]) { circ('#78909c', px, i * H / 6, 1); circ('#cfd8dc', px - 0.3, i * H / 6 - 0.3, 0.35); }
+    // hojas del porton, de tubo con malla
+    x.strokeStyle = '#90a4ae'; x.lineWidth = 0.9; x.beginPath(); x.moveTo(34, H); x.lineTo(30, H + 9); x.moveTo(58, H); x.lineTo(62, H + 9); x.stroke();
+    circ('#78909c', 34, H, 1.2); circ('#78909c', 58, H, 1.2);
+    // ---- el letrero sobre el porton: lamina amarilla, letras pintadas a mano y unas llaves ----
     x.fillStyle = '#212121'; x.fillRect(36.5, H - 9, 1, 9); x.fillRect(54.5, H - 9, 1, 9);
-    x.fillStyle = '#fdd835'; x.fillRect(34, H - 13, 24, 8); x.strokeStyle = '#212121'; x.lineWidth = 0.6; x.strokeRect(34, H - 13, 24, 8);
-    x.fillStyle = '#c62828'; x.font = 'bold 6px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
-    x.save(); x.translate(46, H - 8.8); if (k) x.rotate(Math.PI); x.fillText('YONKE', 0, 0); x.restore();
+    x.save(); x.shadowColor = 'rgba(0,0,0,0.45)'; x.shadowBlur = 1.5; x.shadowOffsetY = 1; x.fillStyle = '#fdd835'; x.beginPath(); x.roundRect(32, H - 13.5, 28, 9, 1); x.fill(); x.restore();
+    x.fillStyle = 'rgba(140,70,20,0.35)'; x.fillRect(32, H - 6.5, 6, 2); x.fillRect(55, H - 13.5, 4, 1.5);
+    x.strokeStyle = '#212121'; x.lineWidth = 0.6; x.beginPath(); x.roundRect(32, H - 13.5, 28, 9, 1); x.stroke();
+    for (const [px, py] of [[33.2, H - 12.3], [58.8, H - 12.3], [33.2, H - 5.7], [58.8, H - 5.7]]) circ('#616161', px, py, 0.35); // tornillos
+    x.save(); x.translate(46, H - 9); if (k) x.rotate(Math.PI);
+    x.font = 'bold 5.2px "Trebuchet MS", sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.lineWidth = 0.9; x.strokeStyle = '#212121'; x.strokeText('YONKE', 2.6, 0.2); x.fillStyle = '#c62828'; x.fillText('YONKE', 2.6, 0.2);
+    x.strokeStyle = '#424242'; x.lineWidth = 0.8; x.lineCap = 'round'; x.beginPath(); x.moveTo(-12.4, 2.4); x.lineTo(-10.2, 0); x.stroke(); // llave de tuercas
+    x.beginPath(); x.arc(-9.7, -0.5, 0.9, -0.6, 3.6); x.stroke();
+    x.restore();
     t.refresh();
   }
 }
@@ -3269,7 +3316,7 @@ class Main extends Phaser.Scene {
       const Y = YONKE, [sx, sy, rot] = sidewalkSpot(Y.x, Y.y, (SIDEWALK + 0.5) * M + 2);
       Y.x = sx; Y.y = sy;
       const bx = -Math.sin(rot), by = Math.cos(rot);
-      Y.icon = this.add.image(sx - bx * 44, sy - by * 44, 'yonke' + (Math.cos(rot) < -0.3 ? 'u' : '')).setScale(0.75).setRotation(rot).setDepth(6);
+      Y.icon = this.add.image(sx - bx * 44, sy - by * 44, 'yonke' + (Math.cos(rot) < -0.3 ? 'u' : '')).setScale(1 / SPR).setRotation(rot).setDepth(6);
       const hh = Math.abs(Math.cos(rot)) * 52 + Math.abs(Math.sin(rot)) * 75;
       Y.label = this.add.text(Y.icon.x, Y.icon.y - hh - 8, '🔧 ' + Y.name, { fontSize: '13px', fontStyle: 'bold', color: '#ffd54f', stroke: '#000', strokeThickness: 3, resolution: TXT_RES }).setOrigin(0.5).setDepth(19);
     }
