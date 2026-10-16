@@ -4105,7 +4105,7 @@ class Main extends Phaser.Scene {
       for (const k of ['nieblaA', 'nieblaB']) im.push(this.add.tileSprite(0, 0, l.len, TH, k).setScale(1, L / TH));
       for (const o of im) { o.setOrigin(0, 0).setPosition(l.x, l.y).setRotation(l.a).setDepth(22); this.niebla.push(o); }
     }
-    this.nieblaT = 0; this.nieblaAviso = 0;
+    this.nieblaT = 0; this.nieblaAviso = 0; this.bordoAviso = 0;
   }
   updateNiebla(dt, f) {
     this.nieblaT += dt;
@@ -4120,6 +4120,14 @@ class Main extends Phaser.Scene {
     if (this.nieblaAviso <= 0 && enNiebla(f.x, f.y, NIEBLA + 4 * M)) {
       this.nieblaAviso = 25;
       toast('🌫️ Pura neblina', pick(['No se ve nada más allá. Mejor da la vuelta.', 'Se cerró la neblina de la costa. Por aquí ya no se puede.', 'Ni los faros sirven con esta neblina. Regrésate a la ciudad.']), 3.5);
+    }
+    // al llegar al bordo de la frontera: sin visa no se pasa
+    this.bordoAviso -= dt;
+    if (this.bordoAviso <= 0 && f.y < borderY(f.x) + 10 * M) {
+      this.bordoAviso = 25;
+      toast('🛂 Sin visa no hay pase', pick(['Del otro lado es Estados Unidos y no traes visa. Ni modo, a seguir disfrutando Tijuana.',
+        'Para cruzar se necesita visa y hacer la fila en la garita. Aquí no hay atajos.',
+        '¿Visa? ¿Cuál visa? Primero la cita en el consulado; por mientras, quédate de este lado.']), 3.5);
     }
   }
 
