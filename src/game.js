@@ -3525,7 +3525,7 @@ class Main extends Phaser.Scene {
       if (initial ? dist(q.x, q.y, p.x, p.y) < 160 : (inView(q.x, q.y) || dist(q.x, q.y, p.x, p.y) < R)) continue;
       const moto = Math.random() < 0.3 && this.cars.filter(c => c.moto).length < 5;
       const poli = !moto && Math.random() < 0.15 && this.cars.filter(c => c.poli).length < 3;
-      const deportiva = !moto && !poli && Math.random() < 0.04 && !this.cars.some(c => c.T === VT_DEPORTIVA);
+      const deportiva = !moto && !poli && Math.random() < 0.15 && this.cars.filter(c => c.T === VT_DEPORTIVA).length < 2;
       const spec = this.carSpec({ moto, poli, deportiva });
       if (this.cars.some(c => dist(c.x, c.y, q.x, q.y) < 26 + c.hl + spec.T.L / 2)) continue;
       const car = this.makeCar(q.x, q.y, q.a, spec);
