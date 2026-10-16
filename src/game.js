@@ -463,7 +463,7 @@ const chinas = (() => {
     if (out.length >= CHINA_NAMES.length) break;
     if (e.len < 120) continue;
     edgePos(e, e.len / 2, 1, (out.length % 2 ? -1 : 1) * (e.w / 2 + 1.5 * M), tmp);
-    if (out.some(o => dist(o.x, o.y, tmp.x, tmp.y) < 300)) continue;
+    if (out.some(o => dist(o.x, o.y, tmp.x, tmp.y) < 300) || enNiebla(tmp.x, tmp.y, NIEBLA_LEJOS)) continue; // (la calle sigue hasta la neblina)
     out.push({ name: CHINA_NAMES[out.length], x: tmp.x, y: tmp.y, cool: 0 });
   }
   return out;
@@ -2460,45 +2460,71 @@ function makeCafes(scene) {
 // "comida china": local grande con marquesina de neon, faroles rojos, alfombra, cordon y cadenero.
 // Dos texturas para que el neon parpadee. El frente (alfombra) va hacia abajo.
 function makeChinas(scene) {
+  // se dibuja en 88 x 64 unidades (el local mide 80 x 36 y adelante va la banqueta), a 1.2 px del mundo por
+  // unidad (el tamano de siempre) y a SPR veces la resolucion
+  const K = 1.2;
   for (const k of ['0', '1', '0u', '1u']) {
     const f = +k[0], up = k.length > 1; // 'u': letrero volteado para locales que quedan "de cabeza"
-    const t = scene.textures.createCanvas('antro' + k, 176, 128), x = t.getContext();
-    x.scale(2, 2); x.translate(4, 3);
-    const neon = f ? '#3ff0ff' : '#ff3fa4';
-    // edificio y marquesina
-    x.fillStyle = 'rgba(0,0,0,0.35)'; x.fillRect(3, 3, 80, 36);
-    x.fillStyle = '#2a1630'; x.fillRect(0, 0, 80, 36);
-    x.fillStyle = '#3a1e42'; for (let i = 4; i < 80; i += 8) x.fillRect(i, 2, 4, 20);
-    x.fillStyle = '#7a0f1a'; x.fillRect(4, 24, 72, 12);
-    x.strokeStyle = neon; x.lineWidth = 1.2; x.strokeRect(4.5, 24.5, 71, 11);
-    x.shadowColor = neon; x.shadowBlur = 4;
-    x.fillStyle = '#ffd23f'; x.font = 'bold 8px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
-    x.save(); x.translate(40, 30.2); if (up) x.rotate(Math.PI); x.fillText('COMIDA CHINA', 0, 0); x.restore();
-    x.shadowBlur = 0;
-    x.strokeStyle = neon; x.lineWidth = 1; x.strokeRect(0.5, 0.5, 79, 35);
-    // faroles rojos en las esquinas
-    for (const lx of [8, 72]) {
-      x.fillStyle = f ? '#ff5a4a' : '#d4261a'; x.beginPath(); x.ellipse(lx, 40, 3.6, 4.4, 0, 0, 7); x.fill();
-      x.strokeStyle = '#f5c542'; x.lineWidth = 0.6; x.beginPath(); x.moveTo(lx - 3.6, 40); x.lineTo(lx + 3.6, 40); x.stroke();
-      x.fillStyle = '#f5c542'; x.fillRect(lx - 1.5, 35, 3, 1.2); x.fillRect(lx - 1.5, 44, 3, 1.2);
+    const t = scene.textures.createCanvas('antro' + k, Math.round(88 * K * SPR), Math.round(64 * K * SPR)), x = t.getContext();
+    x.scale(K * SPR, K * SPR); x.translate(4, 3);
+    const neon = f ? '#3ff0ff' : '#ff3fa4', rnd = mulberry(77);
+    const circ = (c, cx, cy, r) => { x.fillStyle = c; x.beginPath(); x.arc(cx, cy, r, 0, 7); x.fill(); };
+    const ell = (c, cx, cy, rx, ry) => { x.fillStyle = c; x.beginPath(); x.ellipse(cx, cy, rx, ry, 0, 0, 7); x.fill(); };
+    // sombra
+    x.save(); x.shadowColor = 'rgba(0,0,0,0.5)'; x.shadowBlur = 5; x.shadowOffsetX = 2.5; x.shadowOffsetY = 3; x.fillStyle = '#000'; x.fillRect(0, 0, 80, 36); x.restore();
+    // ---- techo de tejas rojas con la cumbrera dorada y las esquinas levantadas ----
+    x.fillStyle = '#5a0f12'; x.fillRect(0, 0, 80, 24);
+    for (let row = 0; row < 6; row++) for (let i = 0; i < 20; i++) {
+      const cx = i * 4 + (row % 2) * 2, cy = 2 + row * 3.8;
+      const g = x.createLinearGradient(0, cy - 2, 0, cy + 2); g.addColorStop(0, '#b3261e'); g.addColorStop(1, '#6e1414');
+      x.fillStyle = g; x.beginPath(); x.arc(cx, cy, 2.2, 0, Math.PI); x.fill();
     }
-    // puerta y alfombra roja
-    x.fillStyle = '#0d0d0d'; x.fillRect(33, 34, 14, 3);
-    x.fillStyle = '#b3141f'; x.fillRect(35, 37, 10, 15);
+    const brillo = x.createLinearGradient(0, 0, 80, 24); brillo.addColorStop(0, 'rgba(255,255,255,0.14)'); brillo.addColorStop(1, 'rgba(0,0,0,0.2)');
+    x.fillStyle = brillo; x.fillRect(0, 0, 80, 24);
+    x.fillStyle = '#d4a017'; x.fillRect(0, 10.6, 80, 1.6); x.fillStyle = '#ffe082'; x.fillRect(0, 10.6, 80, 0.5); // cumbrera
+    x.strokeStyle = '#d4a017'; x.lineWidth = 1.2; x.strokeRect(0.6, 0.6, 78.8, 22.8);
+    x.lineCap = 'round'; x.lineWidth = 1.6;
+    for (const [cx, cy, sx, sy] of [[0, 0, -1, -1], [80, 0, 1, -1], [0, 24, -1, 1], [80, 24, 1, 1]]) { // esquinas levantadas
+      x.beginPath(); x.moveTo(cx - sx * 4, cy); x.quadraticCurveTo(cx + sx * 1.5, cy, cx + sx * 2.5, cy + sy * 2.5); x.stroke();
+      circ('#ffe082', cx + sx * 2.5, cy + sy * 2.5, 0.9);
+    }
+    // ---- la marquesina: laca roja, filo dorado, neon y el letrero ----
+    x.fillStyle = '#8e0f1a'; x.fillRect(2, 24, 76, 12);
+    x.fillStyle = 'rgba(255,255,255,0.12)'; x.fillRect(2, 24, 76, 3);
+    x.strokeStyle = '#d4a017'; x.lineWidth = 0.8; x.strokeRect(2.4, 24.4, 75.2, 11.2);
+    for (const gx of [6, 74]) { x.strokeStyle = '#d4a017'; x.lineWidth = 0.6; x.strokeRect(gx - 2.2, 26.8, 4.4, 6.4); x.strokeRect(gx - 1.1, 27.9, 2.2, 4.2); } // grecas
+    x.save(); x.shadowColor = neon; x.shadowBlur = 5; x.strokeStyle = neon; x.lineWidth = 1; x.strokeRect(10.5, 25.6, 59, 8.8);
+    x.fillStyle = '#ffe14d'; x.font = 'bold 7px "Trebuchet MS", sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.translate(40, 30.2); if (up) x.rotate(Math.PI); x.fillText('COMIDA CHINA', 0, 0); x.restore();
+    // ---- tira de faroles al frente (los de la punta prenden y apagan con el neon) ----
+    x.strokeStyle = '#3a2a1a'; x.lineWidth = 0.4; x.beginPath(); x.moveTo(2, 37); x.quadraticCurveTo(40, 40, 78, 37); x.stroke();
+    for (let i = 0; i < 7; i++) {
+      const lx = 6 + i * 11.3, ly = 37.6 + Math.sin(i / 6 * Math.PI) * 1.4, on = (i + f) % 2 === 0;
+      if (on) { const gl = x.createRadialGradient(lx, ly, 0, lx, ly, 5); gl.addColorStop(0, 'rgba(255,120,60,0.55)'); gl.addColorStop(1, 'rgba(255,60,30,0)'); x.fillStyle = gl; x.beginPath(); x.arc(lx, ly, 5, 0, 7); x.fill(); }
+      ell(on ? '#ff3b2f' : '#b3141f', lx, ly, 2.1, 2.6); ell('rgba(255,255,255,0.3)', lx - 0.6, ly - 0.8, 0.6, 0.9);
+      x.fillStyle = '#d4a017'; x.fillRect(lx - 1, ly - 2.9, 2, 0.7); x.fillRect(lx - 1, ly + 2.2, 2, 0.7);
+    }
+    // ---- puerta, alfombra roja con filo dorado y dos leones de piedra ----
+    x.fillStyle = '#0d0d0d'; x.fillRect(33, 34, 14, 3); circ('#d4a017', 38.6, 35.5, 0.5); circ('#d4a017', 41.4, 35.5, 0.5);
+    x.fillStyle = '#b3141f'; x.fillRect(35, 37, 10, 15); x.strokeStyle = '#d4a017'; x.lineWidth = 0.5; x.strokeRect(35.6, 37, 8.8, 14.6);
+    for (const lx of [31, 49]) {
+      circ('rgba(0,0,0,0.3)', lx + 0.6, 41.6, 2.6); circ('#9e9e9e', lx, 41, 2.5);
+      for (let j = 0; j < 8; j++) { const a = j / 8 * 6.283; circ('#7d7d7d', lx + Math.cos(a) * 1.7, 41 + Math.sin(a) * 1.7, 0.75); } // la melena
+      circ('#bdbdbd', lx, 41, 1.2); circ('#424242', lx - 0.45, 40.7, 0.22); circ('#424242', lx + 0.45, 40.7, 0.22);
+    }
     // cordon de terciopelo con postes dorados
     x.strokeStyle = '#8e0f2a'; x.lineWidth = 0.9;
-    for (const sx of [30, 50]) {
-      x.beginPath(); x.moveTo(sx, 38); x.quadraticCurveTo(sx + (sx < 40 ? -1.5 : 1.5), 44, sx, 50); x.stroke();
-      x.fillStyle = '#e8c35a'; for (const py of [38, 50]) { x.beginPath(); x.arc(sx, py, 1.2, 0, 7); x.fill(); }
+    for (const sx of [29, 51]) {
+      x.beginPath(); x.moveTo(sx, 45); x.quadraticCurveTo(sx + (sx < 40 ? -1.5 : 1.5), 49, sx, 53); x.stroke();
+      for (const py of [45, 53]) { circ('rgba(0,0,0,0.3)', sx + 0.4, py + 0.4, 1.3); circ('#e8c35a', sx, py, 1.2); circ('#fff3c4', sx - 0.35, py - 0.35, 0.4); }
     }
-    // cadenero junto a la puerta
-    x.fillStyle = '#111'; x.beginPath(); x.ellipse(54, 40, 3.2, 4.2, 0, 0, 7); x.fill();
-    x.fillStyle = '#7a5236'; x.beginPath(); x.arc(54, 40, 1.8, 0, 7); x.fill();
-    x.fillStyle = '#000'; x.fillRect(53, 39.4, 2.2, 0.8);
-    // gente formada afuera del cordon
-    for (const [px, py, c] of [[25, 42, '#2980b9'], [24, 47.5, '#8e44ad'], [26, 53, '#27ae60']]) {
-      x.fillStyle = c; x.beginPath(); x.ellipse(px, py, 1.8, 2.6, 0, 0, 7); x.fill();
-      x.fillStyle = '#3b2414'; x.beginPath(); x.arc(px, py, 1.3, 0, 7); x.fill();
+    // el cadenero: traje negro, lentes oscuros y su auricular
+    ell('rgba(0,0,0,0.3)', 55, 47.6, 3.4, 4.2); ell('#111', 54.5, 47, 3.3, 4.2);
+    circ('#7a5236', 54.5, 47, 1.8); x.fillStyle = '#000'; x.fillRect(53.4, 46.3, 2.3, 0.8); circ('#e0e0e0', 56.1, 47.4, 0.35);
+    // la fila afuera del cordon
+    for (const [px, py, c, h] of [[24, 44, '#2980b9', '#3b2414'], [23.4, 49.5, '#8e44ad', '#111'], [25, 55, '#27ae60', '#a0522d'], [23.8, 60, '#e67e22', '#3b2414']]) {
+      ell('rgba(0,0,0,0.25)', px + 0.5, py + 0.6, 1.9, 2.7); ell(c, px, py, 1.8, 2.6); circ(h, px, py, 1.3);
+      circ(c, px + (rnd() < 0.5 ? -1.9 : 1.9), py + 0.3, 0.6); // un brazo, con el celular en la mano
     }
     t.refresh();
   }
@@ -3234,7 +3260,7 @@ class Main extends Phaser.Scene {
       c.x = sx; c.y = sy;
       const bx = -Math.sin(rot), by = Math.cos(rot); // hacia el frente del local (la calle)
       c.up = Math.cos(rot) < -0.3 ? 'u' : '';
-      c.icon = this.add.image(sx - bx * 30, sy - by * 30, 'antro0' + c.up).setScale(0.6).setRotation(rot).setDepth(6);
+      c.icon = this.add.image(sx - bx * 30, sy - by * 30, 'antro0' + c.up).setScale(1 / SPR).setRotation(rot).setDepth(6);
       const hh = Math.abs(Math.cos(rot)) * 40 + Math.abs(Math.sin(rot)) * 54;
       c.label = this.add.text(c.icon.x, c.icon.y - hh - 8, c.name, { fontSize: '12px', color: '#ff8a80', stroke: '#000', strokeThickness: 3, resolution: TXT_RES }).setOrigin(0.5).setDepth(19);
     }
@@ -5016,7 +5042,7 @@ function start() {
     scene: [Main], fps: { target: 60, smoothStep: false },
   });
   window.addEventListener('resize', () => game.scale.resize(window.innerWidth * DPR, window.innerHeight * DPR));
-  window.TJGTA = game; game.dbg = { WORLD_W, WORLD_H, arboles, VTYPES, vehicleTexture, state, drawChunk, chunkSteps, areaFill, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, walkableTo, waterAreas, roads, PED_VARIANTS };
+  window.TJGTA = game; game.dbg = { WORLD_W, WORLD_H, arboles, chinas, VTYPES, vehicleTexture, state, drawChunk, chunkSteps, areaFill, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, walkableTo, waterAreas, roads, PED_VARIANTS };
 }
 $('go').addEventListener('click', start);
 
