@@ -514,6 +514,41 @@ const chunkTopes = gridIndex(topes, CHUNK, 'bb');
 const TCELL = 128;
 const topeGrid = gridIndex(topes, TCELL, 'bb');
 function topesNear(x, y) { return topeGrid.get(Math.floor(x / TCELL) + ',' + Math.floor(y / TCELL)) || []; }
+// puentes: que puntas llegan a una calle a nivel. Antes el puente entero se pintaba encima de todo con la punta
+// redonda, y su banqueta le daba la vuelta a la punta como un callejon cerrado encima de la calle. Ahora el puente
+// tambien se pinta a nivel junto con las demas calles (asi sus puntas se juntan con ellas como en cualquier cruce)
+// y encima, como puente, solo va la parte de en medio, sin los ultimos PUENTE_RAMPA px de esas puntas: el corte
+// cae sobre el mismo puente pintado a nivel y no se nota. Su sombra tambien se acaba antes de esas puntas.
+// (tramo y largo, mas abajo, sirven para cortar las lineas)
+const PUENTE_RAMPA = 15 * M;
+(() => {
+  const nivel = new Set(), key = (x, y) => Math.floor(x / 4) + ',' + Math.floor(y / 4);
+  for (const r of roads) if (!(r.f & 1) && r.c <= 7) for (let j = 0; j < r.p.length; j += 2) nivel.add(key(r.p[j], r.p[j + 1]));
+  const llega = (x, y) => { for (const dx of [-2, 0, 2]) for (const dy of [-2, 0, 2]) if (nivel.has(key(x + dx, y + dy))) return true; return false; };
+  const pts = [];
+  for (const r of roads) if (r.f & 1 && r.c <= 7) { r.cabos = [0, r.p.length - 2].map(j => [r.p[j], r.p[j + 1], llega(r.p[j], r.p[j + 1])]); for (const c of r.cabos) pts.push([c, r]); }
+  // si junto a esa punta llega otro puente (los dos sentidos de una avenida), se deja como antes: juntas, sus
+  // puntas redondas forman la nariz del camellon y se ven bien
+  for (const [c, r] of pts) if (c[2] && pts.some(([o, q]) => q !== r && Math.hypot(o[0] - c[0], o[1] - c[1]) < 30 * M)) c[2] = 'par';
+  for (const [c] of pts) if (c[2] === 'par') c[2] = false;
+})();
+// el tramo de la linea entre t0 y t1 px desde su inicio (null si es muy corto)
+function tramo(p, t0, t1) {
+  if (t1 - t0 < 2) return null;
+  const out = []; let t = 0;
+  for (let i = 0; i < p.length - 2; i += 2) {
+    const dx = p[i + 2] - p[i], dy = p[i + 3] - p[i + 1], l = Math.hypot(dx, dy);
+    if (t0 >= t && t0 < t + l) out.push(p[i] + dx * (t0 - t) / l, p[i + 1] + dy * (t0 - t) / l);
+    if (t + l > t0 && t + l < t1) out.push(p[i + 2], p[i + 3]);
+    if (t1 >= t && t1 < t + l) out.push(p[i] + dx * (t1 - t) / l, p[i + 1] + dy * (t1 - t) / l);
+    t += l;
+  }
+  if (t1 >= t && out.length) out.push(p[p.length - 2], p[p.length - 1]);
+  return out.length >= 4 ? out : null;
+}
+const largo = (p) => { let l = 0; for (let i = 0; i < p.length - 2; i += 2) l += Math.hypot(p[i + 2] - p[i], p[i + 3] - p[i + 1]); return l; };
+// la linea sin los primeros a px ni los ultimos b px (null si no queda nada)
+function recorte(p, a, b) { return tramo(p, a, largo(p) - b); }
 const chunkBaches = gridIndex(baches, CHUNK, 'bb');
 
 // ---------- arboles ----------
@@ -1002,14 +1037,27 @@ function* chunkSteps(cx, cy) {
   for (const i of chunkAreas.get(k) || []) { const a = areas[i]; ctx.fillStyle = areaFill(ctx, a.k); trace(ctx, a.p, true); ctx.fill(); }
   const rs = (chunkRoads.get(k) || []).map(i => roads[i]);
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const asfalto = areaFill(ctx, TEX_ASFALTO);
   const pass = (list, width, color, filter, off) => {
     for (const r of list) {
       if (!filter(r)) continue;
       ctx.strokeStyle = typeof color === 'function' ? color(r) : color; ctx.lineWidth = width(r);
-      for (const d of off ? off(r) : [0]) { trace(ctx, d ? offsetLine(r, d) : r.p); ctx.stroke(); }
+      // puentes (con la punta recta): sin las rampas que llegan a una calle; las capas de abajo (guarnicion,
+      // banqueta) se quedan 2 px antes que el asfalto, para que su orilla no se asome como una raya
+      let q = r.p;
+      if (r.cabos && ctx.lineCap === 'butt' && !off) {
+        const m = PUENTE_RAMPA + (ctx.strokeStyle === asfalto ? 0 : 2);
+        q = recorte(r.p, r.cabos[0][2] ? m : 0, r.cabos[1][2] ? m : 0); if (!q) continue;
+      }
+      for (const d of off ? off(r) : [0]) { trace(ctx, d ? offsetLine(r, d) : q); ctx.stroke(); }
+      // punta redonda donde sigue otro tramo de puente
+      if (r.cabos && ctx.lineCap === 'butt' && !off) {
+        ctx.fillStyle = ctx.strokeStyle;
+        for (const [x, y, n] of r.cabos) if (!n) { ctx.beginPath(); ctx.arc(x, y, ctx.lineWidth / 2, 0, 7); ctx.fill(); }
+      }
     }
   };
-  const ground = rs.filter(r => !(r.f & 1));
+  const ground = rs.filter(r => !(r.f & 1) || (r.cabos && (r.cabos[0][2] || r.cabos[1][2]))); // (los puentes que bajan a una calle tambien van a nivel)
   const bridges = rs.filter(r => r.f & 1);
   // debajo de los edificios: agua, andadores y vias del tren
   const under = (list) => {
@@ -1027,7 +1075,7 @@ function* chunkSteps(cx, cy) {
     pass(list, r => (ROAD_W[r.c] + 1) * M, banq, r => r.c === 7);
     // orilla polvosa junto a la banqueta; el asfalto limpio de los cruces la tapa
     pass(list, r => ROAD_W[r.c] * M, '#4b4842', r => r.c <= 7);
-    pass(list, r => ROAD_W[r.c] * M - 9, areaFill(ctx, TEX_ASFALTO), r => r.c <= 7);
+    pass(list, r => ROAD_W[r.c] * M - 9, asfalto, r => r.c <= 7);
     // solo la raya de en medio que separa los dos sentidos (doble en avenidas, punteada en calles);
     // sin lineas de carril ni rayas en calles de un sentido: se mezclaban y ensuciaban el dibujo
     ctx.setLineDash([]);
@@ -1045,9 +1093,20 @@ function* chunkSteps(cx, cy) {
   grime(ctx, ground, cx, cy);
   roadMarks(ctx, k);
   if (bridges.length) {
-    pass(bridges, r => (ROAD_W[r.c] + 6) * M, 'rgba(0,0,0,0.35)', r => r.c <= 7);
-    under(bridges); over(bridges); grime(ctx, bridges, cx, cy);
+    // la sombra: cada vez mas angosta y clara hacia las puntas que bajan a una calle
+    ctx.strokeStyle = 'rgba(0,0,0,0.12)'; ctx.lineCap = 'butt';
+    for (const r of bridges) {
+      if (r.c > 7) continue;
+      for (const [k, w] of [[0, 6], [1, 4.5], [2, 3]]) {
+        const q = recorte(r.p, r.cabos[0][2] ? PUENTE_RAMPA + k * 8 * M : 0, r.cabos[1][2] ? PUENTE_RAMPA + k * 8 * M : 0); if (!q) continue;
+        ctx.lineWidth = (ROAD_W[r.c] + w) * M; trace(ctx, q); ctx.stroke();
+      }
+    }
+    ctx.lineCap = 'round'; under(bridges); // los puentes peatonales y del tren, con la punta redonda
+    ctx.lineCap = 'butt'; over(bridges); ctx.lineCap = 'round';
+    grime(ctx, bridges, cx, cy);
   }
+
   yield;
   yield* drawBuildings(ctx, bl, rs, cx, cy);
   for (const i of chunkArboles.get(k) || []) { const a = arboles[i]; ctx.drawImage(arbolSprite(a.t, a.v), a.x - ARB_SZ / 2, a.y - ARB_SZ / 2, ARB_SZ, ARB_SZ); }
