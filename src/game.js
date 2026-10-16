@@ -44,6 +44,9 @@ const SPR = DPR > 1.5 ? Q.spr : 2;
 const ROAD_W = [19, 19, 19, 18, 12, 10, 9, 6, 6, 2.5, 3, 10];
 const MAJOR = 3;
 const SIDEWALK = 2.5;
+// banqueta que se dibuja por clase: las autopistas solo llevan un acotamiento angosto (nadie camina ahi y sus
+// banquetas llenaban los cruces de rampas de listones sin sentido)
+const BANQ = ROAD_W.map((w, c) => c === 0 ? 0.8 : SIDEWALK);
 const COL = {
   ground: '#8f8875', sidewalk: '#b4ab98', curb: '#9d9481', asphalt: '#3c3c41', paving: '#c5b89e',
   footway: '#c9bda3', rail: '#6b5a48', water: '#2f5f7f', yellow: '#e6c13a', white: '#8a8a90',
@@ -1069,13 +1072,17 @@ function* chunkSteps(cx, cy) {
   };
   // encima de los edificios: calles con banqueta y lineas de carril
   const over = (list) => {
-    pass(list, r => (ROAD_W[r.c] + SIDEWALK * 2 + 0.5) * M, COL.curb, r => r.c <= 6);
+    pass(list, r => (ROAD_W[r.c] + BANQ[r.c] * 2 + 0.5) * M, COL.curb, r => r.c <= 6);
     const banq = areaFill(ctx, TEX_BANQUETA);
-    pass(list, r => (ROAD_W[r.c] + SIDEWALK * 2) * M, banq, r => r.c <= 6);
-    pass(list, r => (ROAD_W[r.c] + 1) * M, banq, r => r.c === 7);
+    pass(list, r => (ROAD_W[r.c] + BANQ[r.c] * 2) * M, banq, r => r.c <= 6);
+    // los accesos, estacionamientos y callejones (clase 7) van por debajo de las calles, sin banqueta y de concreto
+    // mas claro: se distinguen de las calles de verdad (el trafico no entra ahi) y no parecen calles que no llevan a nada
+    pass(list, r => (ROAD_W[r.c] + 0.6) * M, '#77715f', r => r.c === 7);
+    pass(list, r => ROAD_W[r.c] * M - 2, asfalto, r => r.c === 7);
+    pass(list, r => ROAD_W[r.c] * M - 2, 'rgba(225,215,190,0.2)', r => r.c === 7);
     // orilla polvosa junto a la banqueta; el asfalto limpio de los cruces la tapa
-    pass(list, r => ROAD_W[r.c] * M, '#4b4842', r => r.c <= 7);
-    pass(list, r => ROAD_W[r.c] * M - 9, asfalto, r => r.c <= 7);
+    pass(list, r => ROAD_W[r.c] * M, '#4b4842', r => r.c <= 6);
+    pass(list, r => ROAD_W[r.c] * M - 9, asfalto, r => r.c <= 6);
     // solo la raya de en medio que separa los dos sentidos (doble en avenidas, punteada en calles);
     // sin lineas de carril ni rayas en calles de un sentido: se mezclaban y ensuciaban el dibujo
     ctx.setLineDash([]);
