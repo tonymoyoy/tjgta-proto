@@ -1708,6 +1708,11 @@ function layoutTop() {
     t.right = (op.width && op.bottom > top ? window.innerWidth - op.left + 8 : 12) + 'px';
   }
 }
+// aviso cuando tu vehiculo queda destruido
+function avisoDeshuesado(car) {
+  if (car.T === VT_DEPORTIVA) toast('💥 ¡Moto hecha pedazos!', pick(['Te dije que con cuidadito. Bájate con E y roba otra cosa.', 'Mucho motor y poco frenado. Bájate con E y busca otro.']));
+  else toast('¡Auto deshuesado!', 'Bájate con E y roba otro.');
+}
 function toast(title, body, secs) { layoutTop(); hud.toast.innerHTML = '<b></b><span></span>'; hud.toast.firstChild.textContent = title; hud.toast.lastChild.textContent = body || ''; hud.toast.classList.add('on'); toastT = secs || 3.5; }
 // sonido de dinero: se compara contra el ultimo saldo mostrado (bigSound = fanfarria en vez de monedas)
 let lastMoney = state.money, bigSound = false;
@@ -1744,6 +1749,9 @@ const VTYPES = [
 ];
 const VT_TAXI = { name: 'Taxi libre', L: 37, W: 16, top: 230, acc: 115, steer: 2.6, hp: 100 };
 const VT_MOTO = { name: 'Moto de reparto', L: 19, W: 9.2, top: 210, acc: 150, steer: 3.4, hp: 60 };
+// moto deportiva: la mas rapida de todas, pero al primer choque se hace pedazos (fragil); sale poco en el trafico
+const VT_DEPORTIVA = { name: 'Moto deportiva', L: 22, W: 9, top: 370, acc: 240, steer: 3.3, hp: 50, fragil: true };
+const DEPORTIVA_COLS = [['#d10a0a', '#f4f4f4'], ['#7ed321', '#151515'], ['#1f5fbf', '#f4f4f4']]; // carenado y franja
 // premios: la troca de tacos (los 32 tacos) y el burro cebra dorado (todo completo, no se rompe)
 const VT_TROCA_TACOS = { name: 'Troca de tacos', L: 44, W: 18, top: 205, acc: 105, steer: 2.3, hp: 220 };
 const VT_ZONKEY = { name: 'Burro cebra dorado', L: 24, W: 11, top: 200, acc: 170, steer: 3.6, hp: 99999 };
@@ -2044,7 +2052,7 @@ function drawPerson(x, V, sw) {
   x.restore();
 }
 function makeTextures(scene) {
-  makeLights(scene); makeFiesta(scene); makeMoto(scene); makePerro(scene); makeLandmarkIcons(scene); makeTrocaTacos(scene); makeZonkey(scene); makeTaxi(scene); makePolice(scene); makeTacoStands(scene); makeCafes(scene); makeChinas(scene); makeYonke(scene); makeEggs(scene); makeScorch(scene);
+  makeLights(scene); makeFiesta(scene); makeMoto(scene); makeDeportiva(scene); makePerro(scene); makeLandmarkIcons(scene); makeTrocaTacos(scene); makeZonkey(scene); makeTaxi(scene); makePolice(scene); makeTacoStands(scene); makeCafes(scene); makeChinas(scene); makeYonke(scene); makeEggs(scene); makeScorch(scene);
   // personas vistas desde arriba, mirando a la derecha; 8 cuadros de caminata (el cuadro 0 es parado).
   // Una textura por variante de PED_VARIANTS ('ped0'...) y la del jugador ('pedP'); ver drawPerson.
   // Se dibujan a SPR veces la resolucion y el sprite se muestra a escala 1 / SPR para que se vean nitidas.
@@ -2260,6 +2268,36 @@ function makeMoto(scene) {
   x.fillStyle = '#e8e8e8'; x.beginPath(); x.arc(14, 7, 2.6, 0, 7); x.fill();
   x.fillStyle = '#1d2733'; x.fillRect(15.4, 5.6, 1.4, 2.8);
   t.refresh();
+}
+// moto deportiva vista desde arriba mirando a la derecha: carenado de color con franja, piloto agachado de
+// chamarra negra y casco; una textura por color ('deportiva0'...), a SPR veces la resolucion
+function makeDeportiva(scene) {
+  DEPORTIVA_COLS.forEach(([col, raya], i) => {
+    const t = scene.textures.createCanvas('deportiva' + i, 28 * SPR, 14 * SPR), x = t.getContext();
+    x.scale(SPR, SPR);
+    x.fillStyle = 'rgba(0,0,0,0.3)'; x.beginPath(); x.ellipse(15, 8.4, 12, 3.6, 0, 0, 7); x.fill();
+    // llantas anchas (la de atras mas gruesa) y el escape
+    x.fillStyle = '#111'; x.beginPath(); x.roundRect(1.5, 5.4, 6.5, 3.2, 1.2); x.fill(); x.beginPath(); x.roundRect(20.5, 5.7, 5.5, 2.6, 1.1); x.fill();
+    x.fillStyle = '#9aa0a6'; x.beginPath(); x.roundRect(3, 8.6, 6, 1.6, 0.8); x.fill();
+    // carenado: angosto atras, ancho en el tanque y en punta adelante
+    x.fillStyle = shade(col, 0.6); x.beginPath(); x.moveTo(3, 7); x.lineTo(9, 4.3); x.lineTo(17, 3.6); x.lineTo(24, 5.4); x.lineTo(26.2, 7);
+    x.lineTo(24, 8.6); x.lineTo(17, 10.4); x.lineTo(9, 9.7); x.closePath(); x.fill();
+    x.fillStyle = col; x.beginPath(); x.moveTo(3.6, 7); x.lineTo(9, 4.8); x.lineTo(17, 4.2); x.lineTo(23.5, 5.7); x.lineTo(25.4, 7);
+    x.lineTo(23.5, 8.3); x.lineTo(17, 9.8); x.lineTo(9, 9.2); x.closePath(); x.fill();
+    x.fillStyle = raya; x.fillRect(4, 6.4, 21, 1.2);
+    // parabrisas ahumado y faro
+    x.fillStyle = 'rgba(29,39,51,0.85)'; x.beginPath(); x.moveTo(19.5, 4.8); x.lineTo(23, 5.8); x.lineTo(23, 8.2); x.lineTo(19.5, 9.2); x.closePath(); x.fill();
+    x.fillStyle = '#fff6b0'; x.fillRect(25, 6.2, 1.2, 1.6);
+    x.fillStyle = '#ff3b30'; x.fillRect(2.6, 6.3, 1, 1.4);
+    // piloto agachado: espalda, brazos a los semimanubrios y casco con visera
+    x.fillStyle = '#1b1b1f'; x.beginPath(); x.ellipse(12.5, 7, 3.6, 3.3, 0, 0, 7); x.fill();
+    x.strokeStyle = '#1b1b1f'; x.lineWidth = 1.4; x.beginPath(); x.moveTo(13.5, 4.4); x.lineTo(18.6, 4.3); x.moveTo(13.5, 9.6); x.lineTo(18.6, 9.7); x.stroke();
+    x.fillStyle = raya; x.fillRect(10, 6.5, 4, 1);
+    x.fillStyle = col; x.beginPath(); x.arc(16.2, 7, 2.5, 0, 7); x.fill();
+    x.fillStyle = '#1d2733'; x.beginPath(); x.arc(16.9, 7, 1.8, -1.1, 1.1); x.fill();
+    x.fillStyle = 'rgba(255,255,255,0.5)'; x.beginPath(); x.arc(15.5, 6, 0.7, 0, 7); x.fill();
+    t.refresh();
+  });
 }
 // patrulla municipal: troca blanca con cofre azul y torreta; dos texturas para que la torreta parpadee
 const VT_POLI = { name: 'Patrulla', L: 38, W: 17, top: 245, acc: 125, steer: 2.4, hp: 150 };
@@ -3394,6 +3432,7 @@ class Main extends Phaser.Scene {
   // o: { moto, taxi, ti (tipo), ci (color), dirty }; sin tipo se escoge uno al azar
   carSpec(o = {}) {
     if (o.moto) return { T: VT_MOTO, key: 'moto', ox: 0.5, oy: 0.5, dirty: false };
+    if (o.deportiva) return { T: VT_DEPORTIVA, key: 'deportiva' + ((Math.random() * DEPORTIVA_COLS.length) | 0), ox: 15 / 28, oy: 0.5, dirty: false };
     if (o.taxi) return { T: VT_TAXI, key: 'taxi', ox: 0.5, oy: 0.5, dirty: false };
     if (o.troca) return { T: VT_TROCA_TACOS, key: 'troca_tacos', ox: (VT_TROCA_TACOS.L / 2 + 3) / (VT_TROCA_TACOS.L + 6), oy: 0.5, dirty: false };
     if (o.zonkey) return { T: VT_ZONKEY, key: 'zonkey', ox: (VT_ZONKEY.L / 2 + 3) / (VT_ZONKEY.L + 6), oy: 0.5, dirty: false };
@@ -3404,7 +3443,7 @@ class Main extends Phaser.Scene {
   }
   makeCar(x, y, a, o) {
     const sp = o && o.T ? o : this.carSpec(o), T = sp.T, f = sp.dirty ? 0.7 : 1;
-    return { x, y, a, vx: 0, vy: 0, T, dirty: sp.dirty, moto: T === VT_MOTO, poli: T === VT_POLI, hp: Math.round(T.hp * f), maxHp: Math.round(T.hp * f),
+    return { x, y, a, vx: 0, vy: 0, T, dirty: sp.dirty, moto: T === VT_MOTO, dosRuedas: T === VT_MOTO || T === VT_DEPORTIVA, poli: T === VT_POLI, hp: Math.round(T.hp * f), maxHp: Math.round(T.hp * f),
       top: T.top * (sp.dirty ? 0.92 : 1), acc: T.acc * (sp.dirty ? 0.9 : 1), hl: T.L / 2 - 1, hw: T.W / 2 - 1,
       sprite: this.add.image(x, y, sp.key).setOrigin(sp.ox, sp.oy).setRotation(a).setDepth(10).setScale(1 / SPR) };
   }
@@ -3486,10 +3525,11 @@ class Main extends Phaser.Scene {
       if (initial ? dist(q.x, q.y, p.x, p.y) < 160 : (inView(q.x, q.y) || dist(q.x, q.y, p.x, p.y) < R)) continue;
       const moto = Math.random() < 0.3 && this.cars.filter(c => c.moto).length < 5;
       const poli = !moto && Math.random() < 0.15 && this.cars.filter(c => c.poli).length < 3;
-      const spec = this.carSpec({ moto, poli });
+      const deportiva = !moto && !poli && Math.random() < 0.04 && !this.cars.some(c => c.T === VT_DEPORTIVA);
+      const spec = this.carSpec({ moto, poli, deportiva });
       if (this.cars.some(c => dist(c.x, c.y, q.x, q.y) < 26 + c.hl + spec.T.L / 2)) continue;
       const car = this.makeCar(q.x, q.y, q.a, spec);
-      Object.assign(car, { e, dir, s, lat, lane, speed: 0, max: rnd(50, 80) * (e.c <= 2 ? 1.2 : 1) * (moto ? 1.15 : poli ? 1.1 : car.top / 230) });
+      Object.assign(car, { e, dir, s, lat, lane, speed: 0, max: rnd(50, 80) * (e.c <= 2 ? 1.2 : 1) * (moto ? 1.15 : poli ? 1.1 : deportiva ? 1.35 : car.top / 230) });
       this.cars.push(car);
     }
     n = 0;
@@ -3627,7 +3667,7 @@ class Main extends Phaser.Scene {
     if (thr > 0) fwd += (fwd < 0 ? 420 : ACC * (1 - Math.max(0, fwd) / (TOP + 30))) * thr * dt;
     else if (thr < 0) fwd += (fwd > 0 ? -520 : -150) * -thr * dt;
     else fwd -= Math.sign(fwd) * Math.min(Math.abs(fwd), 90 * dt);
-    fwd = Math.max(car.moto ? -40 : -80, Math.min(TOP, fwd));
+    fwd = Math.max(car.dosRuedas ? -40 : -80, Math.min(TOP, fwd));
     if (c.brake) fwd -= Math.sign(fwd) * Math.min(Math.abs(fwd), 160 * dt);
     const grip = c.brake ? 0.9 : 9;
     lat -= lat * Math.min(1, grip * dt);
@@ -3651,8 +3691,9 @@ class Main extends Phaser.Scene {
         this.jolt(120, Math.min(0.012, speed / 30000));
         if (car === this.inCar && window.SND) SND.play('crash', speed / 250);
         car.hp -= speed / 14;
-        if (car.hp <= 0 && !broken) { this.wreck(car); toast('¡Auto deshuesado!', 'Bájate con E y roba otro.'); }
+        if (car.hp <= 0 && !broken) { this.wreck(car); avisoDeshuesado(car); }
       }
+      if (car.T.fragil && speed > 45 && !car.wrecked) { car.hp = 0; this.wreck(car); avisoDeshuesado(car); } // la deportiva: al primer choque
     }
     // topes
     let onTope = false;
@@ -3678,7 +3719,7 @@ class Main extends Phaser.Scene {
       if (inB && car.bache !== inB) {
         const sp = Math.hypot(car.vx, car.vy);
         if (sp > 30) {
-          const dmg = (car.moto ? 1.5 : 1) * (inB.r / 9) * (4 + sp / 18);
+          const dmg = (car.dosRuedas ? 1.5 : 1) * (inB.r / 9) * (4 + sp / 18);
           car.hp -= dmg; car.vx *= 0.8; car.vy *= 0.8;
           this.jolt(160, Math.min(0.012, sp / 20000));
           if (window.SND) SND.play('crash', 0.35);
@@ -3689,7 +3730,7 @@ class Main extends Phaser.Scene {
       car.bache = inB;
     }
     car.sprite.setPosition(car.x, car.y).setRotation(car.a);
-    if (car.hp <= 0 && !car.wrecked) { this.wreck(car); toast('¡Auto deshuesado!', 'Bájate con E y roba otro.'); }
+    if (car.hp <= 0 && !car.wrecked) { this.wreck(car); avisoDeshuesado(car); }
     car.smokeT = (car.smokeT || 0) - dt;
     if (car.hp < car.maxHp * 0.35 && car.smokeT <= 0) { car.smokeT = 0.12; this.puff(car.x + Math.cos(car.a) * (car.hl - 3), car.y + Math.sin(car.a) * (car.hl - 3)); }
   }
@@ -3796,6 +3837,7 @@ class Main extends Phaser.Scene {
         this.peds.push(ped);
       }
       if (best.moto) this.startDelivery();
+      else if (best.T === VT_DEPORTIVA) toast('🏍️ ¡Moto deportiva!', 'Corre como ninguna, pero al primer choque se hace pedazos. Con cuidadito.', 3);
       else toast(pick(FRASES_ROBO), best.T.name + (best.dirty ? ' bien tijuaneado' : ' de agencia'), 2.4);
     } else this.parked.splice(this.parked.indexOf(best), 1);
     best.vx = best.vy = 0;
@@ -3850,6 +3892,7 @@ class Main extends Phaser.Scene {
           const vn = me.vx * nx + me.vy * ny; if (vn < 0) { me.vx -= 1.4 * vn * nx; me.vy -= 1.4 * vn * ny; }
           if (o.poli) this.hitPoli(sp);
           if (sp > 120) { this.jolt(100, 0.006); me.hp -= sp / 25; o.speed = 0; }
+          if (me.T.fragil && sp > 45) me.hp = 0; // la deportiva no aguanta ni un rozon
         }
       }
     }
@@ -4176,8 +4219,8 @@ class Main extends Phaser.Scene {
       // vehiculos: haz de los faros, calaveras rojas y la torreta de las patrullas
       const lights = (c) => {
         const fx = Math.cos(c.a), fy = Math.sin(c.a);
-        cut('cono', c.x + fx * c.hl, c.y + fy * c.hl, c.moto ? 70 : 95, c.a);
-        glow(c.x - fx * c.hl, c.y - fy * c.hl, c.moto ? 6 : 9, 0xff2020, 0.55);
+        cut('cono', c.x + fx * c.hl, c.y + fy * c.hl, c.dosRuedas ? 70 : 95, c.a);
+        glow(c.x - fx * c.hl, c.y - fy * c.hl, c.dosRuedas ? 6 : 9, 0xff2020, 0.55);
         if (c.poli) glow(c.x, c.y, 16, Math.floor(time / 220) % 2 ? 0xff1a1a : 0x2a5bff, 0.75);
       };
       for (const c of this.cars) lights(c);
@@ -4463,7 +4506,7 @@ class Main extends Phaser.Scene {
   }
   startTaxi() {
     if (!this.inCar) { toast('Necesitas un auto', 'Roba uno con E y luego presiona T.'); return; }
-    if (this.inCar.moto) { toast('En moto no caben pasajeros', 'A menos que sea tu compadre. Roba un auto para hacer taxi.'); return; }
+    if (this.inCar.dosRuedas) { toast('En moto no caben pasajeros', 'A menos que sea tu compadre. Roba un auto para hacer taxi.'); return; }
     if (this.taxi) { this.endTaxi(false, 'Dejaste de trabajar de taxista.'); return; }
     if (this.inCar.hp <= 0) return;
     const f = this.inCar;

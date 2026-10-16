@@ -29,6 +29,7 @@ T trabajar de taxista · M mapa grande (toca para marcar destino). En celular ha
 - Taxi: recoge pasajeros y llévalos a un lugar antes de que se acabe el tiempo.
 - Paros 🤝: 39 personajes en las colonias (lejos de los lugares típicos) te piden un favor: llevar al gato al veterinario, pozole a la jefa, flores al panteón, croquetas al albergue de perritos, una perrita rescatada con su nueva familia... Se aceptan con E (botón ACEPTAR), tienen tiempo y pagan según la distancia. Están en `PAROS` de src/game.js.
 - Vehículos: 10 tipos (sedán, vocho, troca, camioneta, tsurito, combi, muscle car, lowrider, calafia, camión de carga), cada uno limpio o sucio y madreado. Los sucios aguantan menos golpes y corren un poco menos. Se dibujan en `vehicleTexture()` de src/game.js.
+- Moto deportiva 🏍️: la más rápida del juego, pero se hace pedazos al primer choque. Sale de vez en cuando en el tráfico (máximo una a la vez).
 - Patrullas 🚓: trocas de policía en el tráfico (máximo 3). Si las chocas te cobran multa ($150–800 según la velocidad, una cada 5 s). No se pueden robar.
 - Secretos 🥚: 11 personajes y cosas típicas de Tijuana escondidos cerca de los lugares (el burro cebra, la ensalada César, Javier Bátiz, el Mimo Moy...). Al encontrarlos sueltan una frase y una lana. Están en `EGGS` de src/game.js.
 
