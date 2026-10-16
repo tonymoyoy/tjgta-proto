@@ -2305,8 +2305,9 @@ const LONAS = [['#d62828', '#f4efe6'], ['#f77f00', '#fcbf49'], ['#2a9d8f', '#e9f
 // medidas del puesto en px del mundo (la textura va a SPR veces la resolucion)
 const PUESTO_W = 58, PUESTO_H = 52;
 function makeTacoStands(scene) {
-  LONAS.forEach(([c1, c2], v) => {
-    const t = scene.textures.createCanvas('puesto' + v, PUESTO_W * SPR, PUESTO_H * SPR), x = t.getContext();
+  // 'u': con el letrero de cabeza, para los puestos que quedan girados al reves (como los cafes)
+  for (const u of ['', 'u']) LONAS.forEach(([c1, c2], v) => {
+    const t = scene.textures.createCanvas('puesto' + v + u, PUESTO_W * SPR, PUESTO_H * SPR), x = t.getContext();
     x.scale(SPR, SPR); x.translate(5, 3);
     const rnd = mulberry(v * 71 + 5);
     const circ = (c, cx, cy, r) => { x.fillStyle = c; x.beginPath(); x.arc(cx, cy, r, 0, 7); x.fill(); };
@@ -2341,6 +2342,7 @@ function makeTacoStands(scene) {
     x.strokeStyle = 'rgba(0,0,0,0.5)'; x.lineWidth = 0.7; x.strokeRect(0, 0, W, H);
     for (const [px, py] of [[0, 0], [W, 0], [0, H], [W, H]]) { circ('#3a3a3a', px, py, 1); circ('#9e9e9e', px - 0.25, py - 0.25, 0.4); } // los tubos
     // letrero pintado a mano, con un taquito
+    x.save(); if (u) { x.translate(20.75, 7.4); x.rotate(Math.PI); x.translate(-20.75, -7.4); }
     rrect('rgba(0,0,0,0.35)', 8.4, 3.6, 25.5, 8.4, 1.6); rrect('#fff4d6', 8, 3.2, 25.5, 8.4, 1.6);
     x.strokeStyle = c1; x.lineWidth = 0.7; x.beginPath(); x.roundRect(8.6, 3.8, 24.3, 7.2, 1.2); x.stroke();
     x.font = 'bold 5.4px "Trebuchet MS", sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
@@ -2350,6 +2352,7 @@ function makeTacoStands(scene) {
     x.fillStyle = '#e8c27a'; x.beginPath(); x.arc(0, 0.6, 2.8, Math.PI, 0); x.closePath(); x.fill();
     circ('#b5521b', -1, -0.5, 0.6); circ('#3f9a2f', 0.2, -0.9, 0.45); circ('#b5521b', 1, -0.4, 0.55); circ('#f4f1e6', 0.1, 0, 0.4);
     x.strokeStyle = '#a57b35'; x.lineWidth = 0.4; x.beginPath(); x.arc(0, 0.6, 2.8, Math.PI, 0); x.stroke(); x.restore();
+    x.restore();
     // ---- el trompo de pastor a un lado: la carne en capas, la pina arriba y la lumbre detras ----
     const tx = 45.5, ty = 11;
     const fuego = x.createRadialGradient(tx + 2, ty, 0, tx + 2, ty, 6); fuego.addColorStop(0, 'rgba(255,170,40,0.75)'); fuego.addColorStop(1, 'rgba(255,90,0,0)');
@@ -2377,30 +2380,80 @@ function makeTacoStands(scene) {
 // con el mostrador y los bancos viendo hacia la calle. Devuelve [x, y, rotacion].
 // fachada de cafe vista desde arriba: toldo pegado al edificio (atras), mesitas con sombrilla
 // y un pizarron en la banqueta (adelante). Tres estilos de toldo.
-const TOLDOS = [['#5d3a1a', '#efe3c8', '#efe3c8'], ['#1f4d3a', '#f4f1e8', '#f4f1e8'], ['#1d1d1d', '#c9a26b', '#f0e6d2']];
+const TOLDOS = [['#5d3a1a', '#efe3c8', '#efe3c8'], ['#1f4d3a', '#f4f1e8', '#f4f1e8'], ['#1d1d1d', '#c9a26b', '#f0e6d2'], ['#8e2b2b', '#f3e9dc', '#f3e9dc']];
+// medidas del cafe en px del mundo (la textura va a SPR veces la resolucion); el toldo va arriba, pegado a la fachada
+const CAFE_W = 60, CAFE_H = 46;
 function makeCafes(scene) {
-  TOLDOS.forEach(([c1, c2, tx], v) => {
-    const t = scene.textures.createCanvas('cafe' + v, 96, 70), x = t.getContext();
-    x.scale(2, 2); x.translate(3, 2);
-    // toldo a rayas con orilla de olanes
-    x.fillStyle = 'rgba(0,0,0,0.3)'; x.fillRect(2, 2, 40, 14);
-    for (let i = 0; i < 8; i++) { x.fillStyle = i % 2 ? c2 : c1; x.fillRect(i * 5, 0, 5, 12); }
-    for (let i = 0; i < 8; i++) { x.fillStyle = i % 2 ? c2 : c1; x.beginPath(); x.arc(i * 5 + 2.5, 12, 2.5, 0, Math.PI); x.fill(); }
-    x.strokeStyle = 'rgba(0,0,0,0.35)'; x.lineWidth = 0.6; x.strokeRect(0, 0, 40, 12);
-    x.fillStyle = 'rgba(255,255,255,0.15)'; x.fillRect(0, 0, 40, 3);
-    x.fillStyle = c1; x.fillRect(11, 3.5, 18, 6); x.fillStyle = tx; x.font = 'bold 5.5px serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('CAFÉ', 20, 6.8);
-    // mesitas con sombrilla y sillas
-    for (const mx of [8, 30]) {
-      x.fillStyle = '#6b6b6b'; for (const [a, b] of [[-4, 0], [4, 0]]) { x.beginPath(); x.arc(mx + a, 23 + b, 1.6, 0, 7); x.fill(); }
-      x.fillStyle = 'rgba(0,0,0,0.25)'; x.beginPath(); x.arc(mx + 1, 24, 5, 0, 7); x.fill();
-      x.fillStyle = c1; x.beginPath(); x.arc(mx, 23, 4.5, 0, 7); x.fill();
-      x.strokeStyle = c2; x.lineWidth = 0.6; x.beginPath();
-      for (let k = 0; k < 4; k++) { const a = k * Math.PI / 4; x.moveTo(mx - Math.cos(a) * 4.5, 23 - Math.sin(a) * 4.5); x.lineTo(mx + Math.cos(a) * 4.5, 23 + Math.sin(a) * 4.5); }
-      x.stroke();
+  // 'u': el letrero va de cabeza dentro del dibujo, para los cafes que quedan girados al reves (asi se lee derecho)
+  for (const u of ['', 'u']) TOLDOS.forEach(([c1, c2, tx], v) => {
+    const t = scene.textures.createCanvas('cafe' + v + u, CAFE_W * SPR, CAFE_H * SPR), x = t.getContext();
+    x.scale(SPR, SPR); x.translate(4, 2);
+    const circ = (c, cx, cy, r) => { x.fillStyle = c; x.beginPath(); x.arc(cx, cy, r, 0, 7); x.fill(); };
+    const rrect = (c, x0, y0, w, h, r) => { x.fillStyle = c; x.beginPath(); x.roundRect(x0, y0, w, h, r); x.fill(); };
+    const W = 50, H = 13, n = 10;
+    // sombra del toldo sobre la banqueta
+    x.save(); x.shadowColor = 'rgba(0,0,0,0.45)'; x.shadowBlur = 4; x.shadowOffsetY = 3; rrect('rgba(0,0,0,0.01)', 0, 0, W, H + 2, 1); x.restore();
+    // ---- toldo a rayas con olanes, luz arriba y sombra hacia la orilla ----
+    for (let i = 0; i < n; i++) { x.fillStyle = i % 2 ? c2 : c1; x.fillRect(i * W / n, 0, W / n + 0.05, H); }
+    for (let i = 0; i < n; i++) { x.fillStyle = i % 2 ? c2 : c1; x.beginPath(); x.arc(i * W / n + W / n / 2, H, W / n / 2, 0, Math.PI); x.fill(); }
+    const som = x.createLinearGradient(0, 0, 0, H + 2.5); som.addColorStop(0, 'rgba(255,255,255,0.25)'); som.addColorStop(0.4, 'rgba(255,255,255,0)'); som.addColorStop(1, 'rgba(0,0,0,0.25)');
+    x.fillStyle = som; x.fillRect(0, 0, W, H + 2.6);
+    x.strokeStyle = 'rgba(0,0,0,0.4)'; x.lineWidth = 0.6; x.strokeRect(0, 0, W, H);
+    // letrero: la palabra y una tacita humeando
+    x.save(); if (u) { x.translate(25, 6.5); x.rotate(Math.PI); x.translate(-25, -6.5); }
+    rrect('rgba(0,0,0,0.3)', 13.4, 2.9, 24, 8, 1.5); rrect(c1, 13, 2.5, 24, 8, 1.5);
+    x.strokeStyle = tx; x.lineWidth = 0.5; x.beginPath(); x.roundRect(13.7, 3.2, 22.6, 6.6, 1.1); x.stroke();
+    x.font = 'bold 5.2px Georgia, serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillStyle = tx; x.fillText('CAFÉ', 28, 6.7);
+    x.fillStyle = tx; x.beginPath(); x.moveTo(15.8, 5.6); x.lineTo(20.2, 5.6); x.lineTo(19.6, 8.6); x.lineTo(16.4, 8.6); x.closePath(); x.fill();
+    x.strokeStyle = tx; x.lineWidth = 0.5; x.beginPath(); x.arc(20.3, 6.9, 0.9, -1.4, 1.4); x.stroke();
+    x.lineWidth = 0.35; x.beginPath(); x.moveTo(17.2, 5); x.quadraticCurveTo(16.6, 4.3, 17.3, 3.7); x.moveTo(18.8, 5); x.quadraticCurveTo(18.2, 4.3, 18.9, 3.7); x.stroke();
+    x.restore();
+    // ---- macetas a los lados de la puerta ----
+    for (const px of [2.5, 47.5]) {
+      circ('rgba(0,0,0,0.25)', px + 0.8, 20.8, 3); circ('#a0522d', px, 20, 3); circ('#7a3d1f', px, 20, 2.3);
+      for (let k = 0; k < 6; k++) { const a = k / 6 * 6.283; circ(k % 2 ? '#2e7d32' : '#43a047', px + Math.cos(a) * 1.4, 20 + Math.sin(a) * 1.4, 1.5); }
+      circ('#66bb6a', px - 0.4, 19.6, 0.9);
     }
-    // pizarron con el menu y una taza junto
-    x.fillStyle = '#3b2a1a'; x.fillRect(17.5, 19.5, 5, 7); x.fillStyle = '#263238'; x.fillRect(18.2, 20.2, 3.6, 5.6);
-    x.strokeStyle = 'rgba(255,255,255,0.7)'; x.lineWidth = 0.35; x.beginPath(); for (const yy of [21.5, 23, 24.5]) { x.moveTo(18.8, yy); x.lineTo(21.2, yy); } x.stroke();
+    // ---- mesitas redondas con sus sillas, tazas y un pan dulce ----
+    const mesa = (mx, my, conPan) => {
+      for (const a of [Math.PI * 0.85, Math.PI * 0.15, Math.PI * 1.5]) { // sillas de bistro
+        const cx = mx + Math.cos(a) * 6, cy = my + Math.sin(a) * 6;
+        circ('rgba(0,0,0,0.25)', cx + 0.6, cy + 0.7, 2.4); circ('#5d4037', cx, cy, 2.4); circ('#8d6e63', cx, cy, 1.7);
+        x.strokeStyle = 'rgba(0,0,0,0.3)'; x.lineWidth = 0.25; x.beginPath(); x.arc(cx, cy, 1.1, 0, 7); x.stroke();
+      }
+      circ('rgba(0,0,0,0.3)', mx + 0.8, my + 1, 4.6);
+      const g = x.createRadialGradient(mx - 1.5, my - 1.5, 0.5, mx, my, 4.5); g.addColorStop(0, '#a1887f'); g.addColorStop(1, '#6d4c41');
+      circ(g, mx, my, 4.5); x.strokeStyle = '#4e342e'; x.lineWidth = 0.45; x.beginPath(); x.arc(mx, my, 4.5, 0, 7); x.stroke();
+      x.strokeStyle = 'rgba(62,39,35,0.35)'; x.lineWidth = 0.2; x.beginPath(); x.arc(mx, my, 3.2, 0.3, 2.4); x.arc(mx, my, 2.1, 3.4, 5.2); x.stroke(); // vetas
+      const taza = (cx, cy) => {
+        circ('rgba(0,0,0,0.25)', cx + 0.3, cy + 0.35, 1.55); circ('#fafafa', cx, cy, 1.55);
+        circ('#5d3a1a', cx, cy, 0.95); circ('#d7b98e', cx - 0.2, cy - 0.2, 0.42);
+        x.strokeStyle = '#fafafa'; x.lineWidth = 0.5; x.beginPath(); x.arc(cx + 1.75, cy, 0.5, -1.2, 1.2); x.stroke(); // asa
+      };
+      if (conPan) { // una taza y una concha en su servilleta
+        taza(mx - 1.6, my - 1);
+        x.save(); x.translate(mx + 1.5, my + 1.3); x.rotate(0.5); x.fillStyle = '#fafafa'; x.fillRect(-1.9, -1.9, 3.8, 3.8); x.restore();
+        circ('#e8b04a', mx + 1.5, my + 1.3, 1.45); circ('#f8bbd0', mx + 1.5, my + 1.3, 1.2);
+        x.strokeStyle = '#d48aa6'; x.lineWidth = 0.22; x.beginPath();
+        for (const d of [-0.5, 0.5]) { x.moveTo(mx + 1.5 + d, my + 0.3); x.lineTo(mx + 1.5 + d, my + 2.3); x.moveTo(mx + 0.5, my + 1.3 + d); x.lineTo(mx + 2.5, my + 1.3 + d); }
+        x.stroke();
+      } else { // una taza y el periodico
+        x.save(); x.translate(mx - 1.2, my + 1); x.rotate(-0.35); x.fillStyle = '#eeeeee'; x.fillRect(-2.2, -1.5, 4.4, 3);
+        x.strokeStyle = 'rgba(0,0,0,0.35)'; x.lineWidth = 0.18; x.beginPath(); for (const yy of [-0.8, -0.2, 0.4, 1]) { x.moveTo(-1.8, yy); x.lineTo(1.8, yy); } x.stroke(); x.restore();
+        taza(mx + 1.7, my - 1.2);
+      }
+    };
+    mesa(10, 28, true); mesa(40, 28, false);
+    // ---- pizarron de caballete en medio, con el menu en gis y una tacita dibujada ----
+    circ('rgba(0,0,0,0.25)', 26.2, 31, 4);
+    rrect('#6d4c41', 21.8, 25.5, 8.4, 10.2, 0.8); rrect('#263238', 22.6, 26.3, 6.8, 8.6, 0.5);
+    x.strokeStyle = 'rgba(255,255,255,0.8)'; x.lineWidth = 0.3; x.beginPath();
+    x.moveTo(23.6, 27.6); x.lineTo(28.4, 27.6);
+    for (const yy of [31.4, 32.6, 33.8]) { x.moveTo(23.4, yy); x.lineTo(26.8, yy); x.moveTo(27.4, yy); x.lineTo(28.4, yy); }
+    x.stroke();
+    x.strokeStyle = '#ffcc80'; x.beginPath(); x.moveTo(24.6, 28.6); x.lineTo(27.2, 28.6); x.lineTo(26.8, 30.4); x.lineTo(25, 30.4); x.closePath(); x.stroke();
+    // tapete en la puerta
+    rrect('#d7ccc8', 20.5, 16.4, 11, 3.4, 0.6); rrect(c1, 21.1, 16.9, 9.8, 2.4, 0.4);
     t.refresh();
   });
 }
@@ -3154,7 +3207,7 @@ class Main extends Phaser.Scene {
     for (const t of tacos) {
       const [sx, sy, rot] = sidewalkSpot(t.x, t.y);
       t.x = sx; t.y = sy;
-      t.icon = this.add.image(t.x, t.y, 'puesto' + (hash(t.name.length * 31 + (t.x | 0)) % LONAS.length)).setScale(1 / SPR).setRotation(rot).setDepth(6);
+      t.icon = this.add.image(t.x, t.y, 'puesto' + (hash(t.name.length * 31 + (t.x | 0)) % LONAS.length) + (Math.cos(rot) < -0.3 ? 'u' : '')).setScale(1 / SPR).setRotation(rot).setDepth(6);
       // vapor que sale del comal (el comal queda abajo a la izquierda del dibujo, girado con el puesto)
       const ox = 10.5 + 5 - PUESTO_W / 2, oy = 23 + 3 - PUESTO_H / 2, c = Math.cos(rot), sn = Math.sin(rot);
       t.vapor = [0, 1].map(i => this.add.image(t.x + ox * c - oy * sn, t.y + ox * sn + oy * c, 'vapor').setDepth(6.5).setAlpha(0).setScale(0.4 / SPR));
@@ -3165,8 +3218,15 @@ class Main extends Phaser.Scene {
       // el toldo queda pegado a la fachada, del lado de la banqueta que da al edificio
       const [sx, sy, rot] = sidewalkSpot(c.x, c.y, (SIDEWALK + 0.5) * M + 2);
       c.x = sx; c.y = sy;
-      c.icon = this.add.image(c.x, c.y, 'cafe' + (hash(c.name.length * 17 + (c.x | 0)) % TOLDOS.length)).setScale(0.55).setRotation(rot).setDepth(6);
-      c.label = this.add.text(c.x, c.y - 24, c.name, { fontSize: '12px', color: '#e8d2b5', stroke: '#000', strokeThickness: 3, resolution: TXT_RES }).setOrigin(0.5).setDepth(19);
+      c.icon = this.add.image(c.x, c.y, 'cafe' + (hash(c.name.length * 17 + (c.x | 0)) % TOLDOS.length) + (Math.cos(rot) < -0.3 ? 'u' : '')).setScale(1 / SPR).setRotation(rot).setDepth(6);
+      // vapor de las tazas de las dos mesitas (abajo en el dibujo, girado con el cafe)
+      const cs = Math.cos(rot), sn = Math.sin(rot);
+      c.vapor = [[10 + 4 - CAFE_W / 2, 28 + 2 - CAFE_H / 2], [40 + 4 - CAFE_W / 2, 28 + 2 - CAFE_H / 2]].map(([ox, oy], i) => {
+        const v = this.add.image(c.x + ox * cs - oy * sn, c.y + ox * sn + oy * cs, 'vapor').setDepth(6.5).setAlpha(0);
+        this.tweens.add({ targets: v, y: v.y - 7, alpha: { from: 0.45, to: 0 }, scale: { from: 0.2 / SPR, to: 0.55 / SPR }, duration: 1800, delay: i * 900 + Math.random() * 500, repeat: -1 });
+        return v;
+      });
+      c.label = this.add.text(c.x, c.y - 30, c.name, { fontSize: '12px', color: '#e8d2b5', stroke: '#000', strokeThickness: 3, resolution: TXT_RES }).setOrigin(0.5).setDepth(19);
     }
     for (const c of chinas) {
       // la entrada (punta de la alfombra) queda en la banqueta; el local se mete hacia el edificio
