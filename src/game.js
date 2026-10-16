@@ -1688,7 +1688,13 @@ let toastT = 0, streetT = 0, lastStreet = '';
 function layoutTop() {
   const t = $('topmsg').style, st = $('stats').getBoundingClientRect(), mi = hud.mini.getBoundingClientRect();
   if (mi.left - st.right >= 220) { t.left = (st.right + 12) + 'px'; t.right = (window.innerWidth - mi.left + 12) + 'px'; t.top = '10px'; }
-  else { t.left = '12px'; t.right = '12px'; t.top = (Math.max(st.bottom, mi.bottom) + 8) + 'px'; }
+  else {
+    // debajo del panel y del minimapa, a lo ancho; si ahi queda el boton de opciones (celular vertical),
+    // los mensajes le dejan libre su columna para no taparlo
+    const top = Math.max(st.bottom, mi.bottom) + 8, op = $('optbtn').getBoundingClientRect();
+    t.left = '12px'; t.top = top + 'px';
+    t.right = (op.width && op.bottom > top ? window.innerWidth - op.left + 8 : 12) + 'px';
+  }
 }
 function toast(title, body, secs) { layoutTop(); hud.toast.innerHTML = '<b></b><span></span>'; hud.toast.firstChild.textContent = title; hud.toast.lastChild.textContent = body || ''; hud.toast.classList.add('on'); toastT = secs || 3.5; }
 // sonido de dinero: se compara contra el ultimo saldo mostrado (bigSound = fanfarria en vez de monedas)
