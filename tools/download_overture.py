@@ -2,7 +2,7 @@ import pyarrow.fs as pafs, pyarrow.dataset as ds, pyarrow.compute as pc, pyarrow
 from shapely import wkb
 from concurrent.futures import ThreadPoolExecutor
 # recuadro (lon/lat); TJ_BBOX="xmin,ymin,xmax,ymax" lo cambia. Por defecto: Centro, Zona Rio, Chapultepec, Hipodromo y Agua Caliente
-xmin,ymin,xmax,ymax = map(float, os.environ.get("TJ_BBOX", "-117.048,32.500,-116.985,32.543").split(","))
+xmin,ymin,xmax,ymax = map(float, os.environ.get("TJ_BBOX", "-117.048,32.500,-116.985,32.5485").split(","))
 px = os.environ.get("HTTPS_PROXY")  # opcional: solo si la red sale por un proxy
 fs = pafs.S3FileSystem(anonymous=True, region="us-west-2", **({"proxy_options": px} if px else {}))
 theme,typ,cols = sys.argv[1], sys.argv[2], sys.argv[3].split(",")

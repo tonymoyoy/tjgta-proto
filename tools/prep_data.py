@@ -14,9 +14,10 @@ RAW = sys.argv[1] if len(sys.argv) > 1 else "raw"
 OUT = sys.argv[2] if len(sys.argv) > 2 else os.path.join(os.path.dirname(__file__), "..", "data", "centro.js")
 
 # mismo recuadro que download_overture.py: Centro, Zona Norte, Zona Rio, Chapultepec, Hipodromo y Agua Caliente.
-# La esquina noroeste no se mueve al agrandar el mapa (ahi esta el origen), y la escala este-oeste se queda
-# con la latitud del primer recuadro (32.517-32.543): asi lo que ya estaba no cambia de lugar.
-LON0, LAT0, LON1, LAT1 = map(float, os.environ.get("TJ_BBOX", "-117.048,32.500,-116.985,32.543").split(","))
+# El norte llega hasta 32.5485 para que quepa la linea fronteriza de verdad. La escala este-oeste se queda con la
+# latitud del primer recuadro (32.517-32.543); si el recuadro crece al norte o al oeste, todo se recorre junto con
+# el origen y el juego lo compensa con 'o' (ver REF).
+LON0, LAT0, LON1, LAT1 = map(float, os.environ.get("TJ_BBOX", "-117.048,32.500,-116.985,32.5485").split(","))
 KX = 111320 * math.cos(math.radians(32.53))
 # punto de referencia fijo (la esquina noroeste del primer mapa): el juego tiene algunas posiciones en metros
 # desde aqui (zonas, paros, secretos). Si el recuadro crece al norte o al oeste, el origen se mueve pero
@@ -223,14 +224,18 @@ for f in sorted(load("land_use"), key=lambda f: f["properties"]["class"] != "gol
     g = f["geometry"]
     polys = [g["coordinates"]] if g["type"] == "Polygon" else g["coordinates"]
     for poly in polys:
+        # lo que queda entero del otro lado de la linea no se pinta (se veia apagado debajo de EE. UU.)
+        if not any(in_mx(lo, la) for lo, la, *_ in poly[0]):
+            continue
         areas.append([k, flat(poly[0][:-1])])
 for f in load("water"):
     p, g = f["properties"], f["geometry"]
     if p["subtype"] in ("ocean",):
         continue
     if g["type"] == "Polygon":
-        areas.append([7, flat(g["coordinates"][0][:-1])])
-    elif g["type"] == "LineString":
+        if any(in_mx(lo, la) for lo, la, *_ in g["coordinates"][0]):
+            areas.append([7, flat(g["coordinates"][0][:-1])])
+    elif g["type"] == "LineString" and any(in_mx(lo, la) for lo, la, *_ in g["coordinates"]):
         roads.append([11, -1, 4, flat(g["coordinates"])])
 
 # ---- lugares

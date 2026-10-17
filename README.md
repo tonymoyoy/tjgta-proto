@@ -55,4 +55,4 @@ El progreso se guarda en el navegador.
 
 ## Datos
 Overture Maps Foundation, derivados de © colaboradores de OpenStreetMap (ODbL). Recuadro:
-lon -117.048 a -116.985, lat 32.500 a 32.543 (Centro, Zona Norte, Zona Río, Chapultepec, Hipódromo y Agua Caliente). La línea fronteriza se aproxima con una recta.
+lon -117.048 a -116.985, lat 32.500 a 32.5485 (Centro, Zona Norte, Zona Río, Chapultepec, Hipódromo y Agua Caliente). La línea fronteriza es la de verdad (la orilla norte del polígono de México en `division_area`).

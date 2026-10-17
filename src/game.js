@@ -4217,12 +4217,16 @@ class Main extends Phaser.Scene {
   // siempre en el mismo lugar (se recorren las calles en un orden fijo) -----
   colocarParos() {
     const lejos = (x, y, list, r) => list.every(q => dist(q.x, q.y, x, y) > r);
-    const cands = walkG.edges.filter(e => e.c <= 6 && e.len > 40).sort((a, b) => hash(a.id * 7 + 3) - hash(b.id * 7 + 3));
+    // el orden sale de donde queda cada calle (en metros desde la referencia fija), no de su numero: asi no se
+    // revuelven cuando el mapa crece y llegan calles nuevas
+    const orden = (e) => { const q = edgePos(e, e.len / 2, 1, 0, {}); return hash(Math.round((q.x - REF_X) / M) * 7919 + Math.round((q.y - REF_Y) / M) * 31 + 3); };
+    const cands = walkG.edges.filter(e => e.c <= 6 && e.len > 40).map(e => [orden(e), e]).sort((a, b) => a[0] - b[0]).map(q => q[1]);
     // las zonas de algunos paros (metros, x0 y0 x1 y1): el sur, entre los cerros y el Campestre; el oriente
     // (el quinto numero, si esta, es la separacion minima en metros con los demas paros; si no, 600)
     const ZONAS = { sur: [1300, 2800, 4600, 4755], oriente: [4300, 200, 5913, 4755, 500] };
     this.paros = [];
-    for (const P of PAROS) {
+    // primero los que tienen zona (tienen menos lugar), luego los demas; la lista queda en el orden de PAROS
+    for (const P of [...PAROS.filter(P => P.zona), ...PAROS.filter(P => !P.zona)]) {
       const z = ZONAS[P.zona];
       let q = null, mid = null, e = null;
       for (const c of cands) {
@@ -4239,6 +4243,7 @@ class Main extends Phaser.Scene {
       this.tweens.add({ targets: ico, y: q.y - 24, duration: 800, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
       this.paros.push({ ...P, x: q.x, y: q.y, npc, ico, hecho: (state.paros || []).includes(P.k) });
     }
+    this.paros.sort((a, b) => PAROS.findIndex(P => P.k === a.k) - PAROS.findIndex(P => P.k === b.k));
   }
   checkParos(dt, f, sp) {
     const of = this.paroOfer;
@@ -5403,7 +5408,7 @@ async function start() {
     scene: [Main], fps: { target: 60, smoothStep: false },
   });
   window.addEventListener('resize', () => game.scale.resize(window.innerWidth * DPR, window.innerHeight * DPR));
-  window.TJGTA = game; game.dbg = { WORLD_W, WORLD_H, regiones, chunkBlds, miniCuadros, miniVista, borderY, INICIO, arboles, chinas, VTYPES, vehicleTexture, state, drawChunk, chunkSteps, areaFill, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, walkableTo, waterAreas, roads, PED_VARIANTS };
+  window.TJGTA = game; game.dbg = { WORLD_W, WORLD_H, regiones, esperarRegiones, chunkBlds, miniCuadros, miniVista, borderY, INICIO, arboles, chinas, VTYPES, vehicleTexture, state, drawChunk, chunkSteps, areaFill, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, walkableTo, waterAreas, roads, PED_VARIANTS };
 }
 $('go').addEventListener('click', start);
 
