@@ -172,6 +172,11 @@ const EGGS = [
     say: '"Ese es un 737. Ese también. Y ese. Todos son 737, pero yo los apunto igual. Ten, por hacerme compañía."' },
   { k: 'elote', name: 'Un Elote con Todo', near: 'Las 5 y 10', dx: 45, dy: -35, pay: 150,
     say: '(Mayonesa, queso, chile y limón. Nadie sabe de quién es, pero trae un billete enrollado en el palito. Buen provecho.)' },
+  // fase 2: la Presa y el estadio de los Toros
+  { k: 'pescador', name: 'El Pescador de la Presa', near: 'Presa Rodríguez', dx: 50, dy: -45, pay: 200,
+    say: '"Aquí no pica nada desde hace años, pero yo vengo por la paz. Ten, cómprate un pescado en el mercado."' },
+  { k: 'jonron', name: 'La Pelota del Jonrón', near: 'Estadio de los Toros', dx: 60, dy: 45, pay: 250,
+    say: '(Una pelota firmada que voló del estadio hasta aquí. Trae un billete pegado con cinta y una nota: "Para el que la encuentre".)' },
   // este no tiene un lugar cerca: va en metros desde la esquina noroeste del mapa, en plena Zona Norte
   { k: 'raton', name: 'La Botarga del Ratón Amarillo', at: [395, 615], pay: 200,
     say: '"¡Foto con el ratón, foto! ...No soy pirata, soy edición limitada. Ten, por no preguntar de qué caricatura soy."' },
@@ -181,6 +186,22 @@ const EGGS = [
 });
 
 // ---------- indices espaciales ----------
+// Una rejilla ya armada (Map de celda -> numeros) se compacta en arreglos: llaves ordenadas (se buscan por
+// biseccion), donde empieza cada celda y los numeros seguidos. get(k) da los numeros de la celda (un Int32Array:
+// sirve con for...of y forEach, pero .map da otro Int32Array) o undefined si esta vacia
+function compactar(g) {
+  const ks = [...g.keys()].sort((a, b) => a - b), K = new Float64Array(ks), O = new Int32Array(ks.length + 1);
+  let n = 0; ks.forEach((q, i) => { O[i] = n; n += g.get(q).length; }); O[ks.length] = n;
+  const V = new Int32Array(n); ks.forEach((q, i) => V.set(g.get(q), O[i]));
+  g.clear();
+  return {
+    get(q) {
+      let lo = 0, hi = K.length - 1;
+      while (lo <= hi) { const m = (lo + hi) >> 1; if (K[m] < q) lo = m + 1; else if (K[m] > q) hi = m - 1; else return V.subarray(O[m], O[m + 1]); }
+      return undefined;
+    },
+  };
+}
 function gridIndex(items, cell, bbKey) {
   const g = new Map();
   items.forEach((it, i) => {
@@ -190,7 +211,7 @@ function gridIndex(items, cell, bbKey) {
         const k = GK(cx, cy); let a = g.get(k); if (!a) g.set(k, a = []); a.push(i);
       }
   });
-  return g;
+  return compactar(g);
 }
 // las lineas (calles) van solo en las celdas por donde pasan, con su margen: con su rectangulo completo, una
 // avenida larga en diagonal llenaba miles de celdas que ni toca (y con el mapa grande eso es mucha memoria)
@@ -207,7 +228,7 @@ function gridLineas(items, cell, pad) {
       }
     }
   });
-  return g;
+  return compactar(g);
 }
 const roadPad = (r) => (r.w / 2 + 3) * M; // el mismo margen que su caja (r.bb)
 const chunkRoads = gridLineas(roads, CHUNK, roadPad);
@@ -419,6 +440,8 @@ function zonaDe(px, py) {
     if (x >= 3600 && x < 5300 && y < 900) return 'Libertad';
   }
   // fase 1, al oriente de -116.9915: el aeropuerto junto a la linea, Otay al norte de 32.515 y La Mesa al sur
+  // fase 2, al oriente de -116.96 y al sur de 32.478: el Cerro Colorado y La Presa
+  if (x >= 8259 && y >= 7200) return Math.hypot(x - 14022, y - 7674) < 900 ? 'Cerro Colorado' : 'La Presa';
   if (x >= 5300) {
     if (y < 774 && x < 8730) return 'Aeropuerto';
     if (y < 3096) return 'Otay';
@@ -459,7 +482,7 @@ function buildGraph(filter, oneways) {
     let start = 0;
     for (let i = 1; i < n; i++) {
       if (i < n - 1 && cnt.get(key(p[i * 2], p[i * 2 + 1])) < 2) continue;
-      const ep = p.slice(start * 2, i * 2 + 2);
+      const ep = p.subarray(start * 2, i * 2 + 2); // una vista de la linea de la calle, sin copiarla
       const cum = [0];
       for (let q = 2; q < ep.length; q += 2) cum.push(cum[cum.length - 1] + Math.hypot(ep[q] - ep[q - 2], ep[q + 1] - ep[q - 1]));
       const len = cum[cum.length - 1];
@@ -1177,7 +1200,7 @@ function* chunkSteps(cx, cy) {
   ctx.fillStyle = areaFill(ctx, TEX_TIERRA); ctx.fillRect(cx * CHUNK - 1, cy * CHUNK - 1, CHUNK + 2, CHUNK + 2);
   const k = GK(cx, cy);
   for (const i of chunkAreas.get(k) || []) { const a = areas[i]; ctx.fillStyle = areaFill(ctx, a.k); trace(ctx, a.p, true); ctx.fill(); }
-  const rs = (chunkRoads.get(k) || []).map(i => roads[i]);
+  const rs = Array.from(chunkRoads.get(k) || [], i => roads[i]);
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   const asfalto = areaFill(ctx, TEX_ASFALTO);
   const pass = (list, width, color, filter, off) => {
@@ -1911,6 +1934,23 @@ const PAROS = [
     pide: '"¡Los tamales para la posada! Si llegan fríos, la vecina de enfrente va a decir que los suyos son mejores, y eso no lo voy a permitir."',
     fin: 'Los tamales de Doña Lencha se acabaron en diez minutos. La vecina de enfrente pidió la receta. Victoria total.',
     mal: 'Llegaron tibios. La vecina de enfrente no dijo nada, pero sonrió. Doña Lencha no duerme desde entonces.' },
+  // los de La Presa y el Cerro Colorado (zona: 'presa')
+  { k: 'cana', quien: 'Don Chencho', ico: '🎣', zona: 'presa', cosa: 'una caña de pescar', a: 'la casa de su compadre',
+    pide: '"Mi compadre me prestó su caña para ir a la presa y no pesqué ni un resfriado. Devuélvesela antes de que se dé cuenta de que le rompí el carrete."',
+    fin: 'El compadre ni notó lo del carrete. Te regaló un pescado congelado "de la presa", con etiqueta del súper.',
+    mal: 'El compadre ya se dio cuenta. Ahora Don Chencho le debe una caña, un carrete y una disculpa.' },
+  { k: 'guante', quien: 'Kevin', ico: '🧤', prisa: true, zona: 'presa', cosa: 'su guante de béisbol', a: 'el campo donde juega su equipo',
+    pide: '"¡Juego en un rato y se me olvidó el guante! Sin guante el coach me manda a la banca... o peor, de bat boy."',
+    fin: 'Kevin atrapó la última bola del juego. El coach dice que fue suerte; Kevin dice que fue el guante.',
+    mal: 'Kevin jugó con el guante prestado de su hermana, que es zurda. Mejor ni contamos cómo le fue.' },
+  { k: 'garrafon', quien: 'Doña Cata', ico: '💧', prisa: true, zona: 'presa', cosa: 'un garrafón de agua', a: 'la casa de su hermana',
+    pide: '"Mi hermana se quedó sin agua y a su cerro no sube el camión del garrafón. Llévale este, que hace un calorón."',
+    fin: 'La hermana de Doña Cata te dio un vaso de agua de jamaica bien fría. Dice que eres su héroe.',
+    mal: 'Llegaste tarde: la hermana ya había hervido agua de la llave. Dice que sabe a tubo.' },
+  { k: 'uniforme', quien: 'Doña Rosy', ico: '👕', prisa: true, zona: 'presa', cosa: 'el uniforme de la escolta', a: 'la escuela de su hijo',
+    pide: '"¡Hoy mi hijo lleva la bandera en la escolta y dejó el uniforme planchado en la silla! Llévaselo, que si sale en pants, me muero."',
+    fin: 'El niño marchó con el uniforme impecable. Doña Rosy grabó todo el video... en vertical.',
+    mal: 'El niño marchó en pants. La directora dijo que "lo importante es participar". Doña Rosy no está de acuerdo.' },
 ];
 
 // ---------- HUD ----------
@@ -3250,6 +3290,46 @@ function makeLandmarkIcons(scene) {
       poly('rgba(255,245,157,0.45)', [[0, -16], [-7, 16], [7, 16]]);
       circ('#ffd23f', 0, 3, 2.2); line('#ffd23f', 1.2, [[0, 5], [0, 11]]); line('#ffd23f', 1, [[0, 7], [-3, 4]]); line('#ffd23f', 1, [[0, 7], [3, 4]]);
     }],
+    // fase 2: Diaz Ordaz, Cerro Colorado y la Presa
+    'Mundo Divertido': ['#6a1b9a', () => { // rueda de la fortuna
+      line('#b0bec5', 2, [[0, 0], [-10, 20]]); line('#b0bec5', 2, [[0, 0], [10, 20]]); rect('#78909c', -14, 19, 28, 2.5);
+      ring('#eceff1', 1.6, 0, 0, 15);
+      for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; line('rgba(236,239,241,0.8)', 0.8, [[0, 0], [Math.cos(a) * 15, Math.sin(a) * 15]]); }
+      ['#e53935', '#fdd835', '#43a047', '#1e88e5', '#fb8c00', '#8e24aa', '#00acc1', '#f06292'].forEach((c, i) => { const a = i / 8 * Math.PI * 2; x.beginPath(); x.roundRect(Math.cos(a) * 15 - 2.6, Math.sin(a) * 15 - 1, 5.2, 4.6, 1.2); fill(c); });
+      circ('#ffd23f', 0, 0, 2.4);
+    }],
+    'Macroplaza': ['#ad1457', () => { // carrito del super con bolsas
+      line('#eceff1', 1.8, [[-19, -12], [-13, -12], [-8, 8], [13, 8]]);
+      poly('#eceff1', [[-12, -6], [17, -6], [13, 4], [-9, 4]]);
+      x.save(); x.beginPath(); x.moveTo(-12, -6); x.lineTo(17, -6); x.lineTo(13, 4); x.lineTo(-9, 4); x.closePath(); x.clip();
+      for (let i = -10; i < 18; i += 4) line('#ad1457', 0.8, [[i, -6], [i - 2, 4]]); x.restore();
+      poly('#ffd23f', [[-6, -6], [-4, -15], [4, -15], [6, -6]]); poly('#4fc3f7', [[5, -6], [7, -12], [13, -12], [14, -6]]);
+      circ('#263238', -6, 13, 2.6); circ('#263238', 11, 13, 2.6);
+    }],
+    'Estadio de los Toros': ['#b71c1c', () => { // pelota de beisbol y bat
+      x.save(); x.rotate(-0.8); x.beginPath(); x.roundRect(-3, -22, 6, 30, 3); fill('#c8a26a'); rect('#8d6e63', -2, 4, 4, 8); circ('#8d6e63', 0, 13, 3); x.restore();
+      circ('#fafafa', 4, 3, 12); ring('rgba(0,0,0,0.15)', 1, 4, 3, 12);
+      // costuras: dos curvas cerca de las orillas, con sus puntadas
+      for (const [cx2, a0] of [[-12, 0], [20, Math.PI]]) {
+        ring('#e53935', 1.1, cx2, 3, 12.5, a0 - 0.75, a0 + 0.75);
+        for (let k = -3; k <= 3; k++) { const a = a0 + k * 0.2, px = cx2 + Math.cos(a) * 12.5, py = 3 + Math.sin(a) * 12.5, nx = Math.cos(a), ny = Math.sin(a);
+          line('#e53935', 0.6, [[px - ny * 1.3 - nx * 0.8, py + nx * 1.3 - ny * 0.8], [px - ny * 1.3 + nx * 0.8, py + nx * 1.3 + ny * 0.8]]); }
+      }
+    }],
+    'Mirador del Cerro Colorado': ['#e65100', () => { // cerro rojizo, la ciudad abajo y el catalejo del mirador
+      circ('#fff59d', -10, -10, 6);
+      poly('#c1440e', [[-24, 14], [-4, -8], [6, 0], [12, -4], [24, 14]]); poly('#8d2c0a', [[-4, -8], [2, -2], [-6, 14], [-24, 14]]);
+      for (let i = 0; i < 7; i++) rect('rgba(255,255,255,0.7)', -16 + i * 5, 10 - (i % 3) * 2, 2.5, 4 + (i % 3) * 2);
+      line('#37474f', 1.6, [[12, -4], [12, -14]]); x.save(); x.translate(12, -15); x.rotate(-0.4); x.beginPath(); x.roundRect(-6, -2.2, 12, 4.4, 1.5); fill('#546e7a'); circ('#90caf9', -6, 0, 2); x.restore();
+    }],
+    'Presa Rodríguez': ['#0277bd', () => { // la cortina de la presa con el agua detras
+      x.beginPath(); x.moveTo(-24, -4); x.quadraticCurveTo(0, -14, 24, -4); x.lineTo(24, -24); x.lineTo(-24, -24); x.closePath(); fill('#4fc3f7');
+      for (let i = 0; i < 4; i++) line('rgba(255,255,255,0.6)', 1, [[-14 + i * 8, -18 + (i % 2) * 3], [-9 + i * 8, -18 + (i % 2) * 3]]);
+      x.beginPath(); x.moveTo(-24, -4); x.quadraticCurveTo(0, -14, 24, -4); x.lineTo(20, 16); x.quadraticCurveTo(0, 8, -20, 16); x.closePath(); fill('#cfd8dc');
+      for (let i = -16; i <= 16; i += 6.4) line('#90a4ae', 1.1, [[i, -7 - (1 - (i / 24) ** 2) * 2], [i * 0.85, 12 - (1 - (i / 20) ** 2) * 3]]);
+      line('#eceff1', 1.2, [[-24, -4], [-12, -8.5], [0, -9], [12, -8.5], [24, -4]]);
+      x.beginPath(); x.moveTo(-6, 13); x.quadraticCurveTo(0, 22, 6, 13); fill('#81d4fa');
+    }],
   };
   // insignia de respaldo (un lugar nuevo sin dibujo): la estrella de siempre
   const fallback = ['#5d4037', () => txt('#ffd23f', 30, '★', 0, 1)];
@@ -3539,6 +3619,29 @@ function makeEggs(scene) {
       x.fillStyle = '#7cb342'; x.beginPath(); x.moveTo(24, 24); x.arc(24, 24, 3.4, 3.6, 5.6); x.closePath(); x.fill();
       line('#dcedc8', 0.3, [[24, 24], [21.2, 22.4]]);
     },
+    pescador(x0) { // senor con sombrero en su cubeta volteada, cana de pescar y la cubeta de los pescados (vacia)
+      shadow(15, 17, 11, 11);
+      // cana y sedal hacia el agua
+      line('#8d6e63', 0.7, [[17, 13], [29, 2]]); line('rgba(255,255,255,0.8)', 0.2, [[29, 2], [30, 9]]); ell('#e53935', 30, 9.2, 0.6, 0.6);
+      // cubeta de los pescados, vacia
+      ball(6, 24, 3.4, '#90a4ae', '#546e7a', 'rgba(0,0,0,0.4)'); ell('#37474f', 6, 24, 2.6, 2.6); ell('rgba(129,212,250,0.5)', 6, 24, 2, 2);
+      // camisa y brazos
+      shoulders(15, 16, '#81c784', '#2e7d32', 5.4, 3.5);
+      ell('#c99a6b', 18.5, 13.4, 1.2, 2.2, -0.7);
+      // sombrero de palma
+      ball(15, 14.5, 5.2, '#f3e5ab', '#c8a26a', 'rgba(0,0,0,0.35)'); ball(15, 14.5, 2.8, '#fff3c4', '#d7b56d');
+      line('#8d6e63', 0.6, [[12.2, 14.5], [17.8, 14.5]]);
+    },
+    jonron(x0) { // pelota de beisbol firmada sobre el pasto, con su billete pegado
+      shadow(16, 16, 9, 9);
+      ell('#66bb6a', 16, 16, 12, 10); for (let i = 0; i < 18; i++) line('#43a047', 0.4, [[6 + i * 1.2, 18 + (i % 3)], [6.5 + i * 1.2, 15.5 + (i % 2)]]);
+      ball(16, 15, 7, '#ffffff', '#d6d6d6', 'rgba(0,0,0,0.35)');
+      x.strokeStyle = '#e53935'; x.lineWidth = 0.5;
+      x.beginPath(); x.arc(9.5, 15, 5.2, -1, 1); x.stroke(); x.beginPath(); x.arc(22.5, 15, 5.2, Math.PI - 1, Math.PI + 1); x.stroke();
+      line('#1a237e', 0.35, [[13, 13], [14.5, 12], [15.5, 14], [17, 12.5], [18.5, 14]]); // la firma
+      x.save(); x.translate(22, 21); x.rotate(-0.3); x.fillStyle = '#a5d6a7'; x.fillRect(-4, -2, 8, 4); x.strokeStyle = '#2e7d32'; x.lineWidth = 0.3; x.strokeRect(-4, -2, 8, 4);
+      x.fillStyle = '#2e7d32'; x.font = 'bold 2.2px sans-serif'; x.textAlign = 'center'; x.fillText('$', 0, 0.8); x.restore();
+    },
     raton(x0) { // botarga de raton amarillo (de dudosa procedencia): orejotas, cachetes, colita, cierre y su letrero de FOTO
       shadow(15, 17, 12, 12);
       // letrero de carton
@@ -3575,8 +3678,16 @@ function makeEggs(scene) {
     x = t.getContext(); x.save(); x.scale(5, 5); draw[k](x); x.restore(); t.refresh();
   }
 }
+// las calles cuyo trazo pasa a menos de R px de (x, y) (mas o menos: las de las celdas de alrededor), en su orden
+function roadsNear(x, y, R) {
+  const s = new Set();
+  for (let cx = Math.floor((x - R) / CHUNK); cx <= Math.floor((x + R) / CHUNK); cx++) for (let cy = Math.floor((y - R) / CHUNK); cy <= Math.floor((y + R) / CHUNK); cy++)
+    for (const i of chunkRoads.get(GK(cx, cy)) || []) s.add(i);
+  return [...s].sort((a, b) => a - b).map(i => roads[i]);
+}
+// (pad hasta 15: la celda de chunkRoads tiene las calles a menos de su medio ancho + 15 px)
 function onAsphalt(x, y, pad) {
-  for (const r of roads) {
+  for (const r of roadsNear(x, y, 0)) {
     if (r.c > 7 || x < r.bb[0] || x > r.bb[2] || y < r.bb[1] || y > r.bb[3]) continue;
     for (let i = 0; i < r.p.length - 2; i += 2) if (segDist(x, y, r.p[i], r.p[i + 1], r.p[i + 2], r.p[i + 3]) < r.w / 2 * M + pad) return true;
   }
@@ -3626,7 +3737,7 @@ function nearestSidewalk(x, y) {
 }
 function sidewalkSpot(x, y, extra = 17) {
   const cands = [];
-  for (const r of roads) {
+  for (const r of roadsNear(x, y, 200 + CHUNK)) {
     if (r.c > 6 || r.f & 1 || x < r.bb[0] - 200 || x > r.bb[2] + 200 || y < r.bb[1] - 200 || y > r.bb[3] + 200) continue;
     const p = r.p;
     for (let i = 0; i < p.length - 2; i += 2) {
@@ -4421,8 +4532,10 @@ class Main extends Phaser.Scene {
     const cands = walkG.edges.filter(e => e.c <= 6 && e.len > 40).map(e => [orden(e), e]).sort((a, b) => a[0] - b[0]).map(q => q[1]);
     // las zonas de algunos paros (metros, x0 y0 x1 y1): el sur, entre los cerros y el Campestre; el oriente
     // (el quinto numero, si esta, es la separacion minima en metros con los demas paros; si no, 600)
-    // fase 1: Otay (al norte de 32.515) y La Mesa (al sur), al oriente de -116.9915
-    const ZONAS = { sur: [1300, 2800, 4600, 4755], oriente: [4300, 200, 5913, 4755, 500], otay: [5300, -1600, 12300, 3096], lamesa: [5300, 3096, 12300, 6400] };
+    // fase 1: Otay (al norte de 32.515) y La Mesa (al sur), al oriente de -116.9915; fase 2: La Presa y el Cerro
+    // Colorado (al oriente de -116.96 y al sur de 32.486)
+    const ZONAS = { sur: [1300, 2800, 4600, 4755], oriente: [4300, 200, 5913, 4755, 500], otay: [5300, -1600, 12300, 3096], lamesa: [5300, 3096, 12300, 6400],
+      presa: [8259, 6303, 16000, 11700] };
     this.paros = [];
     // primero los que tienen zona (tienen menos lugar), luego los demas; la lista queda en el orden de PAROS
     for (const P of [...PAROS.filter(P => P.zona), ...PAROS.filter(P => !P.zona)]) {

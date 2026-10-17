@@ -2,7 +2,7 @@ import pyarrow.fs as pafs, pyarrow.dataset as ds, pyarrow.compute as pc, pyarrow
 from shapely import wkb
 from concurrent.futures import ThreadPoolExecutor
 # recuadro (lon/lat); TJ_BBOX="xmin,ymin,xmax,ymax" lo cambia. Por defecto: Centro, Zona Rio, Chapultepec, Hipodromo y Agua Caliente
-xmin,ymin,xmax,ymax = map(float, os.environ.get("TJ_BBOX", "-117.048,32.486,-116.918,32.5565").split(","))
+xmin,ymin,xmax,ymax = map(float, os.environ.get("TJ_BBOX", "-117.048,32.438,-116.878,32.559").split(","))
 px = os.environ.get("HTTPS_PROXY")  # opcional: solo si la red sale por un proxy
 fs = pafs.S3FileSystem(anonymous=True, region="us-west-2", **({"proxy_options": px} if px else {}))
 theme,typ,cols = sys.argv[1], sys.argv[2], sys.argv[3].split(",")
@@ -23,12 +23,15 @@ def one(p):
     t=pf.read_row_groups(rgs, columns=cols+["geometry","bbox"])
     t=t.filter(flt)
     return t.to_pylist()
-rows=[]
-with ThreadPoolExecutor(16) as ex:
-    for r in ex.map(one, files): rows+=r
-feats=[]
-for r in rows:
-    g=wkb.loads(r.pop("geometry")); r.pop("bbox")
-    feats.append({"type":"Feature","properties":r,"geometry":g.__geo_interface__})
-json.dump({"type":"FeatureCollection","features":feats}, open(f"{typ}.geojson","w"), default=str)
-print(typ, len(feats))
+# se escribe conforme llega cada archivo (con toda la ciudad, juntar todo antes se acababa la memoria)
+n=0
+with open(f"{typ}.geojson","w") as out, ThreadPoolExecutor(int(os.environ.get("TJ_HILOS", "6"))) as ex:
+    out.write('{"type":"FeatureCollection","features":[')
+    for rows in ex.map(one, files):
+        for r in rows:
+            g=wkb.loads(r.pop("geometry")); r.pop("bbox")
+            out.write(("," if n else "") + json.dumps({"type":"Feature","properties":r,"geometry":g.__geo_interface__}, default=str))
+            n+=1
+        del rows
+    out.write("]}")
+print(typ, n)

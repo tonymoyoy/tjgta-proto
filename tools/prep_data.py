@@ -14,11 +14,12 @@ RAW = sys.argv[1] if len(sys.argv) > 1 else "raw"
 OUT = sys.argv[2] if len(sys.argv) > 2 else os.path.join(os.path.dirname(__file__), "..", "data", "centro.js")
 
 # mismo recuadro que download_overture.py: Centro, Zona Norte, Zona Rio, Chapultepec, Hipodromo y Agua Caliente.
-# Fase 1 (Otay, Aeropuerto, La Mesa y las 5 y 10): al oriente hasta pasar la Garita de Otay y al sur hasta abajo de
-# las 5 y 10; el norte llega hasta donde pasa la linea fronteriza de verdad en Otay. La escala este-oeste se queda con la
+# Fase 1 (Otay, Aeropuerto, La Mesa y las 5 y 10) y fase 2 (Diaz Ordaz, Cerro Colorado y la Presa): al oriente hasta
+# pasar el Cerro Colorado y al sur hasta la cortina de la Presa Rodriguez; el norte llega hasta donde pasa la linea
+# fronteriza de verdad. La escala este-oeste se queda con la
 # latitud del primer recuadro (32.517-32.543); si el recuadro crece al norte o al oeste, todo se recorre junto con
 # el origen y el juego lo compensa con 'o' (ver REF).
-LON0, LAT0, LON1, LAT1 = map(float, os.environ.get("TJ_BBOX", "-117.048,32.486,-116.918,32.5565").split(","))
+LON0, LAT0, LON1, LAT1 = map(float, os.environ.get("TJ_BBOX", "-117.048,32.438,-116.878,32.559").split(","))
 KX = 111320 * math.cos(math.radians(32.53))
 # punto de referencia fijo (la esquina noroeste del primer mapa): el juego tiene algunas posiciones en metros
 # desde aqui (zonas, paros, secretos). Si el recuadro crece al norte o al oeste, el origen se mueve pero
@@ -309,8 +310,17 @@ LANDMARKS_F1 = [
     ("CEART Tijuana", "El Centro Estatal de las Artes, junto al Parque Morelos: teatro, danza, música y exposiciones.", 32.49972, -116.94524),
 ]
 landmarks += [[title, desc] + P(lon, lat) for title, desc, lat, lon in LANDMARKS_F1]
+# fase 2: Diaz Ordaz, Cerro Colorado y la Presa (y dos de La Mesa que faltaban)
+LANDMARKS_F2 = [
+    ("Mundo Divertido", "Go-karts, juegos mecánicos y maquinitas: el parque de diversiones de toda la vida.", 32.50442, -116.95825),
+    ("Macroplaza", "El centro comercial de La Mesa, sobre el Bulevar Insurgentes.", 32.49488, -116.93360),
+    ("Estadio de los Toros", "La casa de los Toros de Tijuana: béisbol, porra y elotes en las gradas.", 32.48372, -116.91674),
+    ("Mirador del Cerro Colorado", "Desde aquí arriba se ve casi toda la ciudad, y en días claros, hasta el mar.", 32.47355, -116.89917),
+    ("Presa Rodríguez", "La presa Abelardo L. Rodríguez, de 1937: la cortina de concreto que guarda el agua del río Tijuana.", 32.44453, -116.90754),
+]
+landmarks += [[title, desc] + P(lon, lat) for title, desc, lat, lon in LANDMARKS_F2]
 # lo que se fue agregando despues de la primera version: quien ya habia completado una coleccion no pierde su premio
-NUEVOS = {"noche": [t for t, *_ in LANDMARKS_OSM + LANDMARKS_P1 + LANDMARKS_F1], "taco": [], "cafe": []}
+NUEVOS = {"noche": [t for t, *_ in LANDMARKS_OSM + LANDMARKS_P1 + LANDMARKS_F1 + LANDMARKS_F2], "taco": [], "cafe": []}
 if PREV:
     viejos = {l[0] for l in PREV["landmarks"]}
     landmarks = PREV["landmarks"] + [l for l in landmarks if l[0] not in viejos]
@@ -343,8 +353,10 @@ def en_ampliacion(lo, la):
 import re
 ES_TACO = re.compile(r"\b(tacos?|taquer[ií]a|birria)\b", re.I)
 NO_TACO = re.compile(r"\b(bell|shop|bar|sushi|pizza|burger)\b", re.I)
+# el juego es para 13+: nada de groserias en los nombres
+GROSERO = re.compile(r"(ching|verga|pinche|cabr[oó]n|puta|put[ao]s|mamad|culer|pendej|pedo\b)", re.I)
 for n, (lo, la) in sorted(places.items()):
-    if not ES_TACO.search(n) or NO_TACO.search(n) or not en_ampliacion(lo, la) or not in_mx(lo, la, 0.0003):
+    if not ES_TACO.search(n) or NO_TACO.search(n) or GROSERO.search(n) or not en_ampliacion(lo, la) or not in_mx(lo, la, 0.0003):
         continue
     t = [n.strip().replace('"', '')] + P(lo, la)
     if all(math.hypot(t[1] - o[1], t[2] - o[2]) > 7000 for o in tacos) and t[0] not in {o[0] for o in tacos}:
@@ -353,12 +365,12 @@ for n, (lo, la) in sorted(places.items()):
 # cafes reales: los que tienen cafe en el nombre, sin bares ni negocios que no son cafeteria,
 # repartidos para que queden al menos a 300 m uno de otro (en la ampliacion, a 700 m)
 NOT_CAFE = re.compile(r"\b(bar|smoke|restaurant|restaurante|agency|barbershop|shopping|bistro|deli|pizza|taquer|cantina|distribuci|ganoderma|"
-                      r"internet|beauty|showroom|baño|"
+                      r"internet|beauty|showroom|baño|comida china|"
                       # cadenas (marcas ajenas)
-                      r"starbucks|dunkin|tim hortons|oxxo|7.eleven|punta del cielo|cielito|italian coffee|the coffee bean)", re.I)
+                      r"\w*volada|starbucks|dunkin|tim hortons|oxxo|7.eleven|punta del cielo|cielito|italian coffee|the coffee bean)", re.I)
 cafes = []
 for n, (lo, la) in sorted(places.items()):
-    if n.strip().lower() == "café" or not re.search(r"\b(caf[eé]|coffee|cafeter[ií]a|espresso)\b", n, re.I) or NOT_CAFE.search(n):
+    if n.strip().lower() == "café" or not re.search(r"\b(caf[eé]|coffee|cafeter[ií]a|espresso)\b", n, re.I) or NOT_CAFE.search(n) or GROSERO.search(n):
         continue
     if not in_mx(lo, la, 0.0003) or not (LON0 < lo < LON1 and LAT0 < la < LAT1):
         continue
