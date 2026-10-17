@@ -177,6 +177,11 @@ const EGGS = [
     say: '"Aquí no pica nada desde hace años, pero yo vengo por la paz. Ten, cómprate un pescado en el mercado."' },
   { k: 'jonron', name: 'La Pelota del Jonrón', near: 'Estadio de los Toros', dx: 60, dy: 45, pay: 250,
     say: '(Una pelota firmada que voló del estadio hasta aquí. Trae un billete pegado con cinta y una nota: "Para el que la encuentre".)' },
+  // fase 3: Playas
+  { k: 'surfista', name: 'El Surfista de Playas', near: 'Malecón de Playas', dx: -35, dy: 60, pay: 200,
+    say: '"Hoy no hay olas, carnal, pero el taco de pescado está de diez. Ten, invítate uno."' },
+  { k: 'pelicano', name: 'Un Pelícano Tijuanense', near: 'Faro de Playas', dx: -30, dy: 55, pay: 150,
+    say: '(Un pelícano te mira fijo, abre el pico... y suelta un billete mojado. Mejor no preguntes de dónde lo sacó.)' },
   // este no tiene un lugar cerca: va en metros desde la esquina noroeste del mapa, en plena Zona Norte
   { k: 'raton', name: 'La Botarga del Ratón Amarillo', at: [395, 615], pay: 200,
     say: '"¡Foto con el ratón, foto! ...No soy pirata, soy edición limitada. Ten, por no preguntar de qué caricatura soy."' },
@@ -186,49 +191,44 @@ const EGGS = [
 });
 
 // ---------- indices espaciales ----------
-// Una rejilla ya armada (Map de celda -> numeros) se compacta en arreglos: llaves ordenadas (se buscan por
-// biseccion), donde empieza cada celda y los numeros seguidos. get(k) da los numeros de la celda (un Int32Array:
-// sirve con for...of y forEach, pero .map da otro Int32Array) o undefined si esta vacia
-function compactar(g) {
-  const ks = [...g.keys()].sort((a, b) => a - b), K = new Float64Array(ks), O = new Int32Array(ks.length + 1);
-  let n = 0; ks.forEach((q, i) => { O[i] = n; n += g.get(q).length; }); O[ks.length] = n;
-  const V = new Int32Array(n); ks.forEach((q, i) => V.set(g.get(q), O[i]));
-  g.clear();
+// Rejilla densa: un arreglo con todas las celdas del rectangulo que se usa (O: donde empieza cada celda) y los
+// numeros seguidos (V). Se arma en dos pasadas sin Map ni ordenar (con un millon de celdas, el Map y el ordenado
+// tardaban mas de un segundo y pesaban decenas de MB). enumera(emit) llama emit(cx, cy, i) por cada celda de cada
+// elemento, en orden; el mismo i seguido en la misma celda cuenta una vez. get(k) da los numeros de la celda
+// k = GK(cx, cy) (un Int32Array: sirve con for...of y forEach, pero .map da otro Int32Array) o undefined.
+function rejillaDensa(enumera) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  enumera((cx, cy) => { if (cx < x0) x0 = cx; if (cx > x1) x1 = cx; if (cy < y0) y0 = cy; if (cy > y1) y1 = cy; });
+  if (x0 > x1) return { O: new Int32Array(1), V: new Int32Array(0), celda: () => -1, get: () => undefined };
+  const W = x1 - x0 + 1, N = W * (y1 - y0 + 1), O = new Int32Array(N + 1), ult = new Int32Array(N).fill(-1);
+  enumera((cx, cy, i) => { const c = (cy - y0) * W + cx - x0; if (ult[c] !== i) { ult[c] = i; O[c + 1]++; } });
+  for (let c = 0; c < N; c++) O[c + 1] += O[c];
+  const V = new Int32Array(O[N]), pos = O.slice(0, N); ult.fill(-1);
+  enumera((cx, cy, i) => { const c = (cy - y0) * W + cx - x0; if (ult[c] !== i) { ult[c] = i; V[pos[c]++] = i; } });
+  const celda = (cx, cy) => (cx < x0 || cx > x1 || cy < y0 || cy > y1 ? -1 : (cy - y0) * W + cx - x0);
   return {
-    get(q) {
-      let lo = 0, hi = K.length - 1;
-      while (lo <= hi) { const m = (lo + hi) >> 1; if (K[m] < q) lo = m + 1; else if (K[m] > q) hi = m - 1; else return V.subarray(O[m], O[m + 1]); }
-      return undefined;
-    },
+    O, V, celda,
+    get(k) { const cx = Math.round(k / 1048576), c = celda(cx, k - cx * 1048576); return c < 0 || O[c] === O[c + 1] ? undefined : V.subarray(O[c], O[c + 1]); },
   };
 }
 function gridIndex(items, cell, bbKey) {
-  const g = new Map();
-  items.forEach((it, i) => {
+  return rejillaDensa((emit) => items.forEach((it, i) => {
     const b = it[bbKey];
     for (let cx = Math.floor(b[0] / cell); cx <= Math.floor(b[2] / cell); cx++)
-      for (let cy = Math.floor(b[1] / cell); cy <= Math.floor(b[3] / cell); cy++) {
-        const k = GK(cx, cy); let a = g.get(k); if (!a) g.set(k, a = []); a.push(i);
-      }
-  });
-  return compactar(g);
+      for (let cy = Math.floor(b[1] / cell); cy <= Math.floor(b[3] / cell); cy++) emit(cx, cy, i);
+  }));
 }
 // las lineas (calles) van solo en las celdas por donde pasan, con su margen: con su rectangulo completo, una
 // avenida larga en diagonal llenaba miles de celdas que ni toca (y con el mapa grande eso es mucha memoria)
 function gridLineas(items, cell, pad) {
-  const g = new Map();
-  items.forEach((it, i) => {
+  return rejillaDensa((emit) => items.forEach((it, i) => {
     const p = it.p, d = pad(it);
     for (let q = 0; q + 3 < p.length; q += 2) {
       const x0 = Math.floor((Math.min(p[q], p[q + 2]) - d) / cell), x1 = Math.floor((Math.max(p[q], p[q + 2]) + d) / cell);
       const y0 = Math.floor((Math.min(p[q + 1], p[q + 3]) - d) / cell), y1 = Math.floor((Math.max(p[q + 1], p[q + 3]) + d) / cell);
-      for (let cx = x0; cx <= x1; cx++) for (let cy = y0; cy <= y1; cy++) {
-        const k = GK(cx, cy); let a = g.get(k); if (!a) g.set(k, a = []);
-        if (a[a.length - 1] !== i) a.push(i);
-      }
+      for (let cx = x0; cx <= x1; cx++) for (let cy = y0; cy <= y1; cy++) emit(cx, cy, i);
     }
-  });
-  return compactar(g);
+  }));
 }
 const roadPad = (r) => (r.w / 2 + 3) * M; // el mismo margen que su caja (r.bb)
 const chunkRoads = gridLineas(roads, CHUNK, roadPad);
@@ -325,49 +325,40 @@ function inBuilding(x, y) {
 // Cada tramo son 6 numeros en un solo arreglo (SEG): x0 y0 x1 y1, media franja con banqueta y medio asfalto;
 // las celdas guardan el numero de tramo (un arreglo por tramo pesaba demasiado con el mapa grande)
 const RCELL = 64;
-const roadSegGrid = new Map();
 const SEG = (() => {
   let n = 0;
   for (const r of roads) if (r.c <= 7) n += r.p.length / 2 - 1;
   return new Float32Array(Math.max(0, n) * 6);
 })();
-let nSeg = 0;
-roads.forEach(r => {
-  if (r.c > 7) return;
-  const half = (r.w / 2 + (r.c <= 6 ? SIDEWALK : 0.5)) * M, p = r.p;
-  for (let q = 0; q < p.length - 2; q += 2) {
-    const seg = nSeg++, o = seg * 6;
-    SEG[o] = p[q]; SEG[o + 1] = p[q + 1]; SEG[o + 2] = p[q + 2]; SEG[o + 3] = p[q + 3]; SEG[o + 4] = half; SEG[o + 5] = r.w / 2 * M;
-    const x0 = Math.floor((Math.min(p[q], p[q + 2]) - half) / RCELL), x1 = Math.floor((Math.max(p[q], p[q + 2]) + half) / RCELL);
-    const y0 = Math.floor((Math.min(p[q + 1], p[q + 3]) - half) / RCELL), y1 = Math.floor((Math.max(p[q + 1], p[q + 3]) + half) / RCELL);
-    for (let cx = x0; cx <= x1; cx++) for (let cy = y0; cy <= y1; cy++) {
-      const k = GK(cx, cy); let a = roadSegGrid.get(k); if (!a) roadSegGrid.set(k, a = []); a.push(seg);
+{
+  let n = 0;
+  for (const r of roads) {
+    if (r.c > 7) continue;
+    const half = (r.w / 2 + (r.c <= 6 ? SIDEWALK : 0.5)) * M, p = r.p;
+    for (let q = 0; q < p.length - 2; q += 2, n++) {
+      const o = n * 6;
+      SEG[o] = p[q]; SEG[o + 1] = p[q + 1]; SEG[o + 2] = p[q + 2]; SEG[o + 3] = p[q + 3]; SEG[o + 4] = half; SEG[o + 5] = r.w / 2 * M;
     }
   }
-});
-// ya armada, la rejilla se compacta: llaves ordenadas (se buscan por biseccion), donde empieza cada celda y los
-// numeros de tramo seguidos. Un Map con un arreglo por celda eran decenas de MB con el mapa grande
-const RSG = (() => {
-  const ks = [...roadSegGrid.keys()].sort((a, b) => a - b), k = new Float64Array(ks), o = new Int32Array(ks.length + 1);
-  let n = 0; ks.forEach((q, i) => { o[i] = n; n += roadSegGrid.get(q).length; }); o[ks.length] = n;
-  const v = new Int32Array(n); ks.forEach((q, i) => v.set(roadSegGrid.get(q), o[i]));
-  roadSegGrid.clear();
-  return { k, o, v };
-})();
-function celdaSeg(x, y) {
-  const q = GK(Math.floor(x / RCELL), Math.floor(y / RCELL)), K = RSG.k;
-  let lo = 0, hi = K.length - 1;
-  while (lo <= hi) { const m = (lo + hi) >> 1; if (K[m] < q) lo = m + 1; else if (K[m] > q) hi = m - 1; else return m; }
-  return -1;
 }
+// cada tramo en las celdas que toca su franja con banqueta
+const RSG = rejillaDensa((emit) => {
+  for (let n = 0, o = 0; o < SEG.length; n++, o += 6) {
+    const h = SEG[o + 4];
+    const x0 = Math.floor((Math.min(SEG[o], SEG[o + 2]) - h) / RCELL), x1 = Math.floor((Math.max(SEG[o], SEG[o + 2]) + h) / RCELL);
+    const y0 = Math.floor((Math.min(SEG[o + 1], SEG[o + 3]) - h) / RCELL), y1 = Math.floor((Math.max(SEG[o + 1], SEG[o + 3]) + h) / RCELL);
+    for (let cx = x0; cx <= x1; cx++) for (let cy = y0; cy <= y1; cy++) emit(cx, cy, n);
+  }
+});
+const celdaSeg = (x, y) => RSG.celda(Math.floor(x / RCELL), Math.floor(y / RCELL));
 function onRoad(x, y) {
   const c = celdaSeg(x, y); if (c < 0) return false;
-  for (let j = RSG.o[c], e = RSG.o[c + 1]; j < e; j++) { const o = RSG.v[j] * 6; if (segDist(x, y, SEG[o], SEG[o + 1], SEG[o + 2], SEG[o + 3]) < SEG[o + 4]) return true; }
+  for (let j = RSG.O[c], e = RSG.O[c + 1]; j < e; j++) { const o = RSG.V[j] * 6; if (segDist(x, y, SEG[o], SEG[o + 1], SEG[o + 2], SEG[o + 3]) < SEG[o + 4]) return true; }
   return false;
 }
 function onAsfalto(x, y, pad) {
   const c = celdaSeg(x, y); if (c < 0) return false;
-  for (let j = RSG.o[c], e = RSG.o[c + 1]; j < e; j++) { const o = RSG.v[j] * 6; if (segDist(x, y, SEG[o], SEG[o + 1], SEG[o + 2], SEG[o + 3]) < SEG[o + 5] + pad) return true; }
+  for (let j = RSG.O[c], e = RSG.O[c + 1]; j < e; j++) { const o = RSG.V[j] * 6; if (segDist(x, y, SEG[o], SEG[o + 1], SEG[o + 2], SEG[o + 3]) < SEG[o + 5] + pad) return true; }
   return false;
 }
 // agua (el canal del rio Tijuana y demas): las areas de agua y la linea del rio. Como con los edificios,
@@ -430,6 +421,8 @@ function segDist(px, py, ax, ay, bx, by) {
 // se aleja de el hacia el surponiente. Donde no hay una zona clara (los cerros del sur) dice solo Tijuana.
 function zonaDe(px, py) {
   const x = (px - REF_X) / M, y = (py - REF_Y) / M;
+  // fase 3: Playas, al poniente de -117.0864 (de la linea a la Escenica)
+  if (x < -3600) return 'Playas de Tijuana';
   // el primer mapa (hasta 5913 m al oriente y 4755 al sur)
   if (x <= 5913 && y <= 4755) {
     const a = (x - 500) * 0.8816 + (y - 60) * 0.4718, p = -(x - 500) * 0.4718 + (y - 60) * 0.8816;
@@ -1951,6 +1944,23 @@ const PAROS = [
     pide: '"¡Hoy mi hijo lleva la bandera en la escolta y dejó el uniforme planchado en la silla! Llévaselo, que si sale en pants, me muero."',
     fin: 'El niño marchó con el uniforme impecable. Doña Rosy grabó todo el video... en vertical.',
     mal: 'El niño marchó en pants. La directora dijo que "lo importante es participar". Doña Rosy no está de acuerdo.' },
+  // los de Playas (zona: 'playas'): el mar, el malecon y las ballenas
+  { k: 'nieve', quien: 'Doña Pera', ico: '🍦', prisa: true, zona: 'playas', cosa: 'unas nieves de garrafa', a: 'la casa de su comadre',
+    pide: '"¡Llévale estas nieves a mi comadre antes de que se derritan! Son de garrafa, de las de antes; si llegan aguadas, me deja de hablar."',
+    fin: 'Llegaron firmes. La comadre se comió la de mango antes de darte las gracias. A ti te tocó la de vainilla.',
+    mal: 'Llegó un caldito de nieve. La comadre dice que así también se toma, con popote.' },
+  { k: 'tabla', quien: 'Leo el surfo', ico: '🏄', zona: 'playas', cosa: 'una tabla de surf', a: 'la casa de su primo',
+    pide: '"Mi primo se va a surfear a Ensenada y se le olvidó la tabla. Llévasela antes de que se vaya, que sin tabla nomás va a nadar."',
+    fin: 'El primo de Leo amarró la tabla al techo y arrancó feliz. Te dejó unas calcomanías y un "¡aloha, carnal!".',
+    mal: 'El primo ya se había ido. Dice que nadó muy bonito.' },
+  { k: 'binoculares', quien: 'Don Rubén', ico: '🔭', zona: 'playas', cosa: 'unos binoculares', a: 'la casa de su vecino',
+    pide: '"Mi vecino quiere ver las ballenas grises que pasan frente a Playas y le presto mis binoculares. Llévaselos, que la temporada no espera."',
+    fin: 'El vecino vio dos ballenas y un barco que se le hizo pirata. Te dio un abrazo y un café de olla.',
+    mal: 'Llegaste tarde: el vecino ya vio las ballenas... en el celular de su nieto.' },
+  { k: 'ceviche', quien: 'Doña Bety', ico: '🦐', prisa: true, zona: 'playas', cosa: 'un pedido de ceviche', a: 'la casa de un cliente',
+    pide: '"Me pidieron un ceviche para llevar y mi repartidor se fue a ver el atardecer al malecón. ¿Me haces el paro? Que no se caliente."',
+    fin: 'El cliente le dio cinco estrellas a Doña Bety y una a su repartidor. A ti te tocó la propina.',
+    mal: 'El ceviche llegó tibio. El cliente dice que sabía "a playa"; Doña Bety no sabe si eso es bueno o malo.' },
 ];
 
 // ---------- HUD ----------
@@ -3330,6 +3340,42 @@ function makeLandmarkIcons(scene) {
       line('#eceff1', 1.2, [[-24, -4], [-12, -8.5], [0, -9], [12, -8.5], [24, -4]]);
       x.beginPath(); x.moveTo(-6, 13); x.quadraticCurveTo(0, 22, 6, 13); fill('#81d4fa');
     }],
+    // fase 3: Playas y la Escenica
+    'Casa de la Cultura': ['#795548', () => { // edificio de los años 30 con ventanas de arco y una nota musical
+      rect('#efebe9', -18, -8, 36, 22); poly('#d7ccc8', [[-20, -8], [0, -18], [20, -8]]);
+      for (const wx of [-13, -4, 5]) { x.beginPath(); x.moveTo(wx, 6); x.lineTo(wx, -1); x.arc(wx + 3.5, -1, 3.5, Math.PI, 0); x.lineTo(wx + 7, 6); x.closePath(); fill('#5d4037'); }
+      rect('#8d6e63', -2, 7, 4, 7); rect('#a1887f', -20, 14, 40, 2);
+      circ('#ffd23f', 13, -14, 2); line('#ffd23f', 1.2, [[14.8, -14], [14.8, -21], [18, -19.5]]);
+    }],
+    'El Muro en la Playa': ['#0277bd', () => { // la reja que entra al mar, con murales
+      rect('#ffe0b2', -24, 6, 48, 18); x.beginPath(); x.moveTo(-24, 6); x.quadraticCurveTo(0, 2, 24, 8); x.lineTo(24, 24); x.lineTo(-24, 24); x.closePath(); fill('#4fc3f7');
+      line('rgba(255,255,255,0.8)', 1, [[-22, 9], [-14, 7.5], [-6, 9]]); line('rgba(255,255,255,0.8)', 1, [[2, 10], [10, 8.5], [18, 10]]);
+      const cs = ['#e53935', '#fdd835', '#43a047', '#1e88e5', '#8e24aa', '#fb8c00'];
+      for (let i = 0; i < 12; i++) { const xx = -21 + i * 3.8, top = -18 + i * 0.6, bot = 16 - Math.max(0, i - 5) * 1.2; rect(cs[i % cs.length], xx, top, 2.2, bot - top); }
+      rect('rgba(0,0,0,0.25)', -22, -18, 46, 1.4);
+    }],
+    'Faro de Playas': ['#1565c0', () => { // faro blanco con franjas rojas y su luz
+      poly('rgba(255,245,157,0.45)', [[0, -15], [-22, -24], [-22, -8]]); poly('rgba(255,245,157,0.45)', [[0, -15], [22, -24], [22, -8]]);
+      poly('#fafafa', [[-5, -12], [5, -12], [8, 18], [-8, 18]]);
+      x.save(); x.beginPath(); x.moveTo(-5, -12); x.lineTo(5, -12); x.lineTo(8, 18); x.lineTo(-8, 18); x.closePath(); x.clip();
+      for (let i = 0; i < 3; i++) rect('#e53935', -10, -6 + i * 9, 20, 4); x.restore();
+      rect('#37474f', -6, -15, 12, 3); circ('#fff59d', 0, -18, 3.5); poly('#37474f', [[-4, -20], [4, -20], [0, -25]]);
+      rect('#795548', -11, 18, 22, 3);
+    }],
+    'Malecón de Playas': ['#ef6c00', () => { // atardecer en el mar con palmera
+      x.save(); x.beginPath(); x.arc(0, 0, 24, 0, 7); x.clip();
+      rect('#ffb74d', -24, -24, 48, 24); circ('#fff176', 2, 2, 9); rect('#0288d1', -24, 2, 48, 22);
+      for (let i = 0; i < 4; i++) rect('rgba(255,241,118,0.7)', -6 + i % 2 * 2, 5 + i * 3, 16 - i * 3, 1.2);
+      x.restore();
+      line('#6d4c41', 2.2, [[-13, 18], [-11, 4], [-13, -8]]);
+      for (const a of [-2.6, -2, -1.2, -0.5, 0.2]) line('#2e7d32', 2.4, [[-13, -8], [-13 + Math.cos(a) * 10, -8 + Math.sin(a) * 7 + 3]]);
+    }],
+    'El Colef': ['#00695c', () => { // libro abierto frente al mar
+      rect('#4fc3f7', -22, -18, 44, 12); circ('#fff176', 12, -14, 3.2);
+      poly('#fafafa', [[0, -2], [-20, -6], [-20, 16], [0, 19]]); poly('#eceff1', [[0, -2], [20, -6], [20, 16], [0, 19]]);
+      line('#90a4ae', 1, [[0, -2], [0, 19]]);
+      for (let i = 0; i < 4; i++) { line('#b0bec5', 0.8, [[-17, -1 + i * 4], [-3, 1.5 + i * 4]]); line('#b0bec5', 0.8, [[3, 1.5 + i * 4], [17, -1 + i * 4]]); }
+    }],
   };
   // insignia de respaldo (un lugar nuevo sin dibujo): la estrella de siempre
   const fallback = ['#5d4037', () => txt('#ffd23f', 30, '★', 0, 1)];
@@ -3641,6 +3687,34 @@ function makeEggs(scene) {
       line('#1a237e', 0.35, [[13, 13], [14.5, 12], [15.5, 14], [17, 12.5], [18.5, 14]]); // la firma
       x.save(); x.translate(22, 21); x.rotate(-0.3); x.fillStyle = '#a5d6a7'; x.fillRect(-4, -2, 8, 4); x.strokeStyle = '#2e7d32'; x.lineWidth = 0.3; x.strokeRect(-4, -2, 8, 4);
       x.fillStyle = '#2e7d32'; x.font = 'bold 2.2px sans-serif'; x.textAlign = 'center'; x.fillText('$', 0, 0.8); x.restore();
+    },
+    surfista(x0) { // surfista acostado en su tabla, con traje de neopreno
+      shadow(16, 16, 6, 14);
+      x.save(); x.translate(16, 16); x.rotate(0.35);
+      x.fillStyle = rad(0, 0, 14, '#fff59d', '#fbc02d'); x.beginPath(); x.ellipse(0, 0, 4.6, 14, 0, 0, 7); x.fill();
+      x.strokeStyle = 'rgba(0,0,0,0.35)'; x.lineWidth = 0.35; x.stroke();
+      x.fillStyle = '#e53935'; x.fillRect(-0.6, -13, 1.2, 26); x.fillStyle = '#1e88e5'; x.fillRect(-4.4, 4, 8.8, 1.2);
+      // el surfista: piernas, cuerpo de neopreno y cabeza mojada
+      line('#212121', 1.4, [[-1.2, 4], [-1.6, 11]]); line('#212121', 1.4, [[1.2, 4], [1.6, 11]]);
+      x.fillStyle = '#263238'; x.beginPath(); x.ellipse(0, -1, 2.8, 5.4, 0, 0, 7); x.fill();
+      line('#263238', 1.1, [[-2.4, -4], [-5.6, -8.5]]); line('#263238', 1.1, [[2.4, -4], [5.6, -8.5]]);
+      ball(0, -7.8, 2.2, '#d4a373', '#a47148'); x.fillStyle = '#5d4037'; x.beginPath(); x.arc(0, -8.2, 2.2, Math.PI, 0); x.fill();
+      x.restore();
+      for (let i = 0; i < 3; i++) line('rgba(255,255,255,0.7)', 0.5, [[3 + i * 2, 29 - i], [8 + i * 2, 28 - i]]);
+    },
+    pelicano(x0) { // pelicano cafe visto desde arriba, con su picote y un billete
+      shadow(16, 17, 9, 12);
+      // alas plegadas
+      x.fillStyle = rad(16, 18, 9, '#a1887f', '#5d4037'); x.beginPath(); x.ellipse(16, 18, 6.4, 9.5, 0, 0, 7); x.fill();
+      for (let i = 0; i < 5; i++) line('rgba(62,39,35,0.6)', 0.35, [[11.5 + i * 0.4, 13 + i * 2.6], [20.5 - i * 0.4, 13 + i * 2.6]]);
+      // cola
+      x.fillStyle = '#4e342e'; x.beginPath(); x.moveTo(13.5, 26.5); x.lineTo(16, 30.5); x.lineTo(18.5, 26.5); x.closePath(); x.fill();
+      // cuello y cabeza blanca con copete amarillo
+      ball(16, 8.5, 3.3, '#fafafa', '#cfd8dc', 'rgba(0,0,0,0.3)'); ell('#fdd835', 16, 7.6, 1.4, 1);
+      ell('#1a1a1a', 14.6, 8.4, 0.45, 0.45); ell('#1a1a1a', 17.4, 8.4, 0.45, 0.45);
+      // picote con su bolsa naranja y el billete
+      x.fillStyle = '#ffb74d'; x.beginPath(); x.moveTo(14.8, 5.6); x.lineTo(16, -1.8); x.lineTo(17.2, 5.6); x.closePath(); x.fill();
+      x.save(); x.translate(20, 1.5); x.rotate(0.5); x.fillStyle = '#a5d6a7'; x.fillRect(-3, -1.5, 6, 3); x.strokeStyle = '#2e7d32'; x.lineWidth = 0.25; x.strokeRect(-3, -1.5, 6, 3); x.restore();
     },
     raton(x0) { // botarga de raton amarillo (de dudosa procedencia): orejotas, cachetes, colita, cierre y su letrero de FOTO
       shadow(15, 17, 12, 12);
@@ -4535,7 +4609,7 @@ class Main extends Phaser.Scene {
     // fase 1: Otay (al norte de 32.515) y La Mesa (al sur), al oriente de -116.9915; fase 2: La Presa y el Cerro
     // Colorado (al oriente de -116.96 y al sur de 32.486)
     const ZONAS = { sur: [1300, 2800, 4600, 4755], oriente: [4300, 200, 5913, 4755, 500], otay: [5300, -1600, 12300, 3096], lamesa: [5300, 3096, 12300, 6400],
-      presa: [8259, 6303, 16000, 11700] };
+      presa: [8259, 6303, 16000, 11700], playas: [-8900, -200, -3600, 11700] };
     this.paros = [];
     // primero los que tienen zona (tienen menos lugar), luego los demas; la lista queda en el orden de PAROS
     for (const P of [...PAROS.filter(P => P.zona), ...PAROS.filter(P => !P.zona)]) {

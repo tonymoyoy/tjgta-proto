@@ -16,10 +16,10 @@ OUT = sys.argv[2] if len(sys.argv) > 2 else os.path.join(os.path.dirname(__file_
 # mismo recuadro que download_overture.py: Centro, Zona Norte, Zona Rio, Chapultepec, Hipodromo y Agua Caliente.
 # Fase 1 (Otay, Aeropuerto, La Mesa y las 5 y 10) y fase 2 (Diaz Ordaz, Cerro Colorado y la Presa): al oriente hasta
 # pasar el Cerro Colorado y al sur hasta la cortina de la Presa Rodriguez; el norte llega hasta donde pasa la linea
-# fronteriza de verdad. La escala este-oeste se queda con la
+# fronteriza de verdad. Fase 3 (Playas y el principio de la Escenica): al poniente hasta el mar. La escala este-oeste se queda con la
 # latitud del primer recuadro (32.517-32.543); si el recuadro crece al norte o al oeste, todo se recorre junto con
 # el origen y el juego lo compensa con 'o' (ver REF).
-LON0, LAT0, LON1, LAT1 = map(float, os.environ.get("TJ_BBOX", "-117.048,32.438,-116.878,32.559").split(","))
+LON0, LAT0, LON1, LAT1 = map(float, os.environ.get("TJ_BBOX", "-117.142,32.438,-116.878,32.559").split(","))
 KX = 111320 * math.cos(math.radians(32.53))
 # punto de referencia fijo (la esquina noroeste del primer mapa): el juego tiene algunas posiciones en metros
 # desde aqui (zonas, paros, secretos). Si el recuadro crece al norte o al oeste, el origen se mueve pero
@@ -45,11 +45,41 @@ def border_recta(lon):
     return 32.5343 + (lon + 117.1243) * 0.0765
 
 def linea_fronteriza():
-    """La linea de verdad: la orilla norte del poligono de Mexico (division_area, subtype country), de
-    oeste a este. Sin ese archivo se usa la recta."""
+    """La linea de verdad, de oeste a este: la orilla que comparten los poligonos de Mexico y de Estados Unidos
+    (division_area, subtype country; tierra y mar, asi entra al mar). Sin shapely, la orilla norte del de Mexico
+    cerca de la recta (sirve tierra adentro, pero en la costa se iria por la playa). Sin el archivo, la recta."""
     f = os.path.join(RAW, "division_area.geojson")
     if not os.path.exists(f) or os.environ.get("TJ_FRONTERA") == "recta":
         return None
+    try:
+        from shapely.geometry import shape, box
+        from shapely.ops import unary_union
+        caja = box(LON0 - 0.1, LAT0, LON1 + 0.1, LAT1 + 0.05)
+        pais = {}
+        for ft in json.load(open(f))["features"]:
+            pr = ft["properties"]
+            n = (pr.get("names") or {}).get("primary")
+            if pr.get("subtype") == "country" and n in ("México", "United States"):
+                pais.setdefault(n, []).append(shape(ft["geometry"]).intersection(caja))
+        mx, us = unary_union(pais["México"]), unary_union(pais["United States"])
+        comun = mx.buffer(0.00002).intersection(us.buffer(0.00002))
+        vs = set()
+        for g in (getattr(comun, "geoms", None) or [comun]):
+            for lo, la in g.exterior.coords:
+                vs.add((round(lo, 6), round(la, 6)))
+        # de la franja angosta que comparten, el punto de en medio en cada tramo de longitud
+        vs = sorted(vs)
+        out, paso = [], 0.0005
+        lo = vs[0][0]
+        while lo <= vs[-1][0]:
+            q = [la for a, la in vs if lo <= a < lo + paso]
+            if q:
+                out.append((lo + paso / 2, (min(q) + max(q)) / 2))
+            lo += paso
+        if len(out) > 2:
+            return out
+    except ImportError:
+        print("sin shapely: frontera por la orilla norte de Mexico")
     vs = set()
     for ft in json.load(open(f))["features"]:
         if ft["properties"].get("subtype") != "country":
@@ -230,6 +260,20 @@ for f in sorted(load("land_use"), key=lambda f: f["properties"]["class"] != "gol
         if not any(in_mx(lo, la) for lo, la, *_ in poly[0]):
             continue
         areas.append([k, flat(poly[0][:-1])])
+# el mar: el poligono del oceano (viene en cuadros de un grado) recortado al recuadro y simplificado (~1.5 m)
+mar = []
+for f in load("water"):
+    if f["properties"]["subtype"] != "ocean":
+        continue
+    try:
+        from shapely.geometry import shape, box
+        g = shape(f["geometry"]).intersection(box(LON0 - 0.01, LAT0 - 0.01, LON1 + 0.01, LAT1 + 0.01)).simplify(0.000015)
+    except ImportError:
+        print("sin shapely: no hay mar"); break
+    for pg in (getattr(g, "geoms", None) or [g]):
+        if pg.geom_type == "Polygon" and not pg.is_empty:
+            mar.append([7, flat(list(pg.exterior.coords)[:-1])])
+areas += mar
 for f in load("water"):
     p, g = f["properties"], f["geometry"]
     if p["subtype"] in ("ocean",):
@@ -239,6 +283,16 @@ for f in load("water"):
             areas.append([7, flat(g["coordinates"][0][:-1])])
     elif g["type"] == "LineString" and any(in_mx(lo, la) for lo, la, *_ in g["coordinates"]):
         roads.append([11, -1, 4, flat(g["coordinates"])])
+
+# playas y arenales (tema land): arena encima del mar
+if os.path.exists(os.path.join(RAW, "land.geojson")):
+    for f in load("land"):
+        g = f["geometry"]
+        if f["properties"].get("class") not in ("beach", "sand") or g["type"] not in ("Polygon", "MultiPolygon"):
+            continue
+        for poly in ([g["coordinates"]] if g["type"] == "Polygon" else g["coordinates"]):
+            if any(in_mx(lo, la) for lo, la, *_ in poly[0]):
+                areas.append([8, flat(poly[0][:-1])])
 
 # ---- lugares
 places = {}
@@ -319,8 +373,17 @@ LANDMARKS_F2 = [
     ("Presa Rodríguez", "La presa Abelardo L. Rodríguez, de 1937: la cortina de concreto que guarda el agua del río Tijuana.", 32.44453, -116.90754),
 ]
 landmarks += [[title, desc] + P(lon, lat) for title, desc, lat, lon in LANDMARKS_F2]
+# fase 3: Playas de Tijuana y el principio de la Escenica (y la Casa de la Cultura, en la Altamira)
+LANDMARKS_F3 = [
+    ("Casa de la Cultura", "Un edificio de los años 30 en lo alto de la colonia Altamira, hoy lleno de talleres de arte, música y danza.", 32.53184, -117.05211),
+    ("El Muro en la Playa", "Aquí la línea entra al mar: el muro con sus murales, el Parque de la Amistad y familias saludándose a través de la reja.", 32.53385, -117.12330),
+    ("Faro de Playas", "El faro del malecón, junto a la línea: de aquí para el norte ya es otro país.", 32.53426, -117.12275),
+    ("Malecón de Playas", "Mariscos, nieve, puestos de churros y el atardecer más bonito de la ciudad.", 32.52650, -117.12280),
+    ("El Colef", "El Colegio de la Frontera Norte, con su terraza frente al mar en la Escénica.", 32.45646, -117.11119),
+]
+landmarks += [[title, desc] + P(lon, lat) for title, desc, lat, lon in LANDMARKS_F3]
 # lo que se fue agregando despues de la primera version: quien ya habia completado una coleccion no pierde su premio
-NUEVOS = {"noche": [t for t, *_ in LANDMARKS_OSM + LANDMARKS_P1 + LANDMARKS_F1 + LANDMARKS_F2], "taco": [], "cafe": []}
+NUEVOS = {"noche": [t for t, *_ in LANDMARKS_OSM + LANDMARKS_P1 + LANDMARKS_F1 + LANDMARKS_F2 + LANDMARKS_F3], "taco": [], "cafe": []}
 if PREV:
     viejos = {l[0] for l in PREV["landmarks"]}
     landmarks = PREV["landmarks"] + [l for l in landmarks if l[0] not in viejos]
@@ -365,7 +428,7 @@ for n, (lo, la) in sorted(places.items()):
 # cafes reales: los que tienen cafe en el nombre, sin bares ni negocios que no son cafeteria,
 # repartidos para que queden al menos a 300 m uno de otro (en la ampliacion, a 700 m)
 NOT_CAFE = re.compile(r"\b(bar|smoke|restaurant|restaurante|agency|barbershop|shopping|bistro|deli|pizza|taquer|cantina|distribuci|ganoderma|"
-                      r"internet|beauty|showroom|baño|comida china|"
+                      r"internet|beauty|showroom|baño|chin[oa]|"
                       # cadenas (marcas ajenas)
                       r"\w*volada|starbucks|dunkin|tim hortons|oxxo|7.eleven|punta del cielo|cielito|italian coffee|the coffee bean)", re.I)
 cafes = []
