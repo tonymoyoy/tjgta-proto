@@ -533,12 +533,9 @@ const PUENTE_RAMPA = 15 * M;
   const nivel = new Set(), key = (x, y) => Math.floor(x / 4) + ',' + Math.floor(y / 4);
   for (const r of roads) if (!(r.f & 1) && r.c <= 7) for (let j = 0; j < r.p.length; j += 2) nivel.add(key(r.p[j], r.p[j + 1]));
   const llega = (x, y) => { for (const dx of [-2, 0, 2]) for (const dy of [-2, 0, 2]) if (nivel.has(key(x + dx, y + dy))) return true; return false; };
-  const pts = [];
-  for (const r of roads) if (r.f & 1 && r.c <= 7) { r.cabos = [0, r.p.length - 2].map(j => [r.p[j], r.p[j + 1], llega(r.p[j], r.p[j + 1])]); for (const c of r.cabos) pts.push([c, r]); }
-  // si junto a esa punta llega otro puente (los dos sentidos de una avenida), se deja como antes: juntas, sus
-  // puntas redondas forman la nariz del camellon y se ven bien
-  for (const [c, r] of pts) if (c[2] && pts.some(([o, q]) => q !== r && Math.hypot(o[0] - c[0], o[1] - c[1]) < 30 * M)) c[2] = 'par';
-  for (const [c] of pts) if (c[2] === 'par') c[2] = false;
+  // (los dos sentidos de una avenida que llegan juntos tambien bajan: desde que los datos parten el segmento donde
+  // empieza el puente, la avenida sigue a nivel y sus puntas redondas se veian como orejas en medio del cruce)
+  for (const r of roads) if (r.f & 1 && r.c <= 7) r.cabos = [0, r.p.length - 2].map(j => [r.p[j], r.p[j + 1], llega(r.p[j], r.p[j + 1])]);
 })();
 // el tramo de la linea entre t0 y t1 px desde su inicio (null si es muy corto)
 function tramo(p, t0, t1) {

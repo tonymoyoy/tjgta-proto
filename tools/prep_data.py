@@ -52,6 +52,54 @@ ROAD = {"motorway": 0, "trunk": 1, "primary": 2, "secondary": 3, "tertiary": 4, 
         "footway": 9, "path": 9, "cycleway": 9, "track": 7}
 names, name_ix = [], {}
 roads = []
+# los pedazos extra de las calles que se parten (ver partir); van al final para no mover los indices de las demas
+extra_roads = []
+
+def partir(cs, rangos):
+    """Parte la linea cs en pedazos segun los rangos [a, b] (fraccion del largo) marcados como puente.
+    Overture marca is_bridge solo en una parte del segmento (between); sin partir, el segmento entero
+    se dibujaba como puente aunque el puente fuera solo el cruce del rio. Regresa [(es_puente, coords)]."""
+    xy = [(lo * KX, la * KY) for lo, la, *_ in cs]
+    cum = [0.0]
+    for i in range(1, len(xy)):
+        cum.append(cum[-1] + math.hypot(xy[i][0] - xy[i - 1][0], xy[i][1] - xy[i - 1][1]))
+    L = cum[-1] or 1
+    # cortes: bordes de los rangos, juntando los que se tocan
+    rs = []
+    for a, b in sorted(rangos):
+        if rs and a <= rs[-1][1] + 1e-6:
+            rs[-1][1] = max(rs[-1][1], b)
+        else:
+            rs.append([a, b])
+    cortes, t = [], 0.0
+    for a, b in rs:
+        if a > t:
+            cortes.append((False, t, a))
+        cortes.append((True, a, b))
+        t = b
+    if t < 1:
+        cortes.append((False, t, 1.0))
+    def punto(d):
+        for i in range(1, len(cum)):
+            if d <= cum[i] or i == len(cum) - 1:
+                k = (d - cum[i - 1]) / ((cum[i] - cum[i - 1]) or 1)
+                lo0, la0 = cs[i - 1][0], cs[i - 1][1]
+                return [lo0 + (cs[i][0] - lo0) * k, la0 + (cs[i][1] - la0) * k]
+    # pedacitos de menos de 3 m no se separan: se pegan al pedazo vecino
+    piezas = []
+    for br, a, b in cortes:
+        if piezas and (b - a) * L < 3:
+            piezas[-1][2] = b
+        elif piezas and (piezas[-1][2] - piezas[-1][1]) * L < 3:
+            piezas[-1] = [br, piezas[-1][1], b]
+        else:
+            piezas.append([br, a, b])
+    out = []
+    for br, a, b in piezas:
+        d0, d1 = a * L, b * L
+        seg = [punto(d0)] + [list(cs[i][:2]) for i in range(len(cs)) if d0 < cum[i] < d1] + [punto(d1)]
+        out.append((br, seg))
+    return out
 for f in load("segment"):
     p = f["properties"]
     if f["geometry"]["type"] != "LineString":
@@ -71,7 +119,7 @@ for f in load("segment"):
         if nm not in name_ix:
             name_ix[nm] = len(names); names.append(nm)
         ni = name_ix[nm]
-    bridge = 1 if any((rf.get("values") and "is_bridge" in rf["values"]) for rf in (p.get("road_flags") or [])) else 0
+    rangos = [rf.get("between") or [0, 1] for rf in (p.get("road_flags") or []) if rf.get("values") and "is_bridge" in rf["values"]]
     ow, nocar = 0, 0
     for r in (p.get("access_restrictions") or []):
         w = r.get("when") or {}
@@ -80,7 +128,13 @@ for f in load("segment"):
                 ow = 1
             elif not w or (w.get("mode") and "motor_vehicle" in w["mode"]):
                 nocar = 1
-    roads.append([cls, ni, bridge | (ow << 1) | (nocar << 2), flat(cs)])
+    flags = (ow << 1) | (nocar << 2)
+    if not rangos:
+        roads.append([cls, ni, flags, flat(cs)])
+        continue
+    piezas = partir(cs, rangos)
+    for k, (br, seg) in enumerate(piezas):
+        (roads if k == 0 else extra_roads).append([cls, ni, flags | (1 if br else 0), flat(seg)])
 
 # ---- edificios
 blds = []
@@ -242,6 +296,7 @@ if PREV:
 
 border = flat([[LON0, border_lat(LON0)], [LON1, border_lat(LON1)]])
 
+roads += extra_roads
 data = dict(w=W, h=H, names=names, roads=roads, blds=blds, areas=areas, landmarks=landmarks, tacos=tacos, cafes=cafes, border=border, nuevos=NUEVOS,
             src="Datos de mapa: Overture Maps Foundation / © colaboradores de OpenStreetMap (ODbL)")
 s = json.dumps(data, separators=(",", ":"), ensure_ascii=False)
