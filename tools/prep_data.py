@@ -14,10 +14,11 @@ RAW = sys.argv[1] if len(sys.argv) > 1 else "raw"
 OUT = sys.argv[2] if len(sys.argv) > 2 else os.path.join(os.path.dirname(__file__), "..", "data", "centro.js")
 
 # mismo recuadro que download_overture.py: Centro, Zona Norte, Zona Rio, Chapultepec, Hipodromo y Agua Caliente.
-# El norte llega hasta 32.5485 para que quepa la linea fronteriza de verdad. La escala este-oeste se queda con la
+# Fase 1 (Otay, Aeropuerto, La Mesa y las 5 y 10): al oriente hasta pasar la Garita de Otay y al sur hasta abajo de
+# las 5 y 10; el norte llega hasta donde pasa la linea fronteriza de verdad en Otay. La escala este-oeste se queda con la
 # latitud del primer recuadro (32.517-32.543); si el recuadro crece al norte o al oeste, todo se recorre junto con
 # el origen y el juego lo compensa con 'o' (ver REF).
-LON0, LAT0, LON1, LAT1 = map(float, os.environ.get("TJ_BBOX", "-117.048,32.500,-116.985,32.5485").split(","))
+LON0, LAT0, LON1, LAT1 = map(float, os.environ.get("TJ_BBOX", "-117.048,32.486,-116.918,32.5565").split(","))
 KX = 111320 * math.cos(math.radians(32.53))
 # punto de referencia fijo (la esquina noroeste del primer mapa): el juego tiene algunas posiciones en metros
 # desde aqui (zonas, paros, secretos). Si el recuadro crece al norte o al oeste, el origen se mueve pero
@@ -295,8 +296,21 @@ LANDMARKS_P1 = [
     ("Galerías Hipódromo", "Centro comercial frente al Estadio Caliente: cine, comida y aire acondicionado.", 32.50835, -116.99261),
 ]
 landmarks += [[title, desc] + P(lon, lat) for title, desc, lat, lon in LANDMARKS_P1]
+# fase 1: Otay, el Aeropuerto, La Mesa y las 5 y 10 (coordenadas de OpenStreetMap)
+LANDMARKS_F1 = [
+    ("Garita de Otay", "El otro cruce a San Diego: el de los tráileres de las maquiladoras de la Mesa de Otay.", 32.5472, -116.9398),
+    ("Aeropuerto de Tijuana", "El Aeropuerto Internacional Abelardo L. Rodríguez, con la pista pegadita a la línea.", 32.5462, -116.9735),
+    ("UABC Campus Tijuana", "La Universidad Autónoma de Baja California: aquí los Cimarrones estudian, corren y hacen fila en la cafetería.", 32.53339, -116.96443),
+    ("Tecnológico de Tijuana", "El ITT, donde se han formado generaciones de ingenieros de la ciudad.", 32.53085, -116.98693),
+    ("Central Camionera", "La Central de Autobuses de Tijuana: de aquí salen camiones a todo el país.", 32.51798, -116.95932),
+    ("Las 5 y 10", "El crucero más famoso de La Mesa: tiendas, puestos, camiones y tráfico a todas horas.", 32.4992, -116.9658),
+    ("Museo El Trompo", "Museo interactivo de ciencia y tecnología: aquí todo se puede tocar, girar y apachurrar.", 32.49525, -116.93828),
+    ("Parque Morelos", "Uno de los parques más grandes de la ciudad, con zoológico, lago y mucho espacio para el día de campo.", 32.49899, -116.93998),
+    ("CEART Tijuana", "El Centro Estatal de las Artes, junto al Parque Morelos: teatro, danza, música y exposiciones.", 32.49972, -116.94524),
+]
+landmarks += [[title, desc] + P(lon, lat) for title, desc, lat, lon in LANDMARKS_F1]
 # lo que se fue agregando despues de la primera version: quien ya habia completado una coleccion no pierde su premio
-NUEVOS = {"noche": [t for t, *_ in LANDMARKS_OSM + LANDMARKS_P1], "taco": [], "cafe": []}
+NUEVOS = {"noche": [t for t, *_ in LANDMARKS_OSM + LANDMARKS_P1 + LANDMARKS_F1], "taco": [], "cafe": []}
 if PREV:
     viejos = {l[0] for l in PREV["landmarks"]}
     landmarks = PREV["landmarks"] + [l for l in landmarks if l[0] not in viejos]
@@ -338,7 +352,10 @@ for n, (lo, la) in sorted(places.items()):
 
 # cafes reales: los que tienen cafe en el nombre, sin bares ni negocios que no son cafeteria,
 # repartidos para que queden al menos a 300 m uno de otro (en la ampliacion, a 700 m)
-NOT_CAFE = re.compile(r"\b(bar|smoke|restaurant|restaurante|agency|barbershop|shopping|bistro|deli|pizza|taquer|cantina|distribuci|ganoderma)", re.I)
+NOT_CAFE = re.compile(r"\b(bar|smoke|restaurant|restaurante|agency|barbershop|shopping|bistro|deli|pizza|taquer|cantina|distribuci|ganoderma|"
+                      r"internet|beauty|showroom|baño|"
+                      # cadenas (marcas ajenas)
+                      r"starbucks|dunkin|tim hortons|oxxo|7.eleven|punta del cielo|cielito|italian coffee|the coffee bean)", re.I)
 cafes = []
 for n, (lo, la) in sorted(places.items()):
     if n.strip().lower() == "café" or not re.search(r"\b(caf[eé]|coffee|cafeter[ií]a|espresso)\b", n, re.I) or NOT_CAFE.search(n):

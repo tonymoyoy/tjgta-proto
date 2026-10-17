@@ -1,6 +1,7 @@
-# TJ Rush · Zona Centro y Zona Río (prototipo)
+# TJ Rush · Tijuana (prototipo)
 
-Juego de vista cenital estilo GTA 2 en la Zona Centro y la Zona Río de Tijuana (unos 4.1 x 2.9 km), con calles, edificios y lugares reales.
+Juego de vista cenital estilo GTA 2 en Tijuana, con calles, edificios y lugares reales. Hoy cubre unos 12 x 8 km: Centro, Zona Norte, Zona Río,
+Chapultepec, Hipódromo, Agua Caliente, Libertad, el Aeropuerto, Otay y La Mesa hasta las 5 y 10. La meta es toda la ciudad, por fases.
 Hecho con Phaser 3 (JavaScript); corre en el navegador.
 
 ## Jugar
@@ -21,21 +22,22 @@ Flechas/WASD mover o manejar · E robar auto / bajarte · Espacio freno de mano 
 T trabajar de taxista · M mapa grande (toca para marcar destino). En celular hay joystick y botones.
 
 ## Actividades
-- Lugares ★: 25 lugares reales: 16 del Centro (Arco, Plaza Santa Cecilia, Catedral, Caesar's, Jai Alai...) y 9 de la Zona Río (CECUT, El Cubo, Las Tijeras, glorietas Cuauhtémoc, Lincoln y Zaragoza, Plaza Río...).
-- Ruta del taco 🌮: 18 taquerías reales del mapa.
-- Cafés ☕: 24 cafés reales para coleccionar.
+- Lugares ★: 43 lugares reales: del Centro (Arco, Plaza Santa Cecilia, Catedral, Caesar's, Jai Alai...), la Zona Río (CECUT, El Cubo, Las Tijeras, glorietas...),
+  Agua Caliente e Hipódromo (Estadio Caliente, el Campestre...) y Otay y La Mesa (Garita de Otay, Aeropuerto, UABC, Las 5 y 10, El Trompo, Parque Morelos...).
+- Ruta del taco 🌮: 86 taquerías reales del mapa.
+- Cafés ☕: 88 cafés reales para coleccionar.
 - Comida china 🏮: 6 locales ficticios en la Calle Coahuila; al entrar pierdes dinero (no se coleccionan).
 - Repartidor 🛵: roba una moto de repartidor y entrega el pedido antes de que se acabe el tiempo.
 - Taxi: recoge pasajeros y llévalos a un lugar antes de que se acabe el tiempo.
-- Paros 🤝: 39 personajes en las colonias (lejos de los lugares típicos) te piden un favor: llevar al gato al veterinario, pozole a la jefa, flores al panteón, croquetas al albergue de perritos, una perrita rescatada con su nueva familia... Se aceptan con E (botón ACEPTAR), tienen tiempo y pagan según la distancia. Están en `PAROS` de src/game.js.
+- Paros 🤝: 47 personajes en las colonias (lejos de los lugares típicos) te piden un favor: llevar al gato al veterinario, pozole a la jefa, flores al panteón, croquetas al albergue de perritos, una perrita rescatada con su nueva familia... Se aceptan con E (botón ACEPTAR), tienen tiempo y pagan según la distancia. Están en `PAROS` de src/game.js.
 - Vehículos: 10 tipos (sedán, vocho, troca, camioneta, tsurito, combi, muscle car, lowrider, calafia, camión de carga), cada uno limpio o sucio y madreado. Los sucios aguantan menos golpes y corren un poco menos. Se dibujan en `vehicleTexture()` de src/game.js.
 - Escoltas 🚙🚙: convoyes de dos camionetas negras con torreta ámbar (no son policías) que cruzan la ciudad en fila, un poco más rápido que el tráfico. Se pueden robar.
 - Conductores erráticos 💥: algunos autos zigzaguean, no frenan por nadie y tarde o temprano se estrellan y quedan deshuesados; el tráfico les da la vuelta.
 - Moto deportiva 🏍️: la más rápida del juego, pero se hace pedazos al primer choque. Sale seguido en el tráfico (máximo dos a la vez).
 - Patrullas 🚓: trocas de policía en el tráfico (máximo 3). Si las chocas te cobran multa ($150–800 según la velocidad, una cada 5 s). No se pueden robar.
-- Secretos 🥚: 11 personajes y cosas típicas de Tijuana escondidos cerca de los lugares (el burro cebra, la ensalada César, Javier Bátiz, el Mimo Moy...). Al encontrarlos sueltan una frase y una lana. Están en `EGGS` de src/game.js.
+- Secretos 🥚: 13 personajes y cosas típicas de Tijuana escondidos cerca de los lugares (el burro cebra, la ensalada César, Javier Bátiz, el Mimo Moy, el señor de los aviones...). Al encontrarlos sueltan una frase y una lana. Están en `EGGS` de src/game.js.
 
-  ![Los 11 secretos](docs/easter-eggs.png)
+  ![Los 13 secretos](docs/easter-eggs.png)
 
 El progreso se guarda en el navegador.
 
@@ -55,4 +57,4 @@ El progreso se guarda en el navegador.
 
 ## Datos
 Overture Maps Foundation, derivados de © colaboradores de OpenStreetMap (ODbL). Recuadro:
-lon -117.048 a -116.985, lat 32.500 a 32.5485 (Centro, Zona Norte, Zona Río, Chapultepec, Hipódromo y Agua Caliente). La línea fronteriza es la de verdad (la orilla norte del polígono de México en `division_area`).
+lon -117.048 a -116.918, lat 32.486 a 32.5565 (Centro, Zona Norte, Zona Río, Chapultepec, Hipódromo, Agua Caliente, Libertad, Aeropuerto, Otay y La Mesa). La línea fronteriza es la de verdad (la orilla norte del polígono de México en `division_area`).
