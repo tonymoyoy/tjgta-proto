@@ -2052,7 +2052,7 @@ function drawPerson(x, V, sw) {
   x.restore();
 }
 function makeTextures(scene) {
-  makeLights(scene); makeFiesta(scene); makeMoto(scene); makeDeportiva(scene); makePerro(scene); makeLandmarkIcons(scene); makeTrocaTacos(scene); makeZonkey(scene); makeTaxi(scene); makePolice(scene); makeTacoStands(scene); makeCafes(scene); makeChinas(scene); makeYonke(scene); makeEggs(scene); makeScorch(scene);
+  makeLights(scene); makeFiesta(scene); makeMoto(scene); makeDeportiva(scene); makeEscolta(scene); makePerro(scene); makeLandmarkIcons(scene); makeTrocaTacos(scene); makeZonkey(scene); makeTaxi(scene); makePolice(scene); makeTacoStands(scene); makeCafes(scene); makeChinas(scene); makeYonke(scene); makeEggs(scene); makeScorch(scene);
   // personas vistas desde arriba, mirando a la derecha; 8 cuadros de caminata (el cuadro 0 es parado).
   // Una textura por variante de PED_VARIANTS ('ped0'...) y la del jugador ('pedP'); ver drawPerson.
   // Se dibujan a SPR veces la resolucion y el sprite se muestra a escala 1 / SPR para que se vean nitidas.
@@ -2298,6 +2298,29 @@ function makeDeportiva(scene) {
     x.fillStyle = 'rgba(255,255,255,0.5)'; x.beginPath(); x.arc(15.5, 6, 0.7, 0, 7); x.fill();
     t.refresh();
   });
+}
+// escoltas privadas: camionetas negras polarizadas con torreta ambar y blanca (no son policias); andan en
+// pares, la de atras sigue a la de adelante, y van un poco mas rapido que el trafico. Dos texturas para el destello.
+const VT_ESCOLTA = { name: 'Camioneta de escolta', L: 36, W: 17, top: 245, acc: 125, steer: 2.4, hp: 150 };
+function makeEscolta(scene) {
+  const L = VT_ESCOLTA.L, W = VT_ESCOLTA.W;
+  for (const f of [0, 1]) {
+    const t = scene.textures.createCanvas('escolta' + f, (L + 5) * SPR, (W + 5) * SPR), x = t.getContext();
+    x.scale(SPR, SPR); x.translate(1, 1);
+    drawVehicle(x, 3, '#16181b', false);
+    // brillo del negro sobre el cofre y el techo
+    x.fillStyle = 'rgba(255,255,255,0.1)'; x.fillRect(27, 3, 7, 1.6); x.fillRect(8, 3.6, 12, 1.4);
+    // barra de luces delgada sobre el parabrisas: ambar y blanco, alternando
+    x.fillStyle = '#0c0c0c'; x.fillRect(21.6, 2.2, 2.2, W - 4.4);
+    const a = f === 0;
+    x.fillStyle = a ? '#ffb300' : '#6b4a00'; x.fillRect(21.9, 2.5, 1.6, W / 2 - 2.7);
+    x.fillStyle = a ? '#5a5a5a' : '#ffffff'; x.fillRect(21.9, W / 2 + 0.2, 1.6, W / 2 - 2.7);
+    x.fillStyle = a ? 'rgba(255,179,0,0.35)' : 'rgba(255,255,255,0.35)';
+    x.beginPath(); x.arc(22.7, a ? 4.5 : W - 4.5, 4.2, 0, 7); x.fill();
+    // destellos en la parrilla
+    x.fillStyle = a ? '#ffffff' : '#ffb300'; x.fillRect(L - 1.2, W / 2 - 3, 1.2, 1.6); x.fillRect(L - 1.2, W / 2 + 1.4, 1.2, 1.6);
+    t.refresh();
+  }
 }
 // patrulla municipal: troca blanca con cofre azul y torreta; dos texturas para que la torreta parpadee
 const VT_POLI = { name: 'Patrulla', L: 38, W: 17, top: 245, acc: 125, steer: 2.4, hp: 150 };
@@ -3436,6 +3459,7 @@ class Main extends Phaser.Scene {
     if (o.taxi) return { T: VT_TAXI, key: 'taxi', ox: 0.5, oy: 0.5, dirty: false };
     if (o.troca) return { T: VT_TROCA_TACOS, key: 'troca_tacos', ox: (VT_TROCA_TACOS.L / 2 + 3) / (VT_TROCA_TACOS.L + 6), oy: 0.5, dirty: false };
     if (o.zonkey) return { T: VT_ZONKEY, key: 'zonkey', ox: (VT_ZONKEY.L / 2 + 3) / (VT_ZONKEY.L + 6), oy: 0.5, dirty: false };
+    if (o.escolta) return { T: VT_ESCOLTA, key: 'escolta0', ox: (VT_ESCOLTA.L / 2 + 1) / (VT_ESCOLTA.L + 5), oy: (VT_ESCOLTA.W / 2 + 1) / (VT_ESCOLTA.W + 5), dirty: false };
     if (o.poli) return { T: VT_POLI, key: 'poli0', ox: (VT_POLI.L / 2 + 1) / (VT_POLI.L + 5), oy: (VT_POLI.W / 2 + 1) / (VT_POLI.W + 5), dirty: false };
     const ti = o.ti ?? randomVType(), T = VTYPES[ti], ci = o.ci ?? (Math.random() * T.cols.length) | 0;
     const dirty = o.dirty ?? Math.random() < 0.45, d = dirty ? 1 + ((Math.random() * DIRTY_SEEDS) | 0) : 0;
@@ -3530,7 +3554,12 @@ class Main extends Phaser.Scene {
       if (this.cars.some(c => dist(c.x, c.y, q.x, q.y) < 26 + c.hl + spec.T.L / 2)) continue;
       const car = this.makeCar(q.x, q.y, q.a, spec);
       Object.assign(car, { e, dir, s, lat, lane, speed: 0, max: rnd(50, 80) * (e.c <= 2 ? 1.2 : 1) * (moto ? 1.15 : poli ? 1.1 : deportiva ? 1.35 : car.top / 230) });
+      // conductores erraticos: zigzaguean, no frenan por nadie y tarde o temprano se estrellan
+      if (!moto && !poli && !deportiva && Math.random() < 0.06 && this.cars.filter(c => c.loco).length < 2) {
+        Object.assign(car, { loco: true, ph: rnd(0, 6), wf: rnd(1.6, 2.6), max: car.max * 1.45, locoT: rnd(5, 14), derrape: 0 });
+      }
       this.cars.push(car);
+      if (Math.random() < 0.05 && this.cars.filter(c => c.escolta).length < 4) this.convoy(e, dir, lane, (x, y) => !inView(x, y) && dist(x, y, p.x, p.y) > (initial ? 160 : R));
     }
     n = 0;
     while (this.peds.length < Q.gente && n++ < 6) {
@@ -3745,8 +3774,9 @@ class Main extends Phaser.Scene {
     const fx = this.add.circle(car.x, car.y, 10, 0xffb030, 0.9).setDepth(17).setBlendMode(Phaser.BlendModes.ADD);
     this.tweens.add({ targets: fx, scale: 4, alpha: 0, duration: 450, onComplete: () => fx.destroy() });
     for (let i = 0; i < 10; i++) this.flame(car.x + rnd(-8, 8), car.y + rnd(-8, 8), 1.8);
-    this.jolt(300, 0.012);
-    if (window.SND) SND.play('boom');
+    const f = this.focus(), d = dist(car.x, car.y, f.x, f.y); // los choques del trafico lejos de ti no sacuden
+    if (car === this.inCar || d < 260) this.jolt(300, 0.012);
+    if (window.SND && (car === this.inCar || d < this.viewR())) SND.play('boom');
   }
   flame(x, y, big = 1) {
     const f = this.add.circle(x, y, rnd(2.5, 4.5) * big, Math.random() < 0.5 ? 0xff6a00 : 0xffc23a, 0.95).setDepth(16).setBlendMode(Phaser.BlendModes.ADD);
@@ -3774,6 +3804,41 @@ class Main extends Phaser.Scene {
   puff(x, y) {
     const s = this.add.circle(x, y, 5, 0x555555, 0.6).setDepth(15);
     this.tweens.add({ targets: s, scale: 3, alpha: 0, y: y - 10, duration: 900, onComplete: () => s.destroy() });
+  }
+
+  // convoy de escoltas: dos camionetas en fila sobre la misma calle (lejos: donde libre(x, y) lo permita)
+  convoy(e, dir, lane, libre) {
+    if (e.c > 4 || e.len < 140) return false;
+    const s0 = rnd(80, e.len), lane2 = lane & 1 ? 1 : 3, lat = laneLat(e, lane2);
+    const q1 = edgePos(e, s0, dir, lat, {}), q2 = edgePos(e, s0 - 55, dir, lat, {});
+    if (!libre(q1.x, q1.y) || !libre(q2.x, q2.y) || this.cars.some(c => dist(c.x, c.y, q1.x, q1.y) < 70 || dist(c.x, c.y, q2.x, q2.y) < 70)) return false;
+    const vel = rnd(68, 85) * (e.c <= 2 ? 1.2 : 1) * 1.3; // un poco mas rapido que el trafico
+    const jefe = this.makeCar(q1.x, q1.y, q1.a, this.carSpec({ escolta: true }));
+    Object.assign(jefe, { e, dir, s: s0, lat, lane: lane2, speed: vel * 0.8, max: vel, escolta: true, ruta: [] });
+    const cola = this.makeCar(q2.x, q2.y, q2.a, this.carSpec({ escolta: true }));
+    Object.assign(cola, { e, dir, s: s0 - 55, lat, lane: lane2, speed: vel * 0.8, max: vel * 1.12, escolta: true, jefe }); // alcanza a la de adelante
+    this.cars.push(jefe, cola);
+    return true;
+  }
+  // conductor erratico: de repente se le va de lado; si pega con otro carro o con algo fuera de la calle, se estrella
+  locoChoca(c, hx, hy, dt) {
+    c.locoT -= dt;
+    if (c.locoT <= 0 && !c.derrapeV) c.derrapeV = (Math.random() < 0.5 ? -1 : 1) * rnd(25, 45);
+    if (c.derrapeV) c.derrape += c.derrapeV * dt;
+    const fx = c.x + hx * (c.hl + 2), fy = c.y + hy * (c.hl + 2);
+    let otro = null;
+    if (c.speed > 35) for (const o of this.cars.concat(this.parked)) if (o !== c && Math.abs(o.x - c.x) < 60 && Math.abs(o.y - c.y) < 60 && axisDist(fx, fy, o) < o.hw + 1) { otro = o; break; }
+    const pared = c.derrapeV && (blocked(fx, fy) || Math.abs(c.derrape) > c.e.w / 2 + 14 * M);
+    if (!otro && !pared) return false;
+    c.speed = 0; c.hp = 0; this.wreck(c);
+    // al de enfrente le va peor si iba de frente o muy rapido; las patrullas y escoltas solo se paran
+    if (otro && !otro.wrecked && this.cars.includes(otro)) { otro.speed = 0; if (!otro.poli && !otro.escolta && Math.random() < 0.5) { otro.hp = 0; this.wreck(otro); } }
+    const f = this.focus();
+    if (dist(c.x, c.y, f.x, f.y) < this.viewR() && this.time.now > (this.locoAvisoT || 0)) {
+      this.locoAvisoT = this.time.now + 20000;
+      toast('💥 ' + pick(['¡Se estrelló!', '¡Uy, ese no llegó!', '¡Tremendo choque!']), pick(['Iba mandando mensajes en el celular.', 'Quería ganarle al semáforo.', 'Manejaba como si el carro fuera rentado.', 'Iba tarde a la chamba y ahora va a llegar más tarde.']), 2.6);
+    }
+    return true;
   }
 
   // multa por chocar una patrulla (con unos segundos de gracia entre multas)
@@ -3852,14 +3917,23 @@ class Main extends Phaser.Scene {
     // torreta de las patrullas
     const blink = 'poli' + ((this.time.now / 280 | 0) % 2);
     for (const c of this.cars) if (c.poli && c.sprite.texture.key !== blink) c.sprite.setTexture(blink);
+    const strobe = 'escolta' + ((this.time.now / 170 | 0) % 2);
+    for (const c of this.cars) if (c.escolta && !c.wrecked && c.sprite.texture.key !== strobe) c.sprite.setTexture(strobe);
     const neon = 'antro' + ((this.time.now / 600 | 0) % 2);
     for (const c of chinas) if (c.icon.texture.key !== neon + c.up) c.icon.setTexture(neon + c.up);
     const tmp = this.tmp;
     for (const c of this.cars) {
+      if (c.wrecked) continue; // los deshuesados se quedan donde quedaron
       const hx = Math.cos(c.a), hy = Math.sin(c.a);
+      if (c.loco && this.locoChoca(c, hx, hy, dt)) continue;
       const ax = c.x + hx * (c.hl + 13), ay = c.y + hy * (c.hl + 13);
       let stop = this.inCar ? axisDist(ax, ay, pl) < pl.hw + 10 : dist(ax, ay, pl.x, pl.y) < 16;
-      if (!stop) for (const o of this.cars) { if (o !== c && axisDist(ax, ay, o) < o.hw + 8) { stop = true; break; } }
+      if (!stop && !c.loco) for (const o of this.cars) {
+        if (o === c || axisDist(ax, ay, o) >= o.hw + 8) continue;
+        // un deshuesado en el camino: se le da la vuelta por un lado
+        if (o.wrecked) { if (!c.desvioT) { const lado = ((o.x - c.x) * -hy + (o.y - c.y) * hx) > 0 ? -1 : 1; c.desvio = lado * (o.hw + c.hw + 6); c.desvioT = 3; } continue; }
+        stop = true; break;
+      }
       if (!stop) for (const o of this.parked) { if (axisDist(ax, ay, o) < o.hw + 8) { stop = true; break; } }
       if (!stop) for (const o of this.peds) { if (o.st === 'walk' && dist(ax, ay, o.x, o.y) < 9) { stop = true; break; } }
       let want = stop ? 0 : c.max;
@@ -3867,11 +3941,16 @@ class Main extends Phaser.Scene {
       c.speed += Math.max(-300 * dt, Math.min(90 * dt, want - c.speed));
       c.s += c.speed * dt;
       while (c.s > c.e.len) {
-        const nx = nextEdge(traffic, c.e, c.dir);
+        // la escolta de atras toma las mismas vueltas que la de adelante
+        const j = c.jefe, nx = j && !j.wrecked && this.cars.includes(j) && j.ruta.length ? j.ruta.shift() : nextEdge(traffic, c.e, c.dir);
         if (!nx) { c.s = c.e.len; c.speed = 0; break; }
+        if (c.ruta) c.ruta.push(nx);
         c.s -= c.e.len; c.e = nx.e; c.dir = nx.dir; c.lat = laneLat(nx.e, c.lane);
       }
-      edgePos(c.e, c.s, c.dir, c.lat, tmp);
+      let lat = c.lat;
+      if (c.desvioT) { c.desvioT = Math.max(0, c.desvioT - dt); lat += c.desvio * Math.min(1, c.desvioT * 2); }
+      if (c.loco) lat += Math.sin(this.time.now / 1000 * c.wf + c.ph) * c.e.w * 0.28 + c.derrape;
+      edgePos(c.e, c.s, c.dir, lat, tmp);
       c.x += (tmp.x - c.x) * Math.min(1, dt * 12); c.y += (tmp.y - c.y) * Math.min(1, dt * 12);
       c.a += angDiff(c.a, tmp.a) * Math.min(1, dt * 7);
       c.sprite.setPosition(c.x, c.y).setRotation(c.a);
@@ -4222,8 +4301,9 @@ class Main extends Phaser.Scene {
         cut('cono', c.x + fx * c.hl, c.y + fy * c.hl, c.dosRuedas ? 70 : 95, c.a);
         glow(c.x - fx * c.hl, c.y - fy * c.hl, c.dosRuedas ? 6 : 9, 0xff2020, 0.55);
         if (c.poli) glow(c.x, c.y, 16, Math.floor(time / 220) % 2 ? 0xff1a1a : 0x2a5bff, 0.75);
+        if (c.escolta) glow(c.x, c.y, 15, Math.floor(time / 170) % 2 ? 0xffb300 : 0xffffff, 0.7);
       };
-      for (const c of this.cars) lights(c);
+      for (const c of this.cars) if (!c.wrecked) lights(c);
       if (this.fiesta) for (const L of this.fiesta.lights) { cut('luz', L.x, L.y, L.r); glow(L.x, L.y, L.r * 0.7, L.tint, 0.5 * L.a); } // cohetes
       if (this.inCar) lights(this.inCar);
       else cut('luz', this.player.x, this.player.y, 42);
