@@ -554,6 +554,21 @@ function tramo(p, t0, t1) {
 const largo = (p) => { let l = 0; for (let i = 0; i < p.length - 2; i += 2) l += Math.hypot(p[i + 2] - p[i], p[i + 3] - p[i + 1]); return l; };
 // la linea sin los primeros a px ni los ultimos b px (null si no queda nada)
 function recorte(p, a, b) { return tramo(p, a, largo(p) - b); }
+// lo que de un puente se pinta a nivel: solo las rampas de las puntas que bajan a una calle (un poco mas largas que
+// PUENTE_RAMPA, para que queden debajo del principio del puente). El resto va arriba, y las calles que pasan por
+// debajo se ven completas. Son calles de mentira (sin la bandera de puente), una por rampa, y se guardan.
+const RAMPA_NIVEL = PUENTE_RAMPA + 4 * M;
+function rampas(r) {
+  if (r.rampas) return r.rampas;
+  const L = largo(r.p), out = [];
+  const pieza = (q) => q && out.push({ i: r.i, c: r.c, n: r.n, f: r.f & ~1, w: r.w, p: q, bb: r.bb });
+  if (L < RAMPA_NIVEL * 2) { if (r.cabos[0][2] || r.cabos[1][2]) pieza(r.p); }
+  else {
+    if (r.cabos[0][2]) pieza(tramo(r.p, 0, RAMPA_NIVEL));
+    if (r.cabos[1][2]) pieza(tramo(r.p, L - RAMPA_NIVEL, L));
+  }
+  return (r.rampas = out);
+}
 const chunkBaches = gridIndex(baches, CHUNK, 'bb');
 
 // ---------- arboles ----------
@@ -1062,7 +1077,7 @@ function* chunkSteps(cx, cy) {
       }
     }
   };
-  const ground = rs.filter(r => !(r.f & 1) || (r.cabos && (r.cabos[0][2] || r.cabos[1][2]))); // (los puentes que bajan a una calle tambien van a nivel)
+  const ground = rs.flatMap(r => !(r.f & 1) ? [r] : r.cabos ? rampas(r) : []); // (de los puentes, solo sus rampas)
   const bridges = rs.filter(r => r.f & 1);
   // debajo de los edificios: agua, andadores y vias del tren
   const under = (list) => {
@@ -1074,9 +1089,11 @@ function* chunkSteps(cx, cy) {
   };
   // encima de los edificios: calles con banqueta y lineas de carril
   const over = (list) => {
-    pass(list, r => (r.w + BANQ[r.c] * 2 + 0.5) * M, COL.curb, r => r.c <= 6);
+    // los puentes no llevan banqueta sino una barda de concreto angosta con su orilla oscura
+    const bq = (r) => r.f & 1 ? 0.9 : BANQ[r.c];
+    pass(list, r => (r.w + bq(r) * 2 + 0.5) * M, r => r.f & 1 ? '#5c574c' : COL.curb, r => r.c <= 6);
     const banq = areaFill(ctx, TEX_BANQUETA);
-    pass(list, r => (r.w + BANQ[r.c] * 2) * M, banq, r => r.c <= 6);
+    pass(list, r => (r.w + bq(r) * 2) * M, r => r.f & 1 ? '#cfc8b6' : banq, r => r.c <= 6);
     // los accesos, estacionamientos y callejones (clase 7) van por debajo de las calles, sin banqueta y de concreto
     // mas claro: se distinguen de las calles de verdad (el trafico no entra ahi) y no parecen calles que no llevan a nada
     pass(list, r => (r.w + 0.6) * M, '#77715f', r => r.c === 7);
@@ -1102,13 +1119,14 @@ function* chunkSteps(cx, cy) {
   grime(ctx, ground, cx, cy);
   roadMarks(ctx, k);
   if (bridges.length) {
-    // la sombra: cada vez mas angosta y clara hacia las puntas que bajan a una calle
-    ctx.strokeStyle = 'rgba(0,0,0,0.12)'; ctx.lineCap = 'butt';
+    // la sombra cae hacia abajo y a la derecha (como la de los edificios), mas lejos en medio que cerca de las
+    // rampas, donde el puente va bajando
+    ctx.strokeStyle = 'rgba(0,0,0,0.16)'; ctx.lineCap = 'butt';
     for (const r of bridges) {
       if (r.c > 7) continue;
-      for (const [k, w] of [[0, 6], [1, 4.5], [2, 3]]) {
+      for (const [k, sh] of [[0, 1.5], [1, 3], [2, 4.5]]) {
         const q = recorte(r.p, r.cabos[0][2] ? PUENTE_RAMPA + k * 8 * M : 0, r.cabos[1][2] ? PUENTE_RAMPA + k * 8 * M : 0); if (!q) continue;
-        ctx.lineWidth = (r.w + w) * M; trace(ctx, q); ctx.stroke();
+        ctx.save(); ctx.translate(sh * M, sh * M); ctx.lineWidth = (r.w + 1.8) * M; trace(ctx, q); ctx.stroke(); ctx.restore();
       }
     }
     ctx.lineCap = 'round'; under(bridges); // los puentes peatonales y del tren, con la punta redonda
