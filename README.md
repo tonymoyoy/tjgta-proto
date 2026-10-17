@@ -42,12 +42,15 @@ El progreso se guarda en el navegador.
 ## Estructura
 - `src/game.js` lógica del juego (render del mapa en trozos, tráfico, peatones, actividades, HUD).
 - `src/style.css` interfaz.
-- `data/centro.js` mapa compacto generado.
+- `data/centro.js` el mapa sin edificios (calles, areas, lugares, frontera) y el indice de regiones.
+- `data/reg/X_Y.js` los edificios, en regiones de 819 m que el juego carga cerca de donde andas y suelta de lejos
+  (asi el mapa puede crecer a toda Tijuana sin cargar todo de un jalon); `data/reg/X_Y.png` la capa de edificios
+  del minimapa de cada cuadro.
 - `tools/download_overture.py` descarga datos de Overture Maps (S3 público) para un recuadro (variable `TJ_BBOX="xmin,ymin,xmax,ymax"`, igual en prep_data.py; por defecto Centro + Zona Río).
   Uso: `python3 download_overture.py transportation segment id,class,subtype,names,road_flags,access_restrictions`
   (también `buildings building ...`, `places place id,names`, `base land_use ...`, `base water ...`).
-- `tools/prep_data.py RAW_DIR data/centro.js` convierte esos GeoJSON al formato del juego
-  (aquí se eligen los lugares y taquerías).
+- `tools/prep_data.py RAW_DIR data/centro.js` convierte esos GeoJSON al formato del juego y genera `data/reg/`
+  (aquí se eligen los lugares y taquerías). Necesita Pillow para la capa del minimapa.
 - `tools/build.py` genera (no se suben al repo, ver .gitignore) `dist/tjgta.html` (todo en un archivo) y `dist/tjgta-artifact.html`.
 
 ## Datos

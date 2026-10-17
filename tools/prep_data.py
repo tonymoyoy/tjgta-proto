@@ -1,9 +1,12 @@
-"""Convierte los GeoJSON de Overture Maps (derivados de OpenStreetMap) a un
-archivo compacto data/centro.js que usa el juego.
+"""Convierte los GeoJSON de Overture Maps (derivados de OpenStreetMap) a los datos del juego:
+data/centro.js (calles, areas, lugares, frontera y el indice de regiones) y data/reg/ (los edificios,
+partidos en regiones que el juego carga segun por donde andes, y su capa del minimapa en PNG).
 
 Coordenadas de salida: metros locales, x hacia el este, y hacia el sur,
-origen en la esquina noroeste del recuadro. Se guardan en decímetros (enteros).
+origen en la esquina noroeste del recuadro. Se guardan en decímetros (enteros); cada linea o poligono
+lleva el primer punto completo y los demas como diferencia con el anterior (pesa mucho menos).
 Cada calle: [clase, indice_nombre, banderas(1=puente, 2=un sentido, 4=sin autos), coords].
+Cada edificio (en su region): [altura_m, coords].
 """
 import json, math, sys, os
 
@@ -15,6 +18,16 @@ OUT = sys.argv[2] if len(sys.argv) > 2 else os.path.join(os.path.dirname(__file_
 # con la latitud del primer recuadro (32.517-32.543): asi lo que ya estaba no cambia de lugar.
 LON0, LAT0, LON1, LAT1 = map(float, os.environ.get("TJ_BBOX", "-117.048,32.500,-116.985,32.543").split(","))
 KX = 111320 * math.cos(math.radians(32.53))
+# punto de referencia fijo (la esquina noroeste del primer mapa): el juego tiene algunas posiciones en metros
+# desde aqui (zonas, paros, secretos). Si el recuadro crece al norte o al oeste, el origen se mueve pero
+# esas posiciones no: el juego les suma 'o', que es donde cae esta referencia en el mapa nuevo
+REF = (-117.048, 32.543)
+# regiones de edificios: cuadros de 8192 dm (819.2 m, 16 x 16 trozos del mapa del juego)
+REG = 8192
+REG_DIR = os.path.join(os.path.dirname(os.path.abspath(OUT)), "reg")
+# capa de edificios del minimapa (mismos valores que MS y MINI_PAD en src/game.js): px del minimapa por px del
+# mundo y orilla extra de cada cuadro (px del mundo) para que no se noten las uniones
+MS, MINI_PAD = 0.08, 16
 # el primer recuadro: lo de afuera es la ampliacion (ahi se buscan taquerias y cafes nuevos)
 VIEJO = (-117.048, 32.517, -117.004, 32.543)
 # lo ya publicado: sus lugares, tacos y cafes se conservan tal cual para no romper las partidas guardadas
@@ -24,12 +37,51 @@ if os.path.exists(OUT):
     PREV = json.loads(t[t.index("=") + 1:t.rstrip().rindex(";")])
 KY = 110574
 
-def border_lat(lon):
-    # Linea fronteriza: recta desde el Pacifico (32.5343N, 117.1243W) hacia el este.
+def border_recta(lon):
+    # aproximacion de la linea fronteriza: recta desde el Pacifico (32.5343N, 117.1243W) hacia el este
     return 32.5343 + (lon + 117.1243) * 0.0765
+
+def linea_fronteriza():
+    """La linea de verdad: la orilla norte del poligono de Mexico (division_area, subtype country), de
+    oeste a este. Sin ese archivo se usa la recta."""
+    f = os.path.join(RAW, "division_area.geojson")
+    if not os.path.exists(f) or os.environ.get("TJ_FRONTERA") == "recta":
+        return None
+    vs = set()
+    for ft in json.load(open(f))["features"]:
+        if ft["properties"].get("subtype") != "country":
+            continue
+        g = ft["geometry"]
+        for poly in ([g["coordinates"]] if g["type"] == "Polygon" else g["coordinates"]):
+            for lo, la, *_ in poly[0]:
+                # solo la parte de la frontera: cerca de la recta y un poco mas alla del recuadro
+                if LON0 - 0.1 < lo < LON1 + 0.1 and abs(la - border_recta(lo)) < 0.006:
+                    vs.add((lo, la))
+    return sorted(vs) or None
+
+LINEA = linea_fronteriza()
+
+def border_lat(lon):
+    if not LINEA:
+        return border_recta(lon)
+    if lon <= LINEA[0][0]:
+        return LINEA[0][1]
+    for (a, b), (c, d) in zip(LINEA, LINEA[1:]):
+        if lon <= c:
+            return b + (d - b) * (lon - a) / ((c - a) or 1)
+    return LINEA[-1][1]
 
 def P(lon, lat):
     return [round((lon - LON0) * KX * 10), round((LAT1 - lat) * KY * 10)]
+
+O = P(*REF)
+if PREV:
+    # lo de antes, al origen de ahora
+    ox, oy = O[0] - (PREV.get("o") or [0, 0])[0], O[1] - (PREV.get("o") or [0, 0])[1]
+    for l in PREV["landmarks"]:
+        l[2] += ox; l[3] += oy
+    for l in PREV["tacos"] + PREV["cafes"]:
+        l[1] += ox; l[2] += oy
 
 def in_mx(lon, lat, margin=0.0):
     return lat < border_lat(lon) - margin
@@ -42,6 +94,10 @@ def flat(coords):
     for lon, lat, *_ in coords:
         out += P(lon, lat)
     return out
+
+def delta(f):
+    """[x0, y0, x1, y1, ...] -> [x0, y0, x1-x0, y1-y0, ...]"""
+    return f[:2] + [f[i] - f[i - 2] for i in range(2, len(f))]
 
 W = round((LON1 - LON0) * KX)
 H = round((LAT1 - LAT0) * KY)
@@ -294,12 +350,73 @@ for n, (lo, la) in sorted(places.items()):
 if PREV:
     cafes = PREV["cafes"] + cafes
 
-border = flat([[LON0, border_lat(LON0)], [LON1, border_lat(LON1)]])
+# la frontera de oeste a este, pasando poco mas alla de las orillas del mapa
+if LINEA:
+    border = flat([[LON0 - 0.002, border_lat(LON0 - 0.002)]] + [v for v in LINEA if LON0 - 0.002 < v[0] < LON1 + 0.002] +
+                  [[LON1 + 0.002, border_lat(LON1 + 0.002)]])
+else:
+    border = flat([[LON0, border_lat(LON0)], [LON1, border_lat(LON1)]])
 
 roads += extra_roads
-data = dict(w=W, h=H, names=names, roads=roads, blds=blds, areas=areas, landmarks=landmarks, tacos=tacos, cafes=cafes, border=border, nuevos=NUEVOS,
+
+# ---- regiones de edificios: cada edificio va en la region de su centro; el indice dice hasta donde
+# llega cada region (lo que se sale de su cuadro) para saber cuales hacen falta para pintar un trozo
+def caja(f):
+    xs, ys = f[0::2], f[1::2]
+    return [min(xs), min(ys), max(xs), max(ys)]
+regs = {}
+for b in blds:
+    x0, y0, x1, y1 = caja(b[1])
+    k = "%d_%d" % ((x0 + x1) // 2 // REG, (y0 + y1) // 2 // REG)
+    r = regs.setdefault(k, {"bb": [x0, y0, x1, y1], "b": []})
+    r["bb"] = [min(r["bb"][0], x0), min(r["bb"][1], y0), max(r["bb"][2], x1), max(r["bb"][3], y1)]
+    r["b"].append([b[0], delta(b[1])])
+os.makedirs(REG_DIR, exist_ok=True)
+for f in os.listdir(REG_DIR):
+    if f.endswith((".js", ".png")):
+        os.remove(os.path.join(REG_DIR, f))
+peso = 0
+for k, r in sorted(regs.items()):
+    # el JSON va como texto: asi el navegador no lo interpreta hasta que hace falta (no lleva comillas)
+    j = json.dumps(r["b"], separators=(",", ":"))
+    open(os.path.join(REG_DIR, k + ".js"), "w").write("TJ_REG('%s','%s');\n" % (k, j))
+    peso += len(j)
+
+# ---- capa de edificios del minimapa: un PNG por cuadro de region (todos los edificios que lo tocan),
+# pintado como lo pintaba el juego (color de azotea, con orillas suavizadas)
+from PIL import Image, ImageDraw
+TPX = REG / 2  # px del mundo por cuadro (el juego usa 5 px por metro: 0.5 px por dm)
+TS = math.ceil((TPX + 2 * MINI_PAD) * MS)
+SS = 4
+celdas = {}
+for b in blds:
+    x0, y0, x1, y1 = caja(b[1])
+    for cx in range(int((x0 / 2 - MINI_PAD) // TPX), int((x1 / 2 + MINI_PAD) // TPX) + 1):
+        for cy in range(int((y0 / 2 - MINI_PAD) // TPX), int((y1 / 2 + MINI_PAD) // TPX) + 1):
+            celdas.setdefault((cx, cy), []).append(b[1])
+mini = []
+for (cx, cy), bs in sorted(celdas.items()):
+    m = Image.new("L", (TS * SS, TS * SS), 0)
+    d = ImageDraw.Draw(m)
+    ox, oy = cx * TPX - MINI_PAD, cy * TPX - MINI_PAD
+    for f in bs:
+        pts_ = [((f[i] / 2 - ox) * MS * SS, (f[i + 1] / 2 - oy) * MS * SS) for i in range(0, len(f), 2)]
+        if len(pts_) >= 3:
+            d.polygon(pts_, fill=255)
+    a = m.resize((TS, TS), Image.BOX)
+    if not a.getbbox():
+        continue
+    img = Image.new("RGBA", (TS, TS), (0x9a, 0x91, 0x7e, 0))
+    img.putalpha(a)
+    img.save(os.path.join(REG_DIR, "%d_%d.png" % (cx, cy)), optimize=True)
+    mini.append("%d_%d" % (cx, cy))
+
+data = dict(w=W, h=H, o=O, reg=REG, regs={k: r["bb"] for k, r in sorted(regs.items())}, mini=mini, names=names,
+            roads=[r[:3] + [delta(r[3])] for r in roads], areas=[[a[0], delta(a[1])] for a in areas],
+            landmarks=landmarks, tacos=tacos, cafes=cafes, border=border, nuevos=NUEVOS,
             src="Datos de mapa: Overture Maps Foundation / © colaboradores de OpenStreetMap (ODbL)")
 s = json.dumps(data, separators=(",", ":"), ensure_ascii=False)
 open(OUT, "w").write("window.TJ_DATA=" + s + ";\n")
 print("tacos", len(tacos), "cafes", len(cafes), "landmarks", len(landmarks))
 print("roads", len(roads), "blds", len(blds), "areas", len(areas), "bytes", len(s), "size m", W, H)
+print("regiones", len(regs), "bytes", peso, "minimapa", len(mini), "frontera", "real" if LINEA else "recta", "o", O)

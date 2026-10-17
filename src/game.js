@@ -61,6 +61,12 @@ const ROOFS = ['#b9a98c', '#c9b89c', '#a39483', '#8f8a84', '#c3a27b', '#d2c5ae',
   '#b07d62', '#a8a8a0', '#c7b18a', '#8d9a86', '#bfa99a', '#d6cfc0'];
 
 function pts(arr) { const a = new Float32Array(arr.length); for (let i = 0; i < arr.length; i++) a[i] = arr[i] * S; return a; }
+// los datos guardan el primer punto completo y los demas como diferencia con el anterior (ver tools/prep_data.py)
+function ptsD(arr) {
+  const a = new Float32Array(arr.length); let x = 0, y = 0;
+  for (let i = 0; i < arr.length; i += 2) { x += arr[i]; y += arr[i + 1]; a[i] = x * S; a[i + 1] = y * S; }
+  return a;
+}
 // cuanto gira una linea por px recorrido (las glorietas giran mucho)
 function curviness(p) {
   let turn = 0, len = 0, pa = null;
@@ -99,6 +105,7 @@ function insideCar(c, x, y, r) {
   const ca = Math.cos(c.a), sa = Math.sin(c.a);
   return Math.abs(dx * ca + dy * sa) < L && Math.abs(dy * ca - dx * sa) < W;
 }
+function hashTexto(t) { let h = 0; for (let i = 0; i < t.length; i++) h = Math.imul(h ^ t.charCodeAt(i), 0x9e3779b1); return (h >>> 0).toString(36); }
 function hash(i) { i = Math.imul(i ^ 61, 0x9e3779b1); i ^= i >>> 15; return (i >>> 0); }
 const dist = (ax, ay, bx, by) => Math.hypot(ax - bx, ay - by);
 const angDiff = (a, b) => { let d = b - a; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; };
@@ -110,11 +117,26 @@ const pick = (arr) => arr[(Math.random() * arr.length) | 0];
 // Heroes...); un sentido lleva 3 carriles
 const ANCHO_UN_SENTIDO = [12, 12, 11, 11, 8];
 const roadW = (c, f) => (f & 2) && c < ANCHO_UN_SENTIDO.length ? ANCHO_UN_SENTIDO[c] : ROAD_W[c];
-const roads = D.roads.map(([c, n, f, co], i) => { const p = pts(co), w = roadW(c, f); return { i, c, n, f, p, w, bb: bbox(p, (w / 2 + 3) * M), curvy: curviness(p) > 0.0024 }; });
-const blds = D.blds.map(([h, co], i) => { const p = pts(co); const sh = Math.min(h * 0.45, 22) * M / 5 * 1.6; return { h, p, sh, bb: bbox(p, 0), sbb: bbox(p, Math.max(sh, EXTRA_UP) + 2), col: ROOFS[hash(i) % ROOFS.length] }; });
-const areas = D.areas.map(([k, co]) => { const p = pts(co); return { k, p, bb: bbox(p, 0) }; });
+const roads = D.roads.map(([c, n, f, co], i) => { const p = ptsD(co), w = roadW(c, f); return { i, c, n, f, p, w, bb: bbox(p, (w / 2 + 3) * M), curvy: curviness(p) > 0.0024 }; });
+const areas = D.areas.map(([k, co]) => { const p = ptsD(co); return { k, p, bb: bbox(p, 0) }; });
+// la linea fronteriza: puntos de oeste a este; borderY da su altura en cualquier x (entre puntos, en linea recta)
 const B = pts(D.border);
-const borderY = (x) => B[1] + (x - B[0]) * (B[3] - B[1]) / (B[2] - B[0]);
+function borderY(x) {
+  let lo = 1, hi = B.length / 2 - 1;
+  while (lo < hi) { const m = (lo + hi) >> 1; if (B[m * 2] < x) lo = m + 1; else hi = m; }
+  const i = lo * 2;
+  return B[i - 1] + (x - B[i - 2]) * (B[i + 1] - B[i - 1]) / ((B[i] - B[i - 2]) || 1);
+}
+// la linea entre x0 y x1 (con sus vueltas), para pintarla
+function fronteraPts(x0, x1) {
+  const o = [x0, borderY(x0)];
+  for (let i = 0; i < B.length; i += 2) if (B[i] > x0 && B[i] < x1) o.push(B[i], B[i + 1]);
+  o.push(x1, borderY(x1));
+  return o;
+}
+// algunas posiciones del juego estan en metros desde la esquina noroeste del primer mapa (zonas, paros, un
+// secreto); D.o dice donde cae esa esquina ahora (si el mapa crece al norte o al oeste, ya no es el origen)
+const REF_X = (D.o ? D.o[0] : 0) * S, REF_Y = (D.o ? D.o[1] : 0) * S;
 const landmarks = D.landmarks.map(([name, desc, x, y]) => ({ name, desc, x: x * S, y: y * S, found: false }));
 const tacos = D.tacos.map(([name, x, y]) => ({ name, x: x * S, y: y * S, eaten: false }));
 const cafes = D.cafes.map(([name, x, y]) => ({ name, x: x * S, y: y * S, drunk: false }));
@@ -147,7 +169,7 @@ const EGGS = [
   { k: 'raton', name: 'La Botarga del Ratón Amarillo', at: [395, 615], pay: 200,
     say: '"¡Foto con el ratón, foto! ...No soy pirata, soy edición limitada. Ten, por no preguntar de qué caricatura soy."' },
 ].map(e => {
-  if (e.at) return { ...e, x: e.at[0] * M, y: e.at[1] * M, got: false };
+  if (e.at) return { ...e, x: REF_X + e.at[0] * M, y: REF_Y + e.at[1] * M, got: false };
   const l = landmarks.find(q => q.name === e.near) || landmarks[0]; return { ...e, x: l.x + e.dx * M, y: l.y + e.dy * M, got: false };
 });
 
@@ -164,10 +186,85 @@ function gridIndex(items, cell, bbKey) {
   return g;
 }
 const chunkRoads = gridIndex(roads, CHUNK, 'bb');
-const chunkBlds = gridIndex(blds, CHUNK, 'sbb');
 const chunkAreas = gridIndex(areas, CHUNK, 'bb');
 const BCELL = 64;
-const bldGrid = gridIndex(blds, BCELL, 'bb');
+
+// ---------- edificios por regiones ----------
+// Los edificios (lo que mas pesa del mapa) vienen en regiones de REG_PX x REG_PX (data/reg/X_Y.js) que se cargan
+// cerca de donde andas y se sueltan de lejos. D.regs dice hasta donde llegan los edificios de cada region (su
+// caja, que se sale un poco del cuadro). Un trozo del mapa solo se pinta cuando ya estan todas las que lo tocan.
+const REG_PX = (D.reg || 8192) * S;
+const REG_PAD = 160;         // lo que se sale un edificio con su sombra y techo, y donde se buscan los arboles
+const REG_MAX = 40;          // regiones cargadas a la vez (de mas, se sueltan las mas lejanas)
+const REG_CERCA = 1.6;       // ... pero nunca las que estan a menos de esto (en regiones) de ti
+const regiones = new Map();  // clave -> { k, n, bb, estado: 0 sin cargar, 1 cargando, 2 lista, b: edificios, uso }
+Object.entries(D.regs || {}).forEach(([k, bb], n) => regiones.set(k, { k, n, bb: [bb[0] * S - REG_PAD, bb[1] * S - REG_PAD, bb[2] * S + REG_PAD, bb[3] * S + REG_PAD], estado: 0, b: null, uso: 0 }));
+const gridAdd = (g, it, b, cell) => {
+  for (let cx = Math.floor(b[0] / cell); cx <= Math.floor(b[2] / cell); cx++) for (let cy = Math.floor(b[1] / cell); cy <= Math.floor(b[3] / cell); cy++) {
+    const k = cx + ',' + cy; let a = g.get(k); if (!a) g.set(k, a = []); a.push(it);
+  }
+};
+const regGrid = new Map();
+for (const r of regiones.values()) gridAdd(regGrid, r, r.bb, REG_PX);
+const chunkBlds = new Map(), bldGrid = new Map();
+const gridDel = (g, reg, b, cell) => {
+  for (let cx = Math.floor(b[0] / cell); cx <= Math.floor(b[2] / cell); cx++) for (let cy = Math.floor(b[1] / cell); cy <= Math.floor(b[3] / cell); cy++) {
+    const k = cx + ',' + cy, a = g.get(k); if (!a) continue;
+    const q = a.filter(o => o.reg !== reg); if (q.length) g.set(k, q); else g.delete(k);
+  }
+};
+const alCargarRegion = []; // avisos: (region) => ...
+// cada archivo de region llama a esto con sus edificios en texto (JSON)
+window.TJ_REG = (k, txt) => {
+  const r = regiones.get(k); if (!r || r.estado === 2) return;
+  const base = r.n * 100000;
+  r.b = JSON.parse(txt).map(([h, co], i) => {
+    const p = ptsD(co), sh = Math.min(h * 0.45, 22) * M / 5 * 1.6;
+    // id: el orden de dibujo dentro de un trozo no depende de que region cargo primero
+    return { id: base + i, reg: k, h, p, sh, bb: bbox(p, 0), sbb: bbox(p, Math.max(sh, EXTRA_UP) + 2), col: ROOFS[hash(co[0] * 7 + co[1]) % ROOFS.length] };
+  });
+  for (const b of r.b) { gridAdd(chunkBlds, b, b.sbb, CHUNK); gridAdd(bldGrid, b, b.bb, BCELL); }
+  for (const a of chunkBlds.values()) if (a.length > 1 && a[a.length - 1].reg === k) a.sort((x, y) => x.id - y.id);
+  r.estado = 2; r.uso = performance.now();
+  for (const f of alCargarRegion) f(r);
+};
+function pedirRegion(r) {
+  if (r.estado) return;
+  r.estado = 1;
+  const el = document.createElement('script');
+  el.src = 'data/reg/' + r.k + '.js';
+  el.onload = () => el.remove();
+  // sin el archivo (no deberia pasar) la region se da por lista y vacia, para que el mapa no se quede esperando
+  el.onerror = () => { el.remove(); if (r.estado === 1) window.TJ_REG(r.k, '[]'); };
+  document.body.appendChild(el);
+}
+function soltarRegion(r) {
+  for (const b of r.b) { gridDel(chunkBlds, r.k, b.sbb, CHUNK); gridDel(bldGrid, r.k, b.bb, BCELL); }
+  r.b = null; r.estado = 0;
+}
+// las regiones que tocan el rectangulo; las pide si faltan y dice si ya estan todas
+function regionesListas(x0, y0, x1, y1) {
+  let ok = true; const t = performance.now(), vistas = new Set();
+  for (let cx = Math.floor(x0 / REG_PX); cx <= Math.floor(x1 / REG_PX); cx++) for (let cy = Math.floor(y0 / REG_PX); cy <= Math.floor(y1 / REG_PX); cy++) {
+    for (const r of regGrid.get(cx + ',' + cy) || []) {
+      if (vistas.has(r) || r.bb[0] > x1 || r.bb[2] < x0 || r.bb[1] > y1 || r.bb[3] < y0) continue;
+      vistas.add(r); r.uso = t;
+      if (r.estado !== 2) { ok = false; pedirRegion(r); }
+    }
+  }
+  return ok;
+}
+// suelta las regiones que llevan mas tiempo sin usarse, lejos de (x, y), si hay demasiadas cargadas
+function soltarLejanas(x, y) {
+  const cargadas = [...regiones.values()].filter(r => r.estado === 2);
+  if (cargadas.length <= REG_MAX) return;
+  const lejos = cargadas.filter(r => Math.max(r.bb[0] - x, x - r.bb[2], r.bb[1] - y, y - r.bb[3]) > REG_CERCA * REG_PX).sort((a, b) => a.uso - b.uso);
+  for (const r of lejos.slice(0, cargadas.length - REG_MAX)) soltarRegion(r);
+}
+// espera a que esten las regiones del rectangulo (al arrancar)
+function esperarRegiones(x0, y0, x1, y1) {
+  return new Promise(ok => { const t = () => regionesListas(x0, y0, x1, y1) ? ok() : setTimeout(t, 20); t(); });
+}
 const NCELL = 128;
 const named = roads.map((r, i) => i).filter(i => roads[i].n >= 0 && roads[i].c <= 9);
 const nameGrid = gridIndex(named.map(i => roads[i]), NCELL, 'bb');
@@ -175,7 +272,7 @@ const nameGrid = gridIndex(named.map(i => roads[i]), NCELL, 'bb');
 function inBuilding(x, y) {
   const a = bldGrid.get(Math.floor(x / BCELL) + ',' + Math.floor(y / BCELL));
   if (!a) return false;
-  for (const i of a) { const b = blds[i]; if (x < b.bb[0] || x > b.bb[2] || y < b.bb[1] || y > b.bb[3]) continue; if (pip(x, y, b.p)) return true; }
+  for (const b of a) { if (x < b.bb[0] || x > b.bb[2] || y < b.bb[1] || y > b.bb[3]) continue; if (pip(x, y, b.p)) return true; }
   return false;
 }
 // Las calles se dibujan encima de los edificios, asi que su franja (con banqueta) siempre es transitable.
@@ -261,7 +358,7 @@ function segDist(px, py, ax, ay, bx, by) {
 // el canal del rio va de (500, 60) a (5900, 2950); 'a' es lo que se avanza a lo largo del canal y 'p' lo que
 // se aleja de el hacia el surponiente. Donde no hay una zona clara (los cerros del sur) dice solo Tijuana.
 function zonaDe(px, py) {
-  const x = px / M, y = py / M, a = (x - 500) * 0.8816 + (y - 60) * 0.4718, p = -(x - 500) * 0.4718 + (y - 60) * 0.8816;
+  const x = (px - REF_X) / M, y = (py - REF_Y) / M, a = (x - 500) * 0.8816 + (y - 60) * 0.4718, p = -(x - 500) * 0.4718 + (y - 60) * 0.8816;
   if (y < 780 && x < 1350) return 'Zona Norte';
   if ((x < 1800 && y < 2150) || (p >= -500 && a < 1800)) return 'Zona Centro';
   if (p >= -700 && p < 1400 && a < 3900) return 'Zona Río';
@@ -482,7 +579,7 @@ const chinas = (() => {
 const YONKE_PRECIO = { 'Sedán': 220, 'Vocho': 140, 'Troca': 300, 'Camioneta': 320, 'Tsurito': 180, 'Combi': 240, 'Muscle car': 480,
   'Lowrider': 420, 'Calafia': 260, 'Camión de carga': 360, 'Bólido italiano': 1200 };
 const YONKE = (() => {
-  const wx = 470 * M, wy = 455 * M, tmp = {};
+  const wx = REF_X + 470 * M, wy = REF_Y + 455 * M, tmp = {};
   let best = null, bd = Infinity;
   for (const e of traffic.edges) {
     if (e.len < 60) continue;
@@ -530,12 +627,14 @@ const chunkBaches = gridIndex(baches, CHUNK, 'bb');
 // Tijuana es seca: pocos y repartidos. Algunas calles tienen arboles en la banqueta y la mayoria casi no;
 // mas en los parques, una que otra palma en las plazas y alguno suelto en lotes y patios.
 // Son de adorno (no chocas con ellos) y se pintan dentro de los trozos del mapa, asi que no cuestan al jugar.
+// Los edificios se cargan por regiones, asi que lo de no quedar dentro o detras de uno se revisa al pintar el
+// trozo: en cada cuadrito de 30 px se queda el primer candidato (en orden) que no choca con un edificio.
 // tipos: 0 laurel de la India, 1 palma, 2 jacaranda, 3 pirul. (localStorage tjrush-arboles = 'no' los quita)
 const ARB_LAURO = 0, ARB_PALMA = 1, ARB_JACA = 2, ARB_PIRUL = 3, ARB_VAR = 5, ARB_SZ = 80;
 const arboles = [];
 (() => {
   try { if (localStorage.getItem('tjrush-arboles') === 'no') return; } catch (e) { }
-  const ocupado = new Set();
+  const ocupado = new Map();
   const enArea = (x, y, k) => (chunkAreas.get(Math.floor(x / CHUNK) + ',' + Math.floor(y / CHUNK)) || []).some(i => {
     const a = areas[i]; return (k < 0 || a.k === k) && x >= a.bb[0] && x <= a.bb[2] && y >= a.bb[1] && y <= a.bb[3] && pip(x, y, a.p);
   });
@@ -543,11 +642,11 @@ const arboles = [];
   // ni en el agua o la arena, ni pegado a otro arbol
   const poner = (x, y, t, rnd) => {
     const c = Math.floor(x / 30) + ',' + Math.floor(y / 30);
-    if (ocupado.has(c) || x < 20 || x > WORLD_W - 20 || y > WORLD_H - 20 || y < borderY(x) + 30) return;
+    if (x < 20 || x > WORLD_W - 20 || y > WORLD_H - 20 || y < borderY(x) + 30) return;
     if (onAsfalto(x, y, M) || inWater(x, y) || enArea(x, y, AREA_ARENA)) return;
-    for (let d = 0; d <= 48; d += 8) if (inBuilding(x, y + d) || inBuilding(x - 12, y + d) || inBuilding(x + 12, y + d)) return;
-    ocupado.add(c);
-    arboles.push({ x, y, t, v: (rnd() * ARB_VAR) | 0, bb: [x - ARB_SZ / 2, y - ARB_SZ / 2, x + ARB_SZ / 2, y + ARB_SZ / 2] });
+    let cel = ocupado.get(c); if (!cel) ocupado.set(c, cel = { ok: undefined, a: [] });
+    const a = { x, y, t, v: (rnd() * ARB_VAR) | 0, cel, bb: [x - ARB_SZ / 2, y - ARB_SZ / 2, x + ARB_SZ / 2, y + ARB_SZ / 2] };
+    cel.a.push(a); arboles.push(a);
   };
   const tipo = (rnd, palma, jaca, pirul) => { const q = rnd(); return q < palma ? ARB_PALMA : q < palma + jaca ? ARB_JACA : q < palma + jaca + pirul ? ARB_PIRUL : ARB_LAURO; };
   // en la banqueta, a la orilla de afuera; las avenidas llevan mas palmas
@@ -580,6 +679,15 @@ const arboles = [];
   rejilla(0, 0, WORLD_W, WORLD_H, 24 * M, 4242, (x, y, rnd) => { if (rnd() < 0.05 && !enArea(x, y, -1)) poner(x, y, tipo(rnd, 0.1, 0.05, 0.6), rnd); });
 })();
 const chunkArboles = gridIndex(arboles, CHUNK, 'bb');
+// ¿este arbol si va? (con los edificios de alrededor ya cargados)
+function arbolVa(a) {
+  const cel = a.cel;
+  if (cel.ok === undefined) {
+    const libre = (q) => { for (let d = 0; d <= 48; d += 8) if (inBuilding(q.x, q.y + d) || inBuilding(q.x - 12, q.y + d) || inBuilding(q.x + 12, q.y + d)) return false; return true; };
+    cel.ok = cel.a.find(libre) || null;
+  }
+  return cel.ok === a;
+}
 // cada tipo tiene ARB_VAR dibujos; vistos desde arriba, con la sombra hacia el sureste (la luz viene del noroeste)
 const ARB_SPR = {};
 function arbolSprite(t, v) {
@@ -1052,7 +1160,7 @@ function* chunkSteps(cx, cy) {
     ctx.setLineDash([]);
   };
   under(ground);
-  const bl = (chunkBlds.get(k) || []).map(i => blds[i]);
+  const bl = chunkBlds.get(k) || [];
   ctx.fillStyle = 'rgba(0,0,0,0.26)';
   for (const b of bl) { ctx.save(); ctx.translate(b.sh, b.sh); trace(ctx, b.p, true); ctx.fill(); ctx.restore(); }
   yield;
@@ -1062,14 +1170,16 @@ function* chunkSteps(cx, cy) {
 
   yield;
   yield* drawBuildings(ctx, bl, rs, cx, cy);
-  for (const i of chunkArboles.get(k) || []) { const a = arboles[i]; ctx.drawImage(arbolSprite(a.t, a.v), a.x - ARB_SZ / 2, a.y - ARB_SZ / 2, ARB_SZ, ARB_SZ); }
+  for (const i of chunkArboles.get(k) || []) { const a = arboles[i]; if (!arbolVa(a)) continue; ctx.drawImage(arbolSprite(a.t, a.v), a.x - ARB_SZ / 2, a.y - ARB_SZ / 2, ARB_SZ, ARB_SZ); }
   // lado de Estados Unidos
   const x0 = cx * CHUNK, x1 = x0 + CHUNK;
-  if (borderY(x0) > cy * CHUNK || borderY(x1) > cy * CHUNK) {
+  const fr = fronteraPts(x0 - 2, x1 + 2);
+  if (fr.some((v, i) => i % 2 && v > cy * CHUNK)) {
     ctx.beginPath(); ctx.moveTo(x0 - 2, cy * CHUNK - 2); ctx.lineTo(x1 + 2, cy * CHUNK - 2);
-    ctx.lineTo(x1 + 2, borderY(x1 + 2)); ctx.lineTo(x0 - 2, borderY(x0 - 2)); ctx.closePath();
+    for (let i = fr.length - 2; i >= 0; i -= 2) ctx.lineTo(fr[i], fr[i + 1]);
+    ctx.closePath();
     ctx.fillStyle = COL.us; ctx.fill();
-    ctx.strokeStyle = COL.fence; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(x0 - 2, borderY(x0 - 2)); ctx.lineTo(x1 + 2, borderY(x1 + 2)); ctx.stroke();
+    ctx.strokeStyle = COL.fence; ctx.lineWidth = 7; ctx.beginPath(); for (let i = 0; i < fr.length; i += 2) ctx.lineTo(fr[i], fr[i + 1]); ctx.stroke();
     ctx.strokeStyle = '#2b1d12'; ctx.lineWidth = 7; ctx.setLineDash([2, 5]); ctx.stroke(); ctx.setLineDash([]);
     ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.font = 'bold 28px sans-serif';
     for (let x = Math.ceil(x0 / 900) * 900 + 300; x < x1; x += 900) ctx.fillText('EE. UU.', x, borderY(x) - 60);
@@ -1080,25 +1190,105 @@ function* chunkSteps(cx, cy) {
 function drawChunk(cx, cy) { const it = chunkSteps(cx, cy); let r; while (!(r = it.next()).done); return r.value; }
 
 // ---------- minimapa ----------
+// Por cuadros del tamano de una region (todo el mapa de un jalon ya no cabria en memoria al crecer la ciudad).
+// Cada cuadro: areas, la capa de edificios (un PNG hecho por tools/prep_data.py, asi no hacen falta los
+// edificios cargados) y encima las calles. Se guardan los ultimos MINI_MAX; de lejos (el mapa grande alejado)
+// se usa miniVista, una version chica de todo que se va llenando con los cuadros que se pintan.
 const MS = 0.08;
-const miniFull = document.createElement('canvas');
-miniFull.width = Math.ceil(WORLD_W * MS); miniFull.height = Math.ceil(WORLD_H * MS);
-(() => {
-  const c = miniFull.getContext('2d');
-  c.fillStyle = '#6d6858'; c.fillRect(0, 0, miniFull.width, miniFull.height);
-  c.scale(MS, MS);
-  for (const a of areas) { c.fillStyle = AREA_COL[a.k]; trace(c, a.p, true); c.fill(); }
-  c.fillStyle = '#9a917e'; for (const b of blds) { trace(c, b.p, true); c.fill(); }
+const MINI_PAD = 16;                                    // orilla extra de cada cuadro (px del mundo): sin uniones
+const MT = Math.ceil((REG_PX + 2 * MINI_PAD) * MS);     // lado de un cuadro en px del minimapa
+const MINI_MAX = 64;
+const MV = 0.02;                                        // escala de miniVista
+const miniCapas = new Set(D.mini || []);
+const miniCuadros = new Map();                          // 'x_y' -> { cv, listo } (en orden de uso)
+const miniVista = document.createElement('canvas');
+miniVista.width = Math.ceil(WORLD_W * MV); miniVista.height = Math.ceil(WORLD_H * MV);
+const miniEnVista = new Set();
+const alPintarMini = [];                                // avisos: llego la capa de edificios de un cuadro
+function pintarCuadro(tx, ty, cv, capa) {
+  const c = cv.getContext('2d'), x0 = tx * REG_PX - MINI_PAD, y0 = ty * REG_PX - MINI_PAD, x1 = x0 + MT / MS, y1 = y0 + MT / MS;
+  c.setTransform(1, 0, 0, 1, 0, 0);
+  c.fillStyle = '#6d6858'; c.fillRect(0, 0, MT, MT);
+  // lo que toca el cuadro, en el orden de los datos (como cuando se pintaba todo de una vez)
+  const A = new Set(), R = new Set();
+  for (let cx = Math.floor(x0 / CHUNK); cx <= Math.floor(x1 / CHUNK); cx++) for (let cy = Math.floor(y0 / CHUNK); cy <= Math.floor(y1 / CHUNK); cy++) {
+    const k = cx + ',' + cy;
+    for (const i of chunkAreas.get(k) || []) A.add(i);
+    for (const i of chunkRoads.get(k) || []) R.add(i);
+  }
+  c.setTransform(MS, 0, 0, MS, -x0 * MS, -y0 * MS);
+  for (const i of [...A].sort((a, b) => a - b)) { const a = areas[i]; c.fillStyle = AREA_COL[a.k]; trace(c, a.p, true); c.fill(); }
+  if (capa) { c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(capa, 0, 0); c.setTransform(MS, 0, 0, MS, -x0 * MS, -y0 * MS); }
   c.lineCap = 'round';
-  for (const r of roads) {
+  // las calles se salen un poco de su caja (el grueso minimo): tambien las de junto
+  for (const i of [...R].sort((a, b) => a - b)) {
+    const r = roads[i];
     if (r.c > 9) { if (r.c === 11) { c.strokeStyle = COL.water; c.lineWidth = 60; trace(c, r.p); c.stroke(); } continue; }
     c.strokeStyle = r.c <= 2 ? '#f2d16b' : r.c <= 6 ? '#2e2e33' : r.c === 7 ? '#55555a' : '#c8bda4';
     c.lineWidth = Math.max(r.w * M, r.c <= 6 ? 50 : 25); trace(c, r.p); c.stroke();
   }
-  c.fillStyle = 'rgba(30,36,30,0.85)';
-  c.beginPath(); c.moveTo(0, 0); c.lineTo(WORLD_W, 0); c.lineTo(WORLD_W, borderY(WORLD_W)); c.lineTo(0, borderY(0)); c.closePath(); c.fill();
-  c.strokeStyle = '#a0522d'; c.lineWidth = 40; c.beginPath(); c.moveTo(0, borderY(0)); c.lineTo(WORLD_W, borderY(WORLD_W)); c.stroke();
-})();
+  // el otro lado
+  if (borderY(x0) > y0 || borderY(x1) > y0) {
+    const f = fronteraPts(x0, x1);
+    c.fillStyle = 'rgba(30,36,30,0.85)';
+    c.beginPath(); c.moveTo(x0, y0 - 1); c.lineTo(x1, y0 - 1); for (let i = f.length - 2; i >= 0; i -= 2) c.lineTo(f[i], f[i + 1]); c.closePath(); c.fill();
+    c.strokeStyle = '#a0522d'; c.lineWidth = 40; c.beginPath(); for (let i = 0; i < f.length; i += 2) c.lineTo(f[i], f[i + 1]); c.stroke();
+  }
+  // y en chiquito para la vista de lejos
+  const v = miniVista.getContext('2d'), p = MINI_PAD * MS; v.imageSmoothingQuality = 'high';
+  v.drawImage(cv, p, p, REG_PX * MS, REG_PX * MS, tx * REG_PX * MV, ty * REG_PX * MV, REG_PX * MV, REG_PX * MV);
+}
+function miniCuadro(tx, ty) {
+  const k = tx + '_' + ty;
+  let q = miniCuadros.get(k);
+  if (q) { miniCuadros.delete(k); miniCuadros.set(k, q); return q.cv; }
+  // se reusa el lienzo del que lleva mas sin usarse
+  let cv;
+  if (miniCuadros.size >= MINI_MAX) { const [k0, q0] = miniCuadros.entries().next().value; miniCuadros.delete(k0); cv = q0.cv; q0.viejo = true; }
+  else { cv = document.createElement('canvas'); cv.width = cv.height = MT; }
+  q = { cv }; miniCuadros.set(k, q);
+  pintarCuadro(tx, ty, cv, null);
+  if (miniCapas.has(k)) {
+    const img = new Image();
+    img.onload = () => {
+      if (miniCuadros.get(k) !== q) return; // ya se reuso para otro cuadro
+      pintarCuadro(tx, ty, cv, img); miniEnVista.add(k);
+      for (const f of alPintarMini) f();
+    };
+    img.src = 'data/reg/' + k + '.png';
+  } else miniEnVista.add(k);
+  return cv;
+}
+// el minimapa del rectangulo del mundo (x0, y0)-(x0 + w/s, y0 + h/s) en el lienzo c, a escala s. Pinta a lo
+// mas 'nuevos' cuadros que no estaban hechos (los demas, de miniVista si ya estan ahi) y dice si alcanzo
+function pintarMini(c, x0, y0, w, h, s, nuevos = Infinity) {
+  const x1 = x0 + w / s, y1 = y0 + h / s;
+  let todos = true;
+  for (let tx = Math.max(0, Math.floor(x0 / REG_PX)); tx <= Math.min(Math.floor(x1 / REG_PX), Math.floor((WORLD_W - 1) / REG_PX)); tx++)
+    for (let ty = Math.max(0, Math.floor(y0 / REG_PX)); ty <= Math.min(Math.floor(y1 / REG_PX), Math.floor((WORLD_H - 1) / REG_PX)); ty++) {
+      // solo la parte de adentro (sin la orilla), pegada a la de junto, y nada mas alla de la orilla del mapa
+      const ww = Math.min(REG_PX, WORLD_W - tx * REG_PX), hh = Math.min(REG_PX, WORLD_H - ty * REG_PX);
+      const X = (tx * REG_PX - x0) * s, Y = (ty * REG_PX - y0) * s;
+      if (!miniCuadros.has(tx + '_' + ty) && nuevos-- <= 0) {
+        todos = false;
+        if (miniEnVista.has(tx + '_' + ty)) c.drawImage(miniVista, tx * REG_PX * MV, ty * REG_PX * MV, ww * MV, hh * MV, X, Y, ww * s, hh * s);
+        continue;
+      }
+      const cv = miniCuadro(tx, ty), p = MINI_PAD * MS;
+      c.drawImage(cv, p, p, ww * MS, hh * MS, X, Y, ww * s, hh * s);
+    }
+  return todos;
+}
+// al llegar edificios o la capa de un cuadro, el mapa grande se vuelve a pintar
+alCargarRegion.push(() => { if (bigOpen) bmDraw(true); });
+alPintarMini.push(() => { if (bigOpen) bmDraw(true); });
+// cuadros que faltan en miniVista (para irlos pintando de a poco con el mapa grande abierto)
+function miniFaltan() {
+  const o = [];
+  for (let tx = 0; tx * REG_PX < WORLD_W; tx++) for (let ty = 0; ty * REG_PX < WORLD_H; ty++) if (!miniEnVista.has(tx + '_' + ty)) o.push([tx, ty]);
+  return o;
+}
+{ const v = miniVista.getContext('2d'); v.fillStyle = '#6d6858'; v.fillRect(0, 0, miniVista.width, miniVista.height); }
 
 // ---------- estado guardado ----------
 const SAVE_KEY = 'tjgta-centro-v1';
@@ -3279,10 +3469,7 @@ class Main extends Phaser.Scene {
     // marcadores de lugares y tacos
     this.marks = [];
     for (const l of landmarks) {
-      // si el lugar queda en medio de un edificio grande o del agua (Palacio Municipal, Hipodromo, Estadio), su
-      // marca se pasa a la banqueta mas cercana; si no, habria que atinarle a un rincon para descubrirlo
-      // (se descubre a menos de 110 px) o de plano no se podria
-      if (!walkableTo(l.x, l.y, 40)) { const [sx, sy] = nearestSidewalk(l.x, l.y); l.x = sx; l.y = sy; }
+      // (ya estan en la banqueta si quedaban dentro de un edificio: ver acomodarLugares)
       const ring = this.crearAro(0xffd23f, 3);
       // la insignia del lugar flota un poco (cada una a su ritmo)
       const star = this.add.image(l.x, l.y, l.icon).setDepth(20).setScale(0.62 / SPR);
@@ -3346,16 +3533,8 @@ class Main extends Phaser.Scene {
     this.target = this.crearAro(0x57d16b, 4, true);
     this.route = null; this.routeT = 0;
 
-    // el jugador aparece en una calle al azar, en la banqueta y con un auto estacionado al lado
-    let pos, side;
-    for (let tries = 0; tries < 200; tries++) {
-      const e = pick(traffic.edges);
-      if (e.c < 2 || e.c > 5 || e.len < 80) continue;
-      const sAt = rnd(30, e.len - 30);
-      side = edgePos(e, sAt, 1, e.w / 2 + 1.5 * M, {});
-      pos = edgePos(e, sAt, 1, laneLat(e, e.one ? 3 : 1), {});
-      if (!blocked(side.x, side.y) && side.y > borderY(side.x) + 150) break;
-    }
+    // el jugador aparece donde se eligio al arrancar (ver elegirInicio)
+    const { pos, side } = INICIO;
     this.player = { x: side.x, y: side.y, a: pos.a, sprite: this.add.sprite(side.x, side.y, 'ped' + PLAYER_SHIRT, 0).setDepth(12).setScale(1 / SPR) };
     const car = this.makeCar(pos.x, pos.y, pos.a, { taxi: true });
     this.parked.push(car);
@@ -3435,9 +3614,16 @@ class Main extends Phaser.Scene {
     const cx1 = Math.floor((v.right + Math.max(0, ax) + PREFETCH) / CHUNK), cy1 = Math.floor((v.bottom + Math.max(0, ay) + PREFETCH) / CHUNK);
     // primero el que ya se ve, luego los mas cercanos a donde vas a estar en un rato
     const px = v.centerX + ax * 0.6, py = v.centerY + ay * 0.6;
+    // los edificios de alrededor se piden con tiempo (media region mas alla, y el doble hacia donde vas);
+    // de vez en cuando se sueltan los de lejos
+    const RP = REG_PX / 2;
+    regionesListas(v.x + Math.min(0, ax * 2) - RP, v.y + Math.min(0, ay * 2) - RP, v.right + Math.max(0, ax * 2) + RP, v.bottom + Math.max(0, ay * 2) + RP);
+    if ((this.soltarT = (this.soltarT || 0) - dt) < 0) { this.soltarT = 2; soltarLejanas(v.centerX, v.centerY); }
     const want = [];
     for (let cx = cx0; cx <= cx1; cx++) for (let cy = cy0; cy <= cy1; cy++) {
       if (cx * CHUNK >= WORLD_W || cy * CHUNK >= WORLD_H || this.chunks.has(cx + ',' + cy)) continue;
+      // sin sus edificios todavia no (llegan en unos milisegundos)
+      if (!regionesListas(cx * CHUNK, cy * CHUNK, (cx + 1) * CHUNK, (cy + 1) * CHUNK)) continue;
       const seen = cx * CHUNK < v.right && (cx + 1) * CHUNK > v.x && cy * CHUNK < v.bottom && (cy + 1) * CHUNK > v.y;
       want.push([cx, cy, Math.hypot((cx + 0.5) * CHUNK - px, (cy + 0.5) * CHUNK - py) - (seen ? 1e6 : 0)]);
     }
@@ -3508,7 +3694,7 @@ class Main extends Phaser.Scene {
       const side = e.c >= 8 ? rnd(-3, 3) : (Math.random() < 0.5 ? 1 : -1) * (e.w / 2 + rnd(0.6, 2.2) * M);
       const ped = { e, dir: Math.random() < 0.5 ? 1 : -1, s: rnd(0, e.len), side, speed: rnd(14, 26), st: 'walk', t: 0, x: 0, y: 0, a: 0 };
       edgePos(e, ped.s, ped.dir, ped.side, ped);
-      if (blocked(ped.x, ped.y) || (!initial && inView(ped.x, ped.y))) continue;
+      if (blocked(ped.x, ped.y) || !regionesListas(ped.x, ped.y, ped.x, ped.y) || (!initial && inView(ped.x, ped.y))) continue;
       ped.sprite = this.walker(ped.x, ped.y, ped.speed / 20);
       ped.speed *= ped.sprite.pace;
       this.peds.push(ped);
@@ -3520,7 +3706,7 @@ class Main extends Phaser.Scene {
         const side = (Math.random() < 0.5 ? 1 : -1) * (e.w / 2 + rnd(0.6, 2) * M);
         const ped = { e, dir: Math.random() < 0.5 ? 1 : -1, s: rnd(0, e.len), side, speed: rnd(11, 16), st: 'walk', t: rnd(3, 8), x: 0, y: 0, a: 0, coyote: true, ph: rnd(0, 6) };
         edgePos(e, ped.s, ped.dir, ped.side, ped);
-        if (ped.y - borderY(ped.x) < 250 * M && !blocked(ped.x, ped.y) && (initial || !inView(ped.x, ped.y))) {
+        if (ped.y - borderY(ped.x) < 250 * M && !blocked(ped.x, ped.y) && regionesListas(ped.x, ped.y, ped.x, ped.y) && (initial || !inView(ped.x, ped.y))) {
           ped.sprite = this.add.sprite(ped.x, ped.y, 'pedC', 0).setDepth(5).setScale(1 / SPR);
           ped.sprite.play({ key: 'walkC', startFrame: (Math.random() * 8) | 0 }); ped.sprite.anims.timeScale = ped.speed / 20;
           this.peds.push(ped);
@@ -4041,7 +4227,7 @@ class Main extends Phaser.Scene {
       let q = null, mid = null, e = null;
       for (const c of cands) {
         const t = edgePos(c, c.len / 2, 1, c.w / 2 + 1.5 * M, {});
-        if (z && (t.x < z[0] * M || t.y < z[1] * M || t.x > z[2] * M || t.y > z[3] * M)) continue;
+        if (z && (t.x < REF_X + z[0] * M || t.y < REF_Y + z[1] * M || t.x > REF_X + z[2] * M || t.y > REF_Y + z[3] * M)) continue;
         if (t.y < borderY(t.x) + 300 || t.x < 200 || t.y < 200 || t.x > WORLD_W - 200 || t.y > WORLD_H - 200) continue;
         if (!lejos(t.x, t.y, landmarks, 450 * M) || !lejos(t.x, t.y, this.paros, ((z && z[4]) || 600) * M) || blocked(t.x, t.y) || enNiebla(t.x, t.y, NIEBLA_LEJOS) || !walkableTo(t.x, t.y, 10)) continue;
         q = t; mid = edgePos(c, c.len / 2, 1, 0, {}); e = c; break;
@@ -4682,15 +4868,13 @@ function drawMini(scene, f) {
   const cv = hud.mini, c = cv.getContext('2d'), W = cv.width, H = cv.height;
   const ox = f.x - W / 2 / MS, oy = f.y - H / 2 / MS;
   c.fillStyle = '#222'; c.fillRect(0, 0, W, H);
-  // solo el pedazo visible del mapa completo
-  const sx = Math.max(0, -ox * -MS), sy = Math.max(0, oy * MS), sw = Math.min(W, miniFull.width - sx), sh = Math.min(H, miniFull.height - sy);
-  if (sw > 0 && sh > 0) c.drawImage(miniFull, sx, sy, sw, sh, sx - ox * MS, sy - oy * MS, sw, sh);
+  pintarMini(c, ox, oy, W, H, MS);
   drawMarkers(c, MS, MS, ox, oy, scene, f, false);
 }
 // ---------- mapa grande: pantalla completa, se arrastra, se acerca y se marca el destino ----------
 // La vista es un centro (cx, cy) en el mundo y una escala s (puntos de pantalla por pixel del mundo).
-// De lejos se dibuja miniFull (todo el mapa, chico); de cerca se dibujan calles, edificios y nombres solo de lo
-// que se ve. Mientras arrastras o pellizcas va la version rapida y al soltar se pinta el detalle.
+// De lejos se dibujan los cuadros del minimapa (o miniVista si son demasiados); de cerca se dibujan calles,
+// edificios y nombres solo de lo que se ve. Mientras arrastras o pellizcas va la version rapida y al soltar se pinta el detalle.
 let bigOpen = false, bigScene = null;
 const BM = { cx: 0, cy: 0, s: 0.3, W: 0, H: 0, dpr: 1, pts: new Map(), gesture: null, detailT: 0, raf: 0 };
 const BM_DETAIL = 0.16, BM_NAMES = 0.3, BM_ICONS = 0.22, BM_MAX = 1.4;
@@ -4718,10 +4902,20 @@ function renderBig(detail) {
   c.setTransform(BM.dpr, 0, 0, BM.dpr, 0, 0);
   c.lineJoin = 'round'; // si no, el contorno de las letras como la M deja picos negros
   c.fillStyle = '#4d493e'; c.fillRect(0, 0, BM.W, BM.H);
-  c.drawImage(miniFull, bmX(0), bmY(0), WORLD_W * s, WORLD_H * s);
-  // --- detalle de lo que se ve (al soltar y ya de cerca) ---
+  // los cuadros que faltan se pintan unos cuantos por cuadro de animacion, sin trabar el mapa
+  const x0 = BM.cx - BM.W / 2 / s, y0 = BM.cy - BM.H / 2 / s, x1 = BM.cx + BM.W / 2 / s, y1 = BM.cy + BM.H / 2 / s;
+  const enVista = (Math.floor(x1 / REG_PX) - Math.floor(x0 / REG_PX) + 1) * (Math.floor(y1 / REG_PX) - Math.floor(y0 / REG_PX) + 1);
+  let falta = false;
+  if (enVista <= MINI_MAX - 8) falta = !pintarMini(c, x0, y0, BM.W, BM.H, s, 4);
+  else {
+    c.drawImage(miniVista, bmX(0), bmY(0), WORLD_W * s, WORLD_H * s);
+    const q = miniFaltan(); for (const [tx, ty] of q.slice(0, 4)) miniCuadro(tx, ty);
+    falta = q.length > 4;
+  }
+  if (falta) BM.raf = requestAnimationFrame(() => renderBig(detail));
+  // --- detalle de lo que se ve (al soltar y ya de cerca); los edificios se cargan si faltan ---
   if (detail && s >= BM_DETAIL) {
-    const x0 = BM.cx - BM.W / 2 / s, y0 = BM.cy - BM.H / 2 / s, x1 = BM.cx + BM.W / 2 / s, y1 = BM.cy + BM.H / 2 / s;
+    regionesListas(x0, y0, x1, y1);
     const A = new Set(), B = new Set(), R = new Set();
     for (let cx = Math.floor(x0 / CHUNK); cx <= Math.floor(x1 / CHUNK); cx++) for (let cy = Math.floor(y0 / CHUNK); cy <= Math.floor(y1 / CHUNK); cy++) {
       const k = cx + ',' + cy;
@@ -4731,7 +4925,7 @@ function renderBig(detail) {
     c.fillStyle = '#6d6858'; c.fillRect(x0, y0, x1 - x0, y1 - y0);
     for (const i of A) { const a = areas[i]; c.fillStyle = AREA_COL[a.k]; trace(c, a.p, true); c.fill(); }
     c.fillStyle = '#9a917e'; c.strokeStyle = 'rgba(0,0,0,0.25)'; c.lineWidth = 1 / s;
-    for (const i of B) { trace(c, blds[i].p, true); c.fill(); if (s > 0.45) c.stroke(); }
+    for (const b of B) { trace(c, b.p, true); c.fill(); if (s > 0.45) c.stroke(); }
     c.lineCap = 'round'; c.lineJoin = 'round';
     const rs = [...R].map(i => roads[i]).sort((a, b) => b.c - a.c); // las grandes encima
     for (const r of rs) {
@@ -4740,7 +4934,7 @@ function renderBig(detail) {
       c.lineWidth = Math.max(r.w * M, (r.c <= 2 ? 5 : r.c <= 6 ? 3.5 : 2) / s); trace(c, r.p); c.stroke();
     }
     c.fillStyle = 'rgba(30,36,30,0.85)';
-    c.beginPath(); c.moveTo(x0, 0); c.lineTo(x1, 0); c.lineTo(x1, borderY(x1)); c.lineTo(x0, borderY(x0)); c.closePath(); c.fill();
+    { const f = fronteraPts(x0, x1); c.beginPath(); c.moveTo(x0, y0 - 1); c.lineTo(x1, y0 - 1); for (let i = f.length - 2; i >= 0; i -= 2) c.lineTo(f[i], f[i + 1]); c.closePath(); c.fill(); }
     c.restore();
     // nombres de calles: uno por nombre, en el tramo visible mas largo, sin encimarse
     if (s >= BM_NAMES) {
@@ -5158,9 +5352,45 @@ window.addEventListener('keydown', (ev) => {
   if (($('intro').style.display !== 'none' && !optsOpen) || $('actabox').style.display === 'flex' || ev.target.tagName === 'INPUT') return;
   if (ev.key === 'o' || ev.key === 'O' || (ev.key === 'Escape' && optsOpen)) toggleOptions();
 });
-function start() {
-  if (window.TJGTA) return;
+// el jugador aparece en una calle al azar, en la banqueta y con un auto estacionado al lado
+let INICIO = null;
+function elegirInicio() {
+  let pos, side;
+  for (let tries = 0; tries < 200; tries++) {
+    const e = pick(traffic.edges);
+    if (e.c < 2 || e.c > 5 || e.len < 80) continue;
+    const sAt = rnd(30, e.len - 30);
+    side = edgePos(e, sAt, 1, e.w / 2 + 1.5 * M, {});
+    pos = edgePos(e, sAt, 1, laneLat(e, e.one ? 3 : 1), {});
+    if (!blocked(side.x, side.y) && side.y > borderY(side.x) + 150) break;
+  }
+  return { pos, side };
+}
+// si un lugar queda en medio de un edificio grande o del agua (Palacio Municipal, Hipodromo, Estadio), su marca
+// se pasa a la banqueta mas cercana; si no, habria que atinarle a un rincon para descubrirlo (se descubre a
+// menos de 110 px) o de plano no se podria. Hacen falta los edificios de alrededor de cada lugar, asi que el
+// resultado se guarda (con las posiciones originales como llave) y solo se calcula la primera vez.
+async function acomodarLugares() {
+  const LLAVE = 'tjrush-lugares', firma = landmarks.map(l => l.x.toFixed(1) + ',' + l.y.toFixed(1)).join(';') + '|' + hashTexto(JSON.stringify(D.regs));
+  try {
+    const c = JSON.parse(localStorage.getItem(LLAVE) || 'null');
+    if (c && c.firma === firma) { landmarks.forEach((l, i) => { l.x = c.pos[i][0]; l.y = c.pos[i][1]; }); return; }
+  } catch (e) { /* se calcula */ }
+  const R = 700;
+  await Promise.all(landmarks.map(l => esperarRegiones(l.x - R, l.y - R, l.x + R, l.y + R)));
+  for (const l of landmarks) if (!walkableTo(l.x, l.y, 40)) { const [sx, sy] = nearestSidewalk(l.x, l.y); l.x = sx; l.y = sy; }
+  try { localStorage.setItem(LLAVE, JSON.stringify({ firma, pos: landmarks.map(l => [l.x, l.y]) })); } catch (e) { /* sin almacenamiento */ }
+}
+let arrancando = false;
+async function start() {
+  if (window.TJGTA || arrancando) return;
+  arrancando = true;
   if (optsOpen) toggleOptions();
+  // antes de entrar: los lugares en su banqueta y los edificios de donde vas a aparecer
+  $('go').textContent = 'Cargando el mapa…';
+  INICIO = elegirInicio();
+  const R = 3000, s = INICIO.side;
+  await Promise.all([acomodarLugares(), esperarRegiones(s.x - R, s.y - R, s.x + R, s.y + R)]);
   $('intro').style.display = 'none';
   if (window.SND) SND.init();
   $('optbtn').style.display = 'block';
@@ -5173,7 +5403,7 @@ function start() {
     scene: [Main], fps: { target: 60, smoothStep: false },
   });
   window.addEventListener('resize', () => game.scale.resize(window.innerWidth * DPR, window.innerHeight * DPR));
-  window.TJGTA = game; game.dbg = { WORLD_W, WORLD_H, arboles, chinas, VTYPES, vehicleTexture, state, drawChunk, chunkSteps, areaFill, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, walkableTo, waterAreas, roads, PED_VARIANTS };
+  window.TJGTA = game; game.dbg = { WORLD_W, WORLD_H, regiones, chunkBlds, miniCuadros, miniVista, borderY, INICIO, arboles, chinas, VTYPES, vehicleTexture, state, drawChunk, chunkSteps, areaFill, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, walkableTo, waterAreas, roads, PED_VARIANTS };
 }
 $('go').addEventListener('click', start);
 
