@@ -182,6 +182,11 @@ const EGGS = [
     say: '"Hoy no hay olas, carnal, pero el taco de pescado está de diez. Ten, invítate uno."' },
   { k: 'pelicano', name: 'Un Pelícano Tijuanense', near: 'Faro de Playas', dx: -30, dy: 55, pay: 150,
     say: '(Un pelícano te mira fijo, abre el pico... y suelta un billete mojado. Mejor no preguntes de dónde lo sacó.)' },
+  // fase 4: las orillas
+  { k: 'venado', name: 'Un Venado de Natura', near: 'Natura', dx: 40, dy: 50, pay: 200,
+    say: '(Un venado de verdad, muy quitado de la pena, comiéndose el pasto del parque. A sus pies hay un billete. Él no lo necesita.)' },
+  { k: 'concha', name: 'Una Concha de Mar', near: 'San Antonio del Mar', dx: -40, dy: 35, pay: 150,
+    say: '(Una concha enorme y brillante. Adentro, en lugar de perla, hay un billete enrollado. El mar también hace paros.)' },
   // este no tiene un lugar cerca: va en metros desde la esquina noroeste del mapa, en plena Zona Norte
   { k: 'raton', name: 'La Botarga del Ratón Amarillo', at: [395, 615], pay: 200,
     say: '"¡Foto con el ratón, foto! ...No soy pirata, soy edición limitada. Ten, por no preguntar de qué caricatura soy."' },
@@ -366,23 +371,24 @@ function onAsfalto(x, y, pad) {
 const waterAreas = areas.filter(a => a.k === AREA_AGUA);
 const WCELL = 256; // celdas grandes: los poligonos de agua son pocos pero enormes
 const waterGrid = gridIndex(waterAreas, WCELL, 'bb');
-const riverSegGrid = new Map();
-roads.forEach(r => {
-  if (r.c !== 11) return;
-  const half = ROAD_W[11] / 2 * M, p = r.p;
-  for (let q = 0; q < p.length - 2; q += 2) {
-    const seg = [p[q], p[q + 1], p[q + 2], p[q + 3], half, r.w / 2 * M]; // franja con banqueta y solo el asfalto
-    for (let cx = Math.floor((Math.min(p[q], p[q + 2]) - half) / RCELL); cx <= Math.floor((Math.max(p[q], p[q + 2]) + half) / RCELL); cx++)
-      for (let cy = Math.floor((Math.min(p[q + 1], p[q + 3]) - half) / RCELL); cy <= Math.floor((Math.max(p[q + 1], p[q + 3]) + half) / RCELL); cy++) {
-        const k = GK(cx, cy); let a = riverSegGrid.get(k); if (!a) riverSegGrid.set(k, a = []); a.push(seg);
-      }
+// los rios y arroyos (lineas de clase 11): sus tramos en un arreglo (x0 y0 x1 y1) y en una rejilla densa, como las calles
+const RIO_W = ROAD_W[11] / 2 * M;
+const RIO = (() => {
+  const o = [];
+  for (const r of roads) if (r.c === 11) for (let q = 0; q < r.p.length - 2; q += 2) o.push(r.p[q], r.p[q + 1], r.p[q + 2], r.p[q + 3]);
+  return new Float32Array(o);
+})();
+const riverSegGrid = rejillaDensa((emit) => {
+  for (let n = 0, o = 0; o < RIO.length; n++, o += 4) {
+    for (let cx = Math.floor((Math.min(RIO[o], RIO[o + 2]) - RIO_W) / RCELL); cx <= Math.floor((Math.max(RIO[o], RIO[o + 2]) + RIO_W) / RCELL); cx++)
+      for (let cy = Math.floor((Math.min(RIO[o + 1], RIO[o + 3]) - RIO_W) / RCELL); cy <= Math.floor((Math.max(RIO[o + 1], RIO[o + 3]) + RIO_W) / RCELL); cy++) emit(cx, cy, n);
   }
 });
 function inWater(x, y) {
   const a = waterGrid.get(GK(Math.floor(x / WCELL), Math.floor(y / WCELL)));
   if (a) for (const i of a) { const w = waterAreas[i]; if (x >= w.bb[0] && x <= w.bb[2] && y >= w.bb[1] && y <= w.bb[3] && pip(x, y, w.p)) return true; }
   const s = riverSegGrid.get(GK(Math.floor(x / RCELL), Math.floor(y / RCELL)));
-  if (s) for (const g of s) if (segDist(x, y, g[0], g[1], g[2], g[3]) < g[4]) return true;
+  if (s) for (const g of s) { const o = g * 4; if (segDist(x, y, RIO[o], RIO[o + 1], RIO[o + 2], RIO[o + 3]) < RIO_W) return true; }
   return false;
 }
 // La ciudad se pierde en la neblina en las orillas del mapa (oeste, sur y este; al norte esta la linea):
@@ -421,6 +427,15 @@ function segDist(px, py, ax, ay, bx, by) {
 // se aleja de el hacia el surponiente. Donde no hay una zona clara (los cerros del sur) dice solo Tijuana.
 function zonaDe(px, py) {
   const x = (px - REF_X) / M, y = (py - REF_Y) / M;
+  // fase 4, el sur (al sur de 32.4435): San Antonio del Mar en la Escenica, Santa Fe y Natura
+  if (y >= 11000) {
+    if (x < -2500) return y > 12300 ? 'San Antonio del Mar' : 'Playas de Tijuana';
+    if (x < 4500) return 'Santa Fe';
+    if (x >= 9000 && x < 16000 && y >= 13000) return 'Natura';
+    if (x < 9000) return 'Cañón del Sainz';
+  }
+  // fase 4, el oriente (de -116.878 para alla): El Florido y Terrazas del Valle
+  if (x >= 15955) return y >= 9300 ? 'Terrazas del Valle' : 'El Florido';
   // fase 3: Playas, al poniente de -117.0864 (de la linea a la Escenica)
   if (x < -3600) return 'Playas de Tijuana';
   // el primer mapa (hasta 5913 m al oriente y 4755 al sur)
@@ -469,7 +484,7 @@ function buildGraph(filter, oneways) {
     for (let i = 0; i < n; i++) { const k = key(p[i * 2], p[i * 2 + 1]); cnt.set(k, (cnt.get(k) || 0) + (i === 0 || i === n - 1 ? 2 : 1)); }
   }
   const nodeId = new Map(), nodes = [], edges = [], adj = [];
-  const node = (x, y) => { const k = key(x, y); let id = nodeId.get(k); if (id === undefined) { id = nodes.length; nodeId.set(k, id); nodes.push([x, y]); adj.push([]); } return id; };
+  const node = (x, y) => { const k = key(x, y); let id = nodeId.get(k); if (id === undefined) { id = adj.length; nodeId.set(k, id); nodes.push(x, y); adj.push([]); } return id; };
   for (const r of sel) {
     const p = r.p, n = p.length / 2;
     let start = 0;
@@ -489,12 +504,11 @@ function buildGraph(filter, oneways) {
       start = i;
     }
   }
-  const grid = new Map(), GC = 256;
-  for (const e of edges) for (let q = 0; q < e.p.length; q += 2) {
-    const k = GK(Math.floor(e.p[q] / GC), Math.floor(e.p[q + 1] / GC)); let a = grid.get(k); if (!a) grid.set(k, a = []);
-    if (a[a.length - 1] !== e) a.push(e);
-  }
-  return { nodes, edges, adj, grid, GC };
+  // la rejilla da numeros de tramo (g.edges[i]); los nodos van como x, y seguidos en un Float32Array
+  const GC = 256, grid = rejillaDensa((emit) => {
+    for (const e of edges) for (let q = 0; q < e.p.length; q += 2) emit(Math.floor(e.p[q] / GC), Math.floor(e.p[q + 1] / GC), e.id);
+  });
+  return { nodes: new Float32Array(nodes), nN: adj.length, edges, adj, grid, GC };
 }
 const inMx = (r) => { const p = r.p; for (let i = 0; i < p.length; i += 2) if (p[i + 1] < borderY(p[i]) + 30) return false; return true; };
 const traffic = buildGraph(r => r.c <= 6 && !(r.f & 4) && inMx(r), true);
@@ -536,7 +550,7 @@ function randomEdgeNear(g, x, y, r0, r1) {
     const ang = Math.random() * Math.PI * 2, r = rnd(r0, r1);
     const px = x + Math.cos(ang) * r, py = y + Math.sin(ang) * r;
     const a = g.grid.get(GK(Math.floor(px / g.GC), Math.floor(py / g.GC)));
-    if (a && a.length) return pick(a);
+    if (a && a.length) return g.edges[pick(a)];
   }
   return null;
 }
@@ -567,15 +581,15 @@ for (const e of traffic.edges) {
 
 // ---------- ruta al destino (la linea tenue de puntos de las entregas, el taxi y el destino marcado) ----------
 // se usa la red del trafico pero en los dos sentidos: en moto o a pie nadie respeta los sentidos
-const routeAdj = traffic.nodes.map(() => []);
+const routeAdj = Array.from({ length: traffic.nN }, () => []);
 for (const e of traffic.edges) { routeAdj[e.a].push({ e, to: e.b, dir: 1 }); routeAdj[e.b].push({ e, to: e.a, dir: -1 }); }
 // el punto de la red mas cercano a (x, y): solo se buscan las celdas de alrededor
 function nearEdge(g, x, y) {
   const cx = Math.floor(x / g.GC), cy = Math.floor(y / g.GC);
   for (let r = 1; r <= 3; r++) {
     let best = null, bd = 1e9;
-    for (let i = cx - r; i <= cx + r; i++) for (let j = cy - r; j <= cy + r; j++) for (const e of g.grid.get(GK(i, j)) || []) {
-      const p = e.p;
+    for (let i = cx - r; i <= cx + r; i++) for (let j = cy - r; j <= cy + r; j++) for (const id of g.grid.get(GK(i, j)) || []) {
+      const e = g.edges[id], p = e.p;
       for (let q = 0; q < p.length - 2; q += 2) {
         const dx = p[q + 2] - p[q], dy = p[q + 3] - p[q + 1], l2 = dx * dx + dy * dy || 1;
         const t = Math.max(0, Math.min(1, ((x - p[q]) * dx + (y - p[q + 1]) * dy) / l2));
@@ -602,8 +616,8 @@ function findRoute(x0, y0, x1, y1) {
   if (!A || !B) return null;
   const out = [x0, y0];
   if (A.e === B.e) { edgeSlice(A.e, A.s, B.s, out); out.push(x1, y1); return out; }
-  const N = g.nodes.length, cost = new Float64Array(N).fill(Infinity), prev = new Array(N);
-  const h = (n) => Math.hypot(g.nodes[n][0] - B.x, g.nodes[n][1] - B.y);
+  const N = g.nN, cost = new Float64Array(N).fill(Infinity), prev = new Array(N);
+  const h = (n) => Math.hypot(g.nodes[n * 2] - B.x, g.nodes[n * 2 + 1] - B.y);
   const heap = []; // [f, nodo], monticulo binario por f
   const push = (f, n) => { heap.push([f, n]); let i = heap.length - 1; while (i > 0) { const pi = (i - 1) >> 1; if (heap[pi][0] <= heap[i][0]) break; [heap[pi], heap[i]] = [heap[i], heap[pi]]; i = pi; } };
   const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let i = 0; for (;;) { const l = i * 2 + 1, r = l + 1; let m = i; if (l < heap.length && heap[l][0] < heap[m][0]) m = l; if (r < heap.length && heap[r][0] < heap[m][0]) m = r; if (m === i) break; [heap[m], heap[i]] = [heap[i], heap[m]]; i = m; } } return top; };
@@ -706,10 +720,11 @@ const chunkBaches = gridIndex(baches, CHUNK, 'bb');
 // trozo: en cada cuadrito de 30 px se queda el primer candidato (en orden) que no choca con un edificio.
 // tipos: 0 laurel de la India, 1 palma, 2 jacaranda, 3 pirul. (localStorage tjrush-arboles = 'no' los quita)
 const ARB_LAURO = 0, ARB_PALMA = 1, ARB_JACA = 2, ARB_PIRUL = 3, ARB_VAR = 5, ARB_SZ = 80;
-const arboles = [];
-(() => {
-  try { if (localStorage.getItem('tjrush-arboles') === 'no') return; } catch (e) { }
-  const ocupado = new Map();
+// Los candidatos van en arreglos (con toda la ciudad son cientos de miles: como objetos pesaban decenas de MB):
+// posicion, tipo, variante y la celda de 30 px (llave GK). Despues se agrupan por celda, en orden.
+const ARB = (() => {
+  const X = [], Y = [], T = [], V = [], C = [];
+  try { if (localStorage.getItem('tjrush-arboles') === 'no') return { X, Y, T, V, C }; } catch (e) { }
   const enArea = (x, y, k) => (chunkAreas.get(GK(Math.floor(x / CHUNK), Math.floor(y / CHUNK))) || []).some(i => {
     const a = areas[i]; return (k < 0 || a.k === k) && x >= a.bb[0] && x <= a.bb[2] && y >= a.bb[1] && y <= a.bb[3] && pip(x, y, a.p);
   });
@@ -719,9 +734,7 @@ const arboles = [];
     const c = GK(Math.floor(x / 30), Math.floor(y / 30));
     if (x < 20 || x > WORLD_W - 20 || y > WORLD_H - 20 || y < borderY(x) + 30) return;
     if (onAsfalto(x, y, M) || inWater(x, y) || enArea(x, y, AREA_ARENA)) return;
-    let cel = ocupado.get(c); if (!cel) ocupado.set(c, cel = { ok: undefined, a: [] });
-    const a = { x, y, t, v: (rnd() * ARB_VAR) | 0, cel, bb: [x - ARB_SZ / 2, y - ARB_SZ / 2, x + ARB_SZ / 2, y + ARB_SZ / 2] };
-    cel.a.push(a); arboles.push(a);
+    X.push(x); Y.push(y); T.push(t); V.push((rnd() * ARB_VAR) | 0); C.push(c);
   };
   const tipo = (rnd, palma, jaca, pirul) => { const q = rnd(); return q < palma ? ARB_PALMA : q < palma + jaca ? ARB_JACA : q < palma + jaca + pirul ? ARB_PIRUL : ARB_LAURO; };
   // en la banqueta, a la orilla de afuera; las avenidas llevan mas palmas
@@ -752,16 +765,38 @@ const arboles = [];
     });
   });
   rejilla(0, 0, WORLD_W, WORLD_H, 24 * M, 4242, (x, y, rnd) => { if (rnd() < 0.05 && !enArea(x, y, -1)) poner(x, y, tipo(rnd, 0.1, 0.05, 0.6), rnd); });
+  return { X, Y, T, V, C };
 })();
-const chunkArboles = gridIndex(arboles, CHUNK, 'bb');
-// ¿este arbol si va? (con los edificios de alrededor ya cargados)
-function arbolVa(a) {
-  const cel = a.cel;
-  if (cel.ok === undefined) {
-    const libre = (q) => { for (let d = 0; d <= 48; d += 8) if (inBuilding(q.x, q.y + d) || inBuilding(q.x - 12, q.y + d) || inBuilding(q.x + 12, q.y + d)) return false; return true; };
-    cel.ok = cel.a.find(libre) || null;
+const arboles = (() => {
+  const n = ARB.X.length, X = new Float32Array(ARB.X), Y = new Float32Array(ARB.Y), T = new Uint8Array(ARB.T), V = new Uint8Array(ARB.V);
+  // grupos: los candidatos de cada celda de 30 px seguidos y en su orden (G: grupo de cada uno; INI: donde empieza
+  // cada grupo en ORD; OK: el que se quedo, -2 si falta ver, -1 si ninguno)
+  const K = ARB.C, ORD = Int32Array.from({ length: n }, (_, i) => i).sort((a, b) => (K[a] - K[b]) || (a - b));
+  const G = new Int32Array(n), INI = [];
+  for (let j = 0; j < n; j++) { if (!j || K[ORD[j]] !== K[ORD[j - 1]]) INI.push(j); G[ORD[j]] = INI.length - 1; }
+  INI.push(n);
+  ARB.X = ARB.Y = ARB.T = ARB.V = ARB.C = null;
+  return { length: n, X, Y, T, V, G, ORD, INI: Int32Array.from(INI), OK: new Int32Array(INI.length).fill(-2) };
+})();
+const chunkArboles = rejillaDensa((emit) => {
+  for (let i = 0; i < arboles.length; i++) {
+    const x = arboles.X[i], y = arboles.Y[i], h = ARB_SZ / 2;
+    for (let cx = Math.floor((x - h) / CHUNK); cx <= Math.floor((x + h) / CHUNK); cx++) for (let cy = Math.floor((y - h) / CHUNK); cy <= Math.floor((y + h) / CHUNK); cy++) emit(cx, cy, i);
   }
-  return cel.ok === a;
+});
+// ¿este arbol si va? (con los edificios de alrededor ya cargados): en su celda se queda el primero que no choca
+function arbolVa(i) {
+  const A = arboles, g = A.G[i];
+  if (A.OK[g] === -2) {
+    A.OK[g] = -1;
+    for (let j = A.INI[g]; j < A.INI[g + 1]; j++) {
+      const q = A.ORD[j], x = A.X[q], y = A.Y[q];
+      let libre = true;
+      for (let d = 0; d <= 48 && libre; d += 8) if (inBuilding(x, y + d) || inBuilding(x - 12, y + d) || inBuilding(x + 12, y + d)) libre = false;
+      if (libre) { A.OK[g] = q; break; }
+    }
+  }
+  return A.OK[g] === i;
 }
 // cada tipo tiene ARB_VAR dibujos; vistos desde arriba, con la sombra hacia el sureste (la luz viene del noroeste)
 const ARB_SPR = {};
@@ -1245,7 +1280,7 @@ function* chunkSteps(cx, cy) {
 
   yield;
   yield* drawBuildings(ctx, bl, rs, cx, cy);
-  for (const i of chunkArboles.get(k) || []) { const a = arboles[i]; if (!arbolVa(a)) continue; ctx.drawImage(arbolSprite(a.t, a.v), a.x - ARB_SZ / 2, a.y - ARB_SZ / 2, ARB_SZ, ARB_SZ); }
+  for (const i of chunkArboles.get(k) || []) { if (!arbolVa(i)) continue; ctx.drawImage(arbolSprite(arboles.T[i], arboles.V[i]), arboles.X[i] - ARB_SZ / 2, arboles.Y[i] - ARB_SZ / 2, ARB_SZ, ARB_SZ); }
   // lado de Estados Unidos
   const x0 = cx * CHUNK, x1 = x0 + CHUNK;
   const fr = fronteraPts(x0 - 2, x1 + 2);
@@ -1961,6 +1996,23 @@ const PAROS = [
     pide: '"Me pidieron un ceviche para llevar y mi repartidor se fue a ver el atardecer al malecón. ¿Me haces el paro? Que no se caliente."',
     fin: 'El cliente le dio cinco estrellas a Doña Bety y una a su repartidor. A ti te tocó la propina.',
     mal: 'El ceviche llegó tibio. El cliente dice que sabía "a playa"; Doña Bety no sabe si eso es bueno o malo.' },
+  // los de El Florido y Terrazas (zona: 'florido') y los del sur: Santa Fe, el Cañón del Sainz y Natura (zona: 'natura')
+  { k: 'mudanza', quien: 'Don Héctor', ico: '📦', zona: 'florido', cosa: 'una caja de la mudanza', a: 'la casa nueva de su hija',
+    pide: '"Mi hija se cambió para acá y se le quedó la caja de los trastes. Llévasela, que no ha comido más que en platos de cartón."',
+    fin: 'La hija de Don Héctor estrenó los trastes con unos frijoles de la olla. Te tocó un plato.',
+    mal: 'Llegaste tarde: ya había comprado trastes en el tianguis. Ahora tiene el doble y no le caben.' },
+  { k: 'lonchera', quien: 'Doña Isa', ico: '🍱', prisa: true, zona: 'florido', cosa: 'la lonchera de su esposo', a: 'la maquiladora donde trabaja',
+    pide: '"¡Mi viejo se fue a la maquila sin su lonchera! Si no come, regresa de un humor que ni el perro lo aguanta."',
+    fin: 'El esposo de Doña Isa se comió sus burritos en el descanso. Dice que le supieron a gloria.',
+    mal: 'El esposo comió papitas de la máquina. Regresó de malas y el perro se escondió debajo de la troca.' },
+  { k: 'telescopio', quien: 'Sofía', ico: '🌙', prisa: true, zona: 'natura', cosa: 'su telescopio', a: 'el parque donde la espera su club de astronomía',
+    pide: '"Hoy hay luna llena y mi club de astronomía se junta en el parque. Llévales mi telescopio, ¡que la luna no espera!"',
+    fin: 'Vieron los cráteres de la luna y a Saturno con sus anillos. Sofía dice que ya eres miembro honorario del club.',
+    mal: 'Para cuando llegaste ya se había nublado. Vieron la luna... en un video.' },
+  { k: 'plantitas', quien: 'Don Lupe', ico: '🌱', zona: 'natura', cosa: 'unas plantitas de chile', a: 'el huerto de su compadre',
+    pide: '"Le prometí a mi compadre unas plantitas de chile para su huerto. Cuídalas, que el viento de aquí se lleva hasta las ganas."',
+    fin: 'El compadre las plantó en fila. Dice que en tres meses te toca la primera salsa.',
+    mal: 'Las plantitas llegaron marchitas. El compadre las regó con tanto cariño que una sí revivió.' },
 ];
 
 // ---------- HUD ----------
@@ -3376,6 +3428,45 @@ function makeLandmarkIcons(scene) {
       line('#90a4ae', 1, [[0, -2], [0, 19]]);
       for (let i = 0; i < 4; i++) { line('#b0bec5', 0.8, [[-17, -1 + i * 4], [-3, 1.5 + i * 4]]); line('#b0bec5', 0.8, [[3, 1.5 + i * 4], [17, -1 + i * 4]]); }
     }],
+    // fase 4: las orillas
+    'Santa Fe': ['#5d4037', () => { // filas de casitas iguales
+      for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++) {
+        const hx = -19 + c * 10 + (r % 2) * 2, hy = -12 + r * 11;
+        rect(['#ffe0b2', '#ffccbc', '#fff9c4'][r], hx, hy, 8, 6); poly('#bf360c', [[hx - 1, hy], [hx + 4, hy - 4], [hx + 9, hy]]); rect('#6d4c41', hx + 3, hy + 3, 2, 3);
+      }
+    }],
+    'San Antonio del Mar': ['#0277bd', () => { // casa en el acantilado frente al mar
+      rect('#4fc3f7', -24, 2, 48, 22);
+      for (let i = 0; i < 3; i++) line('rgba(255,255,255,0.8)', 1.2, [[-22 + i * 6, 8 + i * 5], [-16 + i * 6, 6 + i * 5], [-10 + i * 6, 8 + i * 5]]);
+      poly('#a1887f', [[0, 24], [4, 4], [24, 2], [24, 24]]);
+      rect('#fafafa', 8, -8, 13, 11); poly('#e53935', [[6, -8], [14.5, -15], [23, -8]]); rect('#4fc3f7', 10, -5, 4, 4); rect('#795548', 16, -4, 3, 7);
+      circ('#fff176', -12, -12, 5);
+    }],
+    'Mirador del Cañón del Sainz': ['#6d4c41', () => { // el canon entre cerros, con el sol
+      circ('#ffcc80', 0, -12, 6);
+      poly('#a1887f', [[-24, -4], [-10, -6], [-3, 18], [-24, 18]]); poly('#8d6e63', [[24, -2], [9, -5], [3, 18], [24, 18]]);
+      poly('#5d4037', [[-10, -6], [-3, 18], [3, 18], [9, -5], [0, 4]]);
+      line('#66bb6a', 1.4, [[-20, -4], [-17, -6]]); line('#66bb6a', 1.4, [[15, -3], [19, -5]]);
+      rect('#37474f', -16, -10, 1.5, 6); rect('#37474f', -19, -11, 7, 1.5); // barandal del mirador
+    }],
+    'Natura': ['#2e7d32', () => { // aguila con las alas abiertas
+      x.beginPath(); x.moveTo(0, -6);
+      x.quadraticCurveTo(-10, -16, -24, -8); x.lineTo(-17, -6); x.lineTo(-21, -2); x.lineTo(-13, -2); x.lineTo(-15, 2); x.quadraticCurveTo(-6, 0, -3, 6);
+      x.lineTo(-5, 16); x.lineTo(0, 13); x.lineTo(5, 16); x.lineTo(3, 6);
+      x.quadraticCurveTo(6, 0, 15, 2); x.lineTo(13, -2); x.lineTo(21, -2); x.lineTo(17, -6); x.lineTo(24, -8); x.quadraticCurveTo(10, -16, 0, -6); x.closePath(); fill('#5d4037');
+      circ('#fafafa', 0, -8, 3.4); poly('#ffb300', [[1.5, -8], [5.5, -7], [1.5, -5.6]]); circ('#212121', 0.6, -9, 0.7);
+    }],
+    'El Florido': ['#c2185b', () => { // flor grande con sus petalos
+      for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; ell(i % 2 ? '#f48fb1' : '#f06292', Math.cos(a) * 10, Math.sin(a) * 10 - 2, 7, 4.2, a); }
+      circ('#ffd54f', 0, -2, 6); circ('#ffb300', 0, -2, 3.5);
+      line('#43a047', 2, [[0, 6], [0, 20]]); ell('#66bb6a', 5, 15, 4, 2, -0.5);
+    }],
+    'Universidad Tecnológica': ['#283593', () => { // foco encendido
+      for (let i = 0; i < 7; i++) { const a = -Math.PI + i * Math.PI / 6; line('rgba(255,241,118,0.8)', 1.4, [[Math.cos(a) * 15, -4 + Math.sin(a) * 15], [Math.cos(a) * 20, -4 + Math.sin(a) * 20]]); }
+      circ('#fff176', 0, -4, 11); x.beginPath(); x.moveTo(-6, 4); x.lineTo(-4, 11); x.lineTo(4, 11); x.lineTo(6, 4); x.closePath(); fill('#fff176');
+      line('#f9a825', 1, [[-3, 0], [-1.5, -5], [0, 0], [1.5, -5], [3, 0]]);
+      rect('#90a4ae', -4.5, 11, 9, 3); rect('#78909c', -4.5, 14, 9, 3); rect('#546e7a', -2.5, 17, 5, 2);
+    }],
   };
   // insignia de respaldo (un lugar nuevo sin dibujo): la estrella de siempre
   const fallback = ['#5d4037', () => txt('#ffd23f', 30, '★', 0, 1)];
@@ -3715,6 +3806,30 @@ function makeEggs(scene) {
       // picote con su bolsa naranja y el billete
       x.fillStyle = '#ffb74d'; x.beginPath(); x.moveTo(14.8, 5.6); x.lineTo(16, -1.8); x.lineTo(17.2, 5.6); x.closePath(); x.fill();
       x.save(); x.translate(20, 1.5); x.rotate(0.5); x.fillStyle = '#a5d6a7'; x.fillRect(-3, -1.5, 6, 3); x.strokeStyle = '#2e7d32'; x.lineWidth = 0.25; x.strokeRect(-3, -1.5, 6, 3); x.restore();
+    },
+    venado(x0) { // venado cola blanca visto desde arriba, comiendo pasto
+      shadow(16, 17, 8, 13);
+      ell('#9ccc65', 16, 4, 6, 3); for (let i = 0; i < 6; i++) line('#689f38', 0.4, [[12 + i * 1.6, 5.5], [12.4 + i * 1.6, 2.5]]);
+      // patas
+      for (const [px, py] of [[12.5, 12], [19.5, 12], [12.8, 23], [19.2, 23]]) line('#6d4c41', 1.1, [[px, py], [px + (px < 16 ? -1.2 : 1.2), py + 1.5]]);
+      // cuerpo con su lomo mas oscuro y la colita blanca
+      x.fillStyle = rad(16, 17, 8, '#c8a26a', '#8d6e63'); x.beginPath(); x.ellipse(16, 17.5, 5, 8.5, 0, 0, 7); x.fill();
+      ell('rgba(93,64,55,0.5)', 16, 17.5, 1.6, 7); ell('#fafafa', 16, 26.3, 1.6, 1.3);
+      // cuello y cabeza agachada hacia el pasto, con orejas y cuernitos
+      ell('#a1887f', 16, 9.5, 2.4, 3); ball(16, 6.5, 2.4, '#bcaaa4', '#8d6e63');
+      ell('#8d6e63', 13.3, 7.8, 1.6, 0.8, -0.5); ell('#8d6e63', 18.7, 7.8, 1.6, 0.8, 0.5);
+      line('#5d4037', 0.5, [[15, 7.5], [13, 10.5], [12, 10]]); line('#5d4037', 0.5, [[17, 7.5], [19, 10.5], [20, 10]]);
+      ell('#212121', 16, 4.3, 0.7, 0.5);
+      x.save(); x.translate(23.5, 25); x.rotate(0.2); x.fillStyle = '#a5d6a7'; x.fillRect(-3.4, -1.7, 6.8, 3.4); x.strokeStyle = '#2e7d32'; x.lineWidth = 0.25; x.strokeRect(-3.4, -1.7, 6.8, 3.4); x.restore();
+    },
+    concha(x0) { // concha de abanico rosada en la arena, con un billete enrollado
+      ell('#f3e5ab', 16, 17, 13, 11); for (let i = 0; i < 14; i++) ell('rgba(188,170,120,0.6)', 6 + (i * 7) % 20, 9 + (i * 5) % 16, 0.4, 0.4);
+      shadow(16, 17, 9, 8);
+      x.fillStyle = rad(16, 13, 11, '#ffccbc', '#ef9a9a'); x.beginPath(); x.moveTo(16, 25); x.arc(16, 25, 12, Math.PI * 1.18, Math.PI * 1.82); x.closePath(); x.fill();
+      x.strokeStyle = 'rgba(0,0,0,0.3)'; x.lineWidth = 0.35; x.stroke();
+      for (let i = 0; i < 9; i++) { const a = Math.PI * 1.2 + i * Math.PI * 0.075; line('rgba(191,54,12,0.45)', 0.45, [[16, 25], [16 + Math.cos(a) * 12, 25 + Math.sin(a) * 12]]); }
+      x.fillStyle = '#ef9a9a'; x.fillRect(13, 24, 6, 2.5);
+      x.save(); x.translate(16, 19); x.rotate(-0.4); x.fillStyle = '#a5d6a7'; x.beginPath(); x.ellipse(0, 0, 3.2, 1.2, 0, 0, 7); x.fill(); x.strokeStyle = '#2e7d32'; x.lineWidth = 0.25; x.stroke(); x.restore();
     },
     raton(x0) { // botarga de raton amarillo (de dudosa procedencia): orejotas, cachetes, colita, cierre y su letrero de FOTO
       shadow(15, 17, 12, 12);
@@ -4609,7 +4724,8 @@ class Main extends Phaser.Scene {
     // fase 1: Otay (al norte de 32.515) y La Mesa (al sur), al oriente de -116.9915; fase 2: La Presa y el Cerro
     // Colorado (al oriente de -116.96 y al sur de 32.486)
     const ZONAS = { sur: [1300, 2800, 4600, 4755], oriente: [4300, 200, 5913, 4755, 500], otay: [5300, -1600, 12300, 3096], lamesa: [5300, 3096, 12300, 6400],
-      presa: [8259, 6303, 16000, 11700], playas: [-8900, -200, -3600, 11700] };
+      presa: [8259, 6303, 16000, 11700], playas: [-8900, -200, -3600, 11700],
+      florido: [15955, 2000, 23300, 11610], natura: [-8900, 11610, 23300, 17000] };
     this.paros = [];
     // primero los que tienen zona (tienen menos lugar), luego los demas; la lista queda en el orden de PAROS
     for (const P of [...PAROS.filter(P => P.zona), ...PAROS.filter(P => !P.zona)]) {

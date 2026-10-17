@@ -1,7 +1,8 @@
-# TJ Rush · Tijuana (prototipo)
+# TJ Rush · Tijuana
 
-Juego de vista cenital estilo GTA 2 en Tijuana, con calles, edificios y lugares reales. Hoy cubre unos 25 x 13 km: de Playas de Tijuana (con el mar)
-al Cerro Colorado, pasando por el Centro, la Zona Río, Agua Caliente, Otay, La Mesa, las 5 y 10, Díaz Ordaz y La Presa. La meta es toda la ciudad, por fases.
+Juego de vista cenital estilo GTA 2 en Tijuana, con calles, edificios y lugares reales. Cubre toda la ciudad, unos 32 x 19 km: de Playas
+(con el mar) a El Florido y Terrazas del Valle, y de la línea al límite con Rosarito (Santa Fe, Natura, San Antonio del Mar), pasando por el
+Centro, la Zona Río, Agua Caliente, Otay, La Mesa, las 5 y 10 y La Presa.
 Hecho con Phaser 3 (JavaScript); corre en el navegador.
 
 ## Jugar
@@ -22,22 +23,22 @@ Flechas/WASD mover o manejar · E robar auto / bajarte · Espacio freno de mano 
 T trabajar de taxista · M mapa grande (toca para marcar destino). En celular hay joystick y botones.
 
 ## Actividades
-- Lugares ★: 53 lugares reales: del Centro (Arco, Plaza Santa Cecilia, Catedral, Caesar's, Jai Alai...), la Zona Río (CECUT, El Cubo, Las Tijeras, glorietas...),
-  Agua Caliente e Hipódromo (Estadio Caliente, el Campestre...) Otay y La Mesa (Garita de Otay, Aeropuerto, UABC, Las 5 y 10, El Trompo, Parque Morelos...) La Presa (Estadio de los Toros, Mirador del Cerro Colorado, Presa Rodríguez...) y Playas (El Muro en la Playa, Faro, Malecón, El Colef...).
-- Ruta del taco 🌮: 183 taquerías reales del mapa.
-- Cafés ☕: 161 cafés reales para coleccionar.
+- Lugares ★: 59 lugares reales: del Centro (Arco, Plaza Santa Cecilia, Catedral, Caesar's, Jai Alai...), la Zona Río (CECUT, El Cubo, Las Tijeras, glorietas...),
+  Agua Caliente e Hipódromo (Estadio Caliente, el Campestre...) Otay y La Mesa (Garita de Otay, Aeropuerto, UABC, Las 5 y 10, El Trompo, Parque Morelos...) La Presa (Estadio de los Toros, Mirador del Cerro Colorado, Presa Rodríguez...) Playas (El Muro en la Playa, Faro, Malecón, El Colef...) y las orillas (Santa Fe, Natura, El Florido...).
+- Ruta del taco 🌮: 205 taquerías reales del mapa (las que llegaron con cada ampliación, a 700 m o más una de otra; desde la última, a 1.5 km).
+- Cafés ☕: 176 cafés reales para coleccionar.
 - Comida china 🏮: 6 locales ficticios en la Calle Coahuila; al entrar pierdes dinero (no se coleccionan).
 - Repartidor 🛵: roba una moto de repartidor y entrega el pedido antes de que se acabe el tiempo.
 - Taxi: recoge pasajeros y llévalos a un lugar antes de que se acabe el tiempo.
-- Paros 🤝: 55 personajes en las colonias (lejos de los lugares típicos) te piden un favor: llevar al gato al veterinario, pozole a la jefa, flores al panteón, croquetas al albergue de perritos, una perrita rescatada con su nueva familia... Se aceptan con E (botón ACEPTAR), tienen tiempo y pagan según la distancia. Están en `PAROS` de src/game.js.
+- Paros 🤝: 59 personajes en las colonias (lejos de los lugares típicos) te piden un favor: llevar al gato al veterinario, pozole a la jefa, flores al panteón, croquetas al albergue de perritos, una perrita rescatada con su nueva familia... Se aceptan con E (botón ACEPTAR), tienen tiempo y pagan según la distancia. Están en `PAROS` de src/game.js.
 - Vehículos: 10 tipos (sedán, vocho, troca, camioneta, tsurito, combi, muscle car, lowrider, calafia, camión de carga), cada uno limpio o sucio y madreado. Los sucios aguantan menos golpes y corren un poco menos. Se dibujan en `vehicleTexture()` de src/game.js.
 - Escoltas 🚙🚙: convoyes de dos camionetas negras con torreta ámbar (no son policías) que cruzan la ciudad en fila, un poco más rápido que el tráfico. Se pueden robar.
 - Conductores erráticos 💥: algunos autos zigzaguean, no frenan por nadie y tarde o temprano se estrellan y quedan deshuesados; el tráfico les da la vuelta.
 - Moto deportiva 🏍️: la más rápida del juego, pero se hace pedazos al primer choque. Sale seguido en el tráfico (máximo dos a la vez).
 - Patrullas 🚓: trocas de policía en el tráfico (máximo 3). Si las chocas te cobran multa ($150–800 según la velocidad, una cada 5 s). No se pueden robar.
-- Secretos 🥚: 17 personajes y cosas típicas de Tijuana escondidos cerca de los lugares (el burro cebra, la ensalada César, Javier Bátiz, el Mimo Moy, el señor de los aviones, el pescador de la Presa, el surfista de Playas...). Al encontrarlos sueltan una frase y una lana. Están en `EGGS` de src/game.js.
+- Secretos 🥚: 19 personajes y cosas típicas de Tijuana escondidos cerca de los lugares (el burro cebra, la ensalada César, Javier Bátiz, el Mimo Moy, el señor de los aviones, el pescador de la Presa, el surfista de Playas, un venado en Natura...). Al encontrarlos sueltan una frase y una lana. Están en `EGGS` de src/game.js.
 
-  ![Los 17 secretos](docs/easter-eggs.png)
+  ![Los 19 secretos](docs/easter-eggs.png)
 
 El progreso se guarda en el navegador.
 
@@ -58,4 +59,4 @@ El progreso se guarda en el navegador.
 
 ## Datos
 Overture Maps Foundation, derivados de © colaboradores de OpenStreetMap (ODbL). Recuadro:
-lon -117.142 a -116.878, lat 32.438 a 32.559 (de Playas de Tijuana al Cerro Colorado y de la línea a La Presa). El mar es el polígono del océano de Overture recortado al recuadro. La línea fronteriza es la de verdad (la orilla norte del polígono de México en `division_area`).
+lon -117.142 a -116.800, lat 32.390 a 32.565 (de Playas a Terrazas del Valle y de la línea al límite con Rosarito). El mar es el polígono del océano de Overture recortado al recuadro. La línea fronteriza es la de verdad (la orilla norte del polígono de México en `division_area`).

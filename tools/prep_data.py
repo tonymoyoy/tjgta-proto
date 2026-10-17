@@ -16,10 +16,12 @@ OUT = sys.argv[2] if len(sys.argv) > 2 else os.path.join(os.path.dirname(__file_
 # mismo recuadro que download_overture.py: Centro, Zona Norte, Zona Rio, Chapultepec, Hipodromo y Agua Caliente.
 # Fase 1 (Otay, Aeropuerto, La Mesa y las 5 y 10) y fase 2 (Diaz Ordaz, Cerro Colorado y la Presa): al oriente hasta
 # pasar el Cerro Colorado y al sur hasta la cortina de la Presa Rodriguez; el norte llega hasta donde pasa la linea
-# fronteriza de verdad. Fase 3 (Playas y el principio de la Escenica): al poniente hasta el mar. La escala este-oeste se queda con la
+# fronteriza de verdad. Fase 3 (Playas y el principio de la Escenica): al poniente hasta el mar. Fase 4 (las
+# orillas): al sur hasta el limite con Rosarito (Santa Fe, Natura, San Antonio del Mar) y al oriente hasta pasar
+# El Florido y Terrazas del Valle. La escala este-oeste se queda con la
 # latitud del primer recuadro (32.517-32.543); si el recuadro crece al norte o al oeste, todo se recorre junto con
 # el origen y el juego lo compensa con 'o' (ver REF).
-LON0, LAT0, LON1, LAT1 = map(float, os.environ.get("TJ_BBOX", "-117.142,32.438,-116.878,32.559").split(","))
+LON0, LAT0, LON1, LAT1 = map(float, os.environ.get("TJ_BBOX", "-117.142,32.390,-116.800,32.565").split(","))
 KX = 111320 * math.cos(math.radians(32.53))
 # punto de referencia fijo (la esquina noroeste del primer mapa): el juego tiene algunas posiciones en metros
 # desde aqui (zonas, paros, secretos). Si el recuadro crece al norte o al oeste, el origen se mueve pero
@@ -121,6 +123,31 @@ def in_mx(lon, lat, margin=0.0):
 
 def load(n):
     return json.load(open(os.path.join(RAW, n + ".geojson")))["features"]
+
+def load_iter(n):
+    """Las features una por una, leyendo el archivo por pedazos (el de edificios de toda la ciudad no cabe
+    entero en memoria como objetos de python)."""
+    dec = json.JSONDecoder()
+    with open(os.path.join(RAW, n + ".geojson"), encoding="utf-8") as fh:
+        buf = fh.read(1 << 22)
+        i = buf.index("[", buf.index('"features"')) + 1
+        while True:
+            while i < len(buf) and buf[i] in " ,\n\r\t":
+                i += 1
+            if i < len(buf) and buf[i] == "]":
+                return
+            try:
+                obj, j = dec.raw_decode(buf, i)
+            except json.JSONDecodeError:
+                mas = fh.read(1 << 22)
+                if not mas:
+                    return
+                buf = buf[i:] + mas; i = 0
+                continue
+            yield obj
+            i = j
+            if i > (1 << 21):
+                buf = buf[i:] + fh.read(1 << 22); i = 0
 
 def flat(coords):
     out = []
@@ -227,7 +254,7 @@ for f in load("segment"):
 
 # ---- edificios
 blds = []
-for f in load("building"):
+for f in load_iter("building"):
     g = f["geometry"]
     p = f["properties"]
     h = p.get("height") or ((p.get("num_floors") or 1) * 3.2)
@@ -382,8 +409,18 @@ LANDMARKS_F3 = [
     ("El Colef", "El Colegio de la Frontera Norte, con su terraza frente al mar en la Escénica.", 32.45646, -117.11119),
 ]
 landmarks += [[title, desc] + P(lon, lat) for title, desc, lat, lon in LANDMARKS_F3]
+# fase 4: las orillas (coordenadas de OpenStreetMap)
+LANDMARKS_F4 = [
+    ("Santa Fe", "Fraccionamientos de casitas iguales hasta donde alcanza la vista, con su unidad deportiva llena los domingos.", 32.43147, -117.03700),
+    ("San Antonio del Mar", "Casas frente al mar a la orilla de la Escénica, ya rumbo a Rosarito.", 32.42393, -117.09693),
+    ("Mirador del Cañón del Sainz", "Un mirador sobre el cañón: la ciudad de un lado y los cerros del sur del otro.", 32.42843, -116.96514),
+    ("Natura", "El fraccionamiento de los parques con nombres de animales: el Águila, los Venados, el Flamenco...", 32.41295, -116.92033),
+    ("El Florido", "La puerta oriente de la ciudad, rumbo a Tecate, con su parque y su unidad deportiva.", 32.46317, -116.85920),
+    ("Universidad Tecnológica", "La UTT, en lo alto del oriente de la ciudad, donde empiezan los cerros rumbo a Tecate.", 32.46152, -116.82337),
+]
+landmarks += [[title, desc] + P(lon, lat) for title, desc, lat, lon in LANDMARKS_F4]
 # lo que se fue agregando despues de la primera version: quien ya habia completado una coleccion no pierde su premio
-NUEVOS = {"noche": [t for t, *_ in LANDMARKS_OSM + LANDMARKS_P1 + LANDMARKS_F1 + LANDMARKS_F2 + LANDMARKS_F3], "taco": [], "cafe": []}
+NUEVOS = {"noche": [t for t, *_ in LANDMARKS_OSM + LANDMARKS_P1 + LANDMARKS_F1 + LANDMARKS_F2 + LANDMARKS_F3 + LANDMARKS_F4], "taco": [], "cafe": []}
 if PREV:
     viejos = {l[0] for l in PREV["landmarks"]}
     landmarks = PREV["landmarks"] + [l for l in landmarks if l[0] not in viejos]
@@ -412,7 +449,10 @@ if PREV:
 def en_ampliacion(lo, la):
     return (LON0 < lo < LON1 and LAT0 < la < LAT1) and not (VIEJO[0] < lo < VIEJO[2] and VIEJO[1] < la < VIEJO[3])
 
-# ampliacion: taquerias reales (nombre con taco, birria o taqueria), a mas de 700 m una de otra
+# distancia minima (dm) entre las taquerias y cafes que llegan con cada ampliacion (las de antes se quedan): era
+# 700 m y desde la fase 4 es 1.5 km, para que las colecciones no crezcan tanto
+SEP_NUEVOS = 15000
+# ampliacion: taquerias reales (nombre con taco, birria o taqueria), a mas de SEP_NUEVOS una de otra
 import re
 ES_TACO = re.compile(r"\b(tacos?|taquer[ií]a|birria)\b", re.I)
 NO_TACO = re.compile(r"\b(bell|shop|bar|sushi|pizza|burger)\b", re.I)
@@ -422,13 +462,13 @@ for n, (lo, la) in sorted(places.items()):
     if not ES_TACO.search(n) or NO_TACO.search(n) or GROSERO.search(n) or not en_ampliacion(lo, la) or not in_mx(lo, la, 0.0003):
         continue
     t = [n.strip().replace('"', '')] + P(lo, la)
-    if all(math.hypot(t[1] - o[1], t[2] - o[2]) > 7000 for o in tacos) and t[0] not in {o[0] for o in tacos}:
+    if all(math.hypot(t[1] - o[1], t[2] - o[2]) > SEP_NUEVOS for o in tacos) and t[0] not in {o[0] for o in tacos}:
         tacos.append(t); NUEVOS["taco"].append(t[0])
 
 # cafes reales: los que tienen cafe en el nombre, sin bares ni negocios que no son cafeteria,
 # repartidos para que queden al menos a 300 m uno de otro (en la ampliacion, a 700 m)
 NOT_CAFE = re.compile(r"\b(bar|smoke|restaurant|restaurante|agency|barbershop|shopping|bistro|deli|pizza|taquer|cantina|distribuci|ganoderma|"
-                      r"internet|beauty|showroom|baño|chin[oa]|"
+                      r"internet|ciber|cyber|beauty|showroom|baño|chin[oa]|"
                       # cadenas (marcas ajenas)
                       r"\w*volada|starbucks|dunkin|tim hortons|oxxo|7.eleven|punta del cielo|cielito|italian coffee|the coffee bean)", re.I)
 cafes = []
@@ -440,7 +480,7 @@ for n, (lo, la) in sorted(places.items()):
     x, y = P(lo, la)
     if PREV and not en_ampliacion(lo, la):
         continue
-    if all(math.hypot(x - c[1], y - c[2]) > (7000 if PREV else 3000) for c in (PREV["cafes"] if PREV else []) + cafes) and \
+    if all(math.hypot(x - c[1], y - c[2]) > (SEP_NUEVOS if PREV else 3000) for c in (PREV["cafes"] if PREV else []) + cafes) and \
             n.strip() not in {c[0] for c in (PREV["cafes"] if PREV else []) + cafes}:
         cafes.append([n.strip(), x, y])
         if PREV: NUEVOS["cafe"].append(n.strip())
