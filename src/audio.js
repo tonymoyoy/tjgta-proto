@@ -208,6 +208,14 @@ const SFX = {
       d += l;
     }
   },
+  ladrido(v = 1) { // guau guau
+    const t = ctx.currentTime, n = 1 + (Math.random() * 2 | 0), f = 420 + Math.random() * 220;
+    for (let i = 0; i < n; i++) { tone(sfxBus, 'sawtooth', f, t + i * 0.24, 0.1, 0.12 * v, { to: f * 0.5, lp: 1600 }); noise(sfxBus, t + i * 0.24, 0.07, 0.08 * v, 'bandpass', 900, 2); }
+  },
+  aullido() { // el chillido del perrito atropellado: "cai cai cai"
+    const t = ctx.currentTime;
+    for (let i = 0; i < 3; i++) tone(sfxBus, 'triangle', 1500 - i * 120, t + i * 0.16, 0.13, 0.16, { to: 900 - i * 80, lp: 3000 });
+  },
   fuga() { // el silbido del gas saliendose
     noise(sfxBus, ctx.currentTime, 1.4, 0.16, 'highpass', 5000);
   },

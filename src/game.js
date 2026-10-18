@@ -1750,6 +1750,21 @@ const FRASES_ROBADO = [
   '¡Oye, ese es mi carro!', '¡Regrésame el carro, ratero!', '¡Ey! ¡Que alguien lo pare!', '¡No manches, ni el seguro le puse!',
   '¡Oye! ¡Ese carro me lo robé yo primero!', '¡Ahí va mi carro... y mis tacos!', '¡Hey! ¡Ni las gracias dio!',
 ];
+// lo que dicen los personajes de la calle (ver TIPOS_CALLE)
+const FRASES_TIPO = {
+  elotero: ['"¡Elotes, esquites! ¿Con todo, joven?"', '"Con mayonesa, queso y chile del que pica. Así se come aquí."', '"Llevo veinte años en esta esquina. La esquina ya es mía."', '"¿Elote o vaso? El vaso no se te cae en la camisa."'],
+  paletero: ['"¡Paletas de fresa, de mango con chile, de nuez!"', '"Si oyes la campanita, ya llegué."', '"En verano soy el señor más querido de la colonia."', '"La de arroz con leche se acaba primero. Apúrate."'],
+  turista: ['"Excuse me... ¿dónde queda la Avenida Revolución?"', '"My friend dice que los tacos de aquí son los mejores del mundo. Tiene razón."', '"Crucé la línea nomás por un taco. Valió la pena."', '"¿Cuánto por la foto con el burro cebra?"'],
+  albanil: ['"Ahí nomás, una losa más y nos vamos."', '"El patrón dice que para el viernes. ¿Cuál viernes? No dijo."', '"Esta cubeta tiene más años que tú."', '"Echa la mezcla, que se seca."'],
+  mandado: ['"Vengo del mercado y ya subió el jitomate otra vez."', '"Hoy hay caldo de albóndigas. Si quieres, pásate."', '"Si ves a mi viejo, dile que ya voy."', '"Me dieron el pilón de cilantro. Hay que saber pedir."'],
+  carriola: ['"Shhh, apenas se durmió."', '"Si lo despiertas, tú lo duermes."', '"Venimos del parque. Él feliz, yo agotada."', '"Ya dijo su primera palabra: taco."'],
+  corredor: ['"¡No me puedo parar, voy en mi mejor tiempo!"', '"Subí el Cerro Colorado corriendo. Bueno, caminando."', '"Corro para poder comer más tacos."', '"Diez kilómetros y luego unos de adobada."'],
+  luchador: ['"Esta máscara no me la quito ni para dormir."', '"¿Rudos o técnicos? ¡Técnicos, siempre!"', '"Mi abuelita me hizo esta máscara. Es sagrada."', '"Si me ves sin máscara, no me conoces."'],
+  maquila: ['"Salí del turno de la mañana. Ahora a la segunda chamba."', '"En la línea armamos piezas para medio mundo."', '"El camión de la maquila me dejó, como siempre."', '"Hoy es quincena. Hoy invito los tacos."'],
+  estudiante: ['"Voy tarde a la secundaria. Otra vez."', '"Mañana hay examen de mate y no estudié nada."', '"Me dejaron tarea de la historia de Tijuana. ¿Tú sabes algo?"', '"En el recreo vendo dulces. Soy empresario."'],
+  globero: ['"¡Globos! Hay de corazón, de estrella y de dinosaurio."', '"Un día de Santa Ana casi salgo volando para San Diego."', '"El rojo es el que más se vende. Nadie sabe por qué."'],
+  musico: ['"¿Una canción, joven? Por diez pesos le toco la que quiera."', '"Me sé todas las de antes. Las de ahora no les entiendo."', '"Toco en los camiones. Los choferes me odian."'],
+};
 const FRASES_FUGA = ['¡Le pegaste a la pipa del gas!', '¡Huele a gas!', '¡Se está saliendo el gas!', '¡Cuidado con la pipa!'];
 const FRASES_PIPA = ['¡Voló la pipa del gas!', '¡Se escuchó hasta San Diego!', '¡Explotó la pipa!', '¡Ahora sí hubo gas para toda la colonia!'];
 const FRASES_TOPE = [
@@ -2369,9 +2384,56 @@ const PED_VARIANTS = (() => {
 })();
 const N_PEDS = PED_VARIANTS.length;
 const pedVariant = () => (Math.random() * N_PEDS) | 0;
+// personajes de la calle con su propio atuendo, sus cosas y sus frases (ver FRASES_TIPO); van despues de los comunes
+// en PED_VARIANTS. tipo: para las frases; prop: lo que cargan o empujan; shift: se recorre para que quepa el carrito
+const TIPOS_CALLE = [
+  { tipo: 'elotero', female: false, age: 'adulto', build: 'gordo', skin: '#8d5a36', shirt: '#f4f4f4', pants: '#3b3b3b', hair: 'corto', hairCol: '#111', hat: 'paja', hatCol: '#e2c27a', mandil: '#2e7d32', prop: 'elotes', empuja: true, shift: -3.5, speed: 0.55 },
+  { tipo: 'paletero', female: false, age: 'viejo', build: 'delgado', skin: '#a8714a', shirt: '#fafafa', pants: '#2c3e66', hair: 'corto', hairCol: '#bdbdbd', hat: 'gorra', hatCol: '#fafafa', prop: 'paletas', empuja: true, shift: -3.5, speed: 0.55 },
+  { tipo: 'turista', female: false, age: 'adulto', build: 'gordo', skin: '#f2b8a0', shirt: '#00897b', flores: true, pants: '#d7ccc8', hair: 'corto', hairCol: '#c9a227', hat: 'paja', hatCol: '#f0dca0', prop: 'camara', speed: 0.8 },
+  { tipo: 'turista', female: true, age: 'adulto', build: 'normal', skin: '#f5c6b0', shirt: '#e91e63', flores: true, pants: '#fafafa', hair: 'largo', hairCol: '#e0b84a', hat: 'paja', hatCol: '#f0dca0', prop: 'camara', speed: 0.8 },
+  { tipo: 'albanil', female: false, age: 'adulto', build: 'normal', skin: '#8d5a36', shirt: '#9e9e9e', polvo: true, pants: '#1d3f8f', hair: 'corto', hairCol: '#111', hat: 'casco', hatCol: '#fbc02d', prop: 'cubeta', speed: 0.9 },
+  { tipo: 'mandado', female: true, age: 'adulto', build: 'gordo', skin: '#a8714a', shirt: '#7b1fa2', mandil: '#f8bbd0', pants: '#3b3b3b', skirt: '#4e342e', hair: 'chongo', hairCol: '#2a1a10', prop: 'bolsas', speed: 0.8 },
+  { tipo: 'carriola', female: true, age: 'joven', build: 'delgado', skin: '#c68e5f', shirt: '#4fc3f7', pants: '#283593', hair: 'cola', hairCol: '#111', prop: 'carriola', empuja: true, shift: -3.5, speed: 0.75 },
+  { tipo: 'corredor', female: false, age: 'joven', build: 'delgado', skin: '#c68e5f', shirt: '#c6ff00', pants: '#212121', hair: 'corto', hairCol: '#111', hat: 'banda', hatCol: '#ff1744', speed: 2.3 },
+  { tipo: 'corredor', female: true, age: 'joven', build: 'delgado', skin: '#e0b08a', shirt: '#ff4081', pants: '#212121', hair: 'cola', hairCol: '#5a3a22', hat: 'banda', hatCol: '#00e5ff', speed: 2.2 },
+  { tipo: 'luchador', female: false, age: 'joven', build: 'gordo', skin: '#a8714a', shirt: '#1a1a1a', pants: '#1f2a38', hair: 'corto', hairCol: '#111', hat: 'mascara', hatCol: '#d32f2f', speed: 1 },
+  { tipo: 'maquila', female: true, age: 'adulto', build: 'normal', skin: '#c68e5f', shirt: '#1e88e5', bata: true, gafete: true, pants: '#3b3b3b', hair: 'cola', hairCol: '#2a1a10', speed: 1 },
+  { tipo: 'maquila', female: false, age: 'adulto', build: 'normal', skin: '#8d5a36', shirt: '#1e88e5', bata: true, gafete: true, pants: '#3b3b3b', hair: 'corto', hairCol: '#111', speed: 1 },
+  { tipo: 'estudiante', female: true, age: 'nino', build: 'delgado', skin: '#c68e5f', shirt: '#fafafa', pants: '#283593', skirt: '#283593', hair: 'cola', hairCol: '#111', pack: '#e53935', speed: 1.1, k: 0.8 },
+  { tipo: 'estudiante', female: false, age: 'nino', build: 'normal', skin: '#a8714a', shirt: '#fafafa', pants: '#5d6d7e', hair: 'corto', hairCol: '#111', pack: '#1e88e5', speed: 1.1, k: 0.8 },
+  { tipo: 'globero', female: false, age: 'viejo', build: 'delgado', skin: '#a8714a', shirt: '#ff9800', pants: '#5a4632', hair: 'calvo', hairCol: '#bdbdbd', hat: 'vaquero', hatCol: '#d7b98a', prop: 'globos', speed: 0.6 },
+  { tipo: 'musico', female: false, age: 'adulto', build: 'delgado', skin: '#8d5a36', shirt: '#5d4037', pants: '#1f2a38', hair: 'rizado', hairCol: '#111', prop: 'guitarra', speed: 0.8 },
+].map(V => Object.assign({ k: 1 }, V));
+const I_TIPOS = PED_VARIANTS.length;
+PED_VARIANTS.push(...TIPOS_CALLE);
+// la gente que camina en la calle: uno de cada cuatro es un personaje
+const pedCalle = () => Math.random() < 0.25 ? I_TIPOS + ((Math.random() * TIPOS_CALLE.length) | 0) : pedVariant();
+// carritos que empujan los personajes (adelante de la persona, de x = 6 a 15)
+function drawCarrito(x, k) {
+  const rr = (X, Y, w, h, r, f) => { x.fillStyle = f; x.beginPath(); x.roundRect(X, Y, w, h, r); x.fill(); };
+  x.fillStyle = 'rgba(0,0,0,0.25)'; x.beginPath(); x.roundRect(7, -4.2, 9.5, 9.5, 1); x.fill();
+  x.strokeStyle = '#616161'; x.lineWidth = 0.6; x.beginPath(); x.moveTo(5.3, -3.2); x.lineTo(5.3, 3.2); x.moveTo(5.3, -2.8); x.lineTo(6.5, -2.8); x.moveTo(5.3, 2.8); x.lineTo(6.5, 2.8); x.stroke(); // manubrio
+  if (k === 'elotes') {
+    rr(6.5, -4.5, 9, 9, 1, '#b0bec5'); rr(7, -4, 8, 8, 0.8, '#cfd8dc');
+    x.fillStyle = '#90a4ae'; x.beginPath(); x.arc(9.5, -1.5, 2, 0, 7); x.fill(); // la olla
+    for (let i = 0; i < 4; i++) { x.fillStyle = '#fbc02d'; x.beginPath(); x.ellipse(12.8, -2.6 + i * 1.6, 1.7, 0.6, 0, 0, 7); x.fill(); x.fillStyle = '#7cb342'; x.fillRect(14.2, -2.9 + i * 1.6, 0.8, 0.6); }
+    x.fillStyle = '#fff'; x.fillRect(8, 2, 2.2, 1.6); x.fillStyle = '#e53935'; x.fillRect(10.6, 2, 1.6, 1.6); // mayonesa y chile
+  } else if (k === 'paletas') {
+    rr(6.5, -4.5, 9, 9, 1, '#fafafa'); x.strokeStyle = '#bdbdbd'; x.lineWidth = 0.4; x.strokeRect(6.7, -4.3, 8.6, 8.6);
+    rr(7.4, -3.6, 7.2, 7.2, 0.6, '#1e88e5'); // la tapa
+    x.fillStyle = '#fff'; x.font = 'bold 2.2px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('PALETAS', 11, 0.2);
+    x.fillStyle = '#fdd835'; x.beginPath(); x.arc(15, -3.6, 0.8, 0, 7); x.fill(); // la campanita
+  } else if (k === 'carriola') {
+    x.strokeStyle = '#424242'; x.lineWidth = 0.6; x.strokeRect(6.5, -3.4, 7.5, 6.8);
+    rr(6.8, -3.2, 7, 6.4, 2.2, '#f8bbd0'); // la cobijita
+    x.fillStyle = '#e0b08a'; x.beginPath(); x.arc(12, 0, 1.3, 0, 7); x.fill(); // el bebe
+    x.fillStyle = '#283593'; x.beginPath(); x.arc(13.5, 0, 3.6, -Math.PI / 2, Math.PI / 2); x.closePath(); x.fill(); // el toldo
+    x.strokeStyle = 'rgba(255,255,255,0.4)'; x.lineWidth = 0.3; x.beginPath(); x.arc(13.5, 0, 2.6, -Math.PI / 2, Math.PI / 2); x.stroke();
+  }
+}
 // una persona vista desde arriba mirando a la derecha (+x); sw entre -1 y 1 es el paso de la caminata
 function drawPerson(x, V, sw) {
-  x.save(); x.scale(V.k, V.k); x.lineCap = 'round';
+  x.save(); x.translate(V.shift || 0, 0); x.scale(V.k, V.k); x.lineCap = 'round';
   const B = { delgado: [2.3, 4.4, 4.1], normal: [2.8, 5.2, 4.6], gordo: [3.3, 6.2, 5.5] }[V.build]; // [frente-espalda, hombros, brazos]
   const tx = B[0], ty = B[1] * (V.female ? 0.9 : 1), arm = B[2] * (V.female ? 0.92 : 1), step = V.age === 'viejo' ? 4.5 : 6.5;
   x.fillStyle = 'rgba(0,0,0,0.25)'; x.beginPath(); x.ellipse(1.2, 1.2, tx + 1.7, ty + 1.3, 0, 0, 7); x.fill();
@@ -2385,19 +2447,60 @@ function drawPerson(x, V, sw) {
   // falda o vestido (tapa la cadera)
   // desde arriba la falda asoma alrededor de la cadera, mas ancha que el torso
   if (V.skirt) { x.fillStyle = V.skirt; x.beginPath(); x.ellipse(-0.6, 0, tx + 2.6, ty + 0.9, 0, 0, 7); x.fill(); x.strokeStyle = 'rgba(0,0,0,0.35)'; x.lineWidth = 0.6; x.stroke(); }
+  // lo que empuja va adelante: carrito de elotes, de paletas o la carriola (las manos quedan en el manubrio)
+  if (V.empuja) drawCarrito(x, V.prop);
+  if (V.empuja) {
+    for (const side of [-1, 1]) {
+      x.strokeStyle = V.shirt; x.lineWidth = 2.4; x.beginPath(); x.moveTo(0, side * (arm - 0.2)); x.lineTo(3.2, side * 3.2); x.stroke();
+      x.strokeStyle = V.skin; x.lineWidth = 1.8; x.beginPath(); x.moveTo(3.2, side * 3.2); x.lineTo(5, side * 2.8); x.stroke();
+      x.fillStyle = V.skin; x.beginPath(); x.arc(5.3, side * 2.8, 1.2, 0, 7); x.fill();
+    }
+  }
   // brazos: se mueven al reves que las piernas; el viejito con baston lo lleva en la mano derecha
-  for (const side of [-1, 1]) {
+  if (!V.empuja) for (const side of [-1, 1]) {
     const off = -sw * 4.5 * side * (V.age === 'viejo' ? 0.6 : 1);
     x.strokeStyle = V.shirt; x.lineWidth = V.build === 'gordo' ? 2.8 : 2.4;
     x.beginPath(); x.moveTo(0, side * (arm - 0.2)); x.lineTo(off * 0.7, side * (arm + 0.6)); x.stroke();
     x.fillStyle = V.skin; x.beginPath(); x.arc(off, side * (arm + 0.7), 1.3, 0, 7); x.fill();
     if (V.cane && side === 1) { x.strokeStyle = '#5d4037'; x.lineWidth = 0.9; x.beginPath(); x.moveTo(off, arm + 0.7); x.lineTo(off + 3.6, arm + 1.2); x.stroke(); }
+    const hy = side * (arm + 0.7);
+    // bolsas del mandado (una en cada mano) y la cubeta del albañil (en la derecha)
+    if (V.prop === 'bolsas') {
+      x.fillStyle = side < 0 ? '#ff7043' : '#fdd835'; x.beginPath(); x.roundRect(off - 2, hy + side * 0.6 - 1.4, 4, 2.8, 0.8); x.fill();
+      x.fillStyle = '#43a047'; x.beginPath(); x.arc(off + (side < 0 ? 0.8 : -0.6), hy + side * 0.6, 0.9, 0, 7); x.fill(); // algo verde asomando
+    }
+    if (V.prop === 'cubeta' && side === 1) {
+      x.fillStyle = '#78909c'; x.beginPath(); x.arc(off, hy + 1.6, 2, 0, 7); x.fill();
+      x.fillStyle = '#b0a58f'; x.beginPath(); x.arc(off, hy + 1.6, 1.5, 0, 7); x.fill(); // mezcla
+      x.strokeStyle = '#37474f'; x.lineWidth = 0.4; x.beginPath(); x.arc(off, hy + 1.6, 2, 0, 7); x.stroke();
+    }
   }
   // mochila en la espalda
   if (V.pack) { x.fillStyle = V.pack; x.beginPath(); x.roundRect(-tx - 1.8, -2.6, 2.4, 5.2, 0.8); x.fill(); }
-  // torso (con panza si es gordo)
+  // torso (con panza si es gordo); la bata de la maquila es mas larga
+  if (V.bata) { x.fillStyle = shade(V.shirt, 0.85); x.beginPath(); x.ellipse(-1, 0, tx + 1, ty + 0.4, 0, 0, 7); x.fill(); }
   x.fillStyle = V.shirt; x.beginPath(); x.ellipse(-0.3, 0, tx, ty, 0, 0, 7); x.fill();
   x.strokeStyle = 'rgba(0,0,0,0.4)'; x.lineWidth = 0.7; x.stroke();
+  if (V.flores || V.polvo || V.mandil) {
+    x.save(); x.beginPath(); x.ellipse(-0.3, 0, tx, ty, 0, 0, 7); x.clip();
+    // camisa hawaiana: flores de colores
+    if (V.flores) for (const [fx, fy, c] of [[-1.5, -3, '#ffeb3b'], [0.8, -1.2, '#ff5722'], [-1, 1.5, '#ffffff'], [1, 3.4, '#ffeb3b'], [-2.2, 3.8, '#ff5722'], [0.2, -4.2, '#ffffff']]) {
+      x.fillStyle = c; for (let a = 0; a < 6.3; a += 1.26) { x.beginPath(); x.arc(fx + Math.cos(a) * 0.55, fy + Math.sin(a) * 0.55, 0.45, 0, 7); x.fill(); }
+    }
+    if (V.polvo) { x.fillStyle = 'rgba(230,220,200,0.55)'; for (const [fx, fy] of [[-1, -2], [0.5, 1], [-2, 2.5], [1, -3.5], [-0.5, 3.8]]) { x.beginPath(); x.arc(fx, fy, 0.7, 0, 7); x.fill(); } }
+    if (V.mandil) { x.fillStyle = V.mandil; x.beginPath(); x.ellipse(1.6, 0, tx * 0.75, ty * 0.8, 0, 0, 7); x.fill(); x.strokeStyle = 'rgba(255,255,255,0.6)'; x.lineWidth = 0.35; x.setLineDash([0.6, 0.6]); x.stroke(); x.setLineDash([]); }
+    x.restore();
+  }
+  if (V.gafete) { x.fillStyle = '#fff'; x.fillRect(1.2, -3, 1.2, 1.6); x.fillStyle = '#1565c0'; x.fillRect(1.2, -3, 1.2, 0.5); }
+  if (V.prop === 'camara') {
+    x.strokeStyle = '#212121'; x.lineWidth = 0.4; x.beginPath(); x.moveTo(1.2, -3.8); x.lineTo(2.6, 0); x.lineTo(1.2, 3.8); x.stroke();
+    x.fillStyle = '#212121'; x.fillRect(2.2, -1.3, 1.6, 2.6); x.fillStyle = '#90a4ae'; x.beginPath(); x.arc(3.9, 0, 0.7, 0, 7); x.fill();
+  }
+  if (V.prop === 'guitarra') {
+    x.fillStyle = '#a0622d'; x.beginPath(); x.ellipse(4.2, 2, 3.4, 2.6, 0.5, 0, 7); x.fill();
+    x.fillStyle = '#3e2410'; x.beginPath(); x.arc(4.2, 2, 0.9, 0, 7); x.fill();
+    x.strokeStyle = '#5d3a1a'; x.lineWidth = 1; x.beginPath(); x.moveTo(5.5, 0); x.lineTo(9, -4.5); x.stroke();
+  }
   if (V.build === 'gordo') { x.fillStyle = 'rgba(255,255,255,0.12)'; x.beginPath(); x.ellipse(1, 0, tx * 0.6, ty * 0.55, 0, 0, 7); x.fill(); }
   // cabeza: cara hacia adelante (+x) y el peinado
   const H = V.hairCol, face = () => { x.fillStyle = V.skin; x.beginPath(); x.arc(0.9, 0, 2.5, 0, 7); x.fill(); };
@@ -2408,6 +2511,37 @@ function drawPerson(x, V, sw) {
   else { face(); back(); if (V.hair === 'cola') { x.fillStyle = H; x.beginPath(); x.ellipse(-2.8, 0, 1.8, 1.1, 0, 0, 7); x.fill(); } if (V.hair === 'chongo') { x.fillStyle = H; x.beginPath(); x.arc(-2.2, 0, 1.5, 0, 7); x.fill(); } }
   // sombreros
   if (V.hat === 'gorra') { x.fillStyle = V.hatCol; x.beginPath(); x.arc(0.4, 0, 2.7, Math.PI * 0.55, Math.PI * 1.45); x.closePath(); x.fill(); x.beginPath(); x.arc(0.6, 0, 2.6, 0, 7); x.fill(); x.fillRect(0.2, -1.6, 3.2, 3.2); }
+  if (V.hat === 'paja') { // sombrero de paja de ala ancha
+    x.fillStyle = V.hatCol; x.beginPath(); x.arc(0.6, 0, 4.6, 0, 7); x.fill();
+    x.strokeStyle = 'rgba(120,90,30,0.45)'; x.lineWidth = 0.3; for (const r of [1.6, 2.6, 3.6, 4.3]) { x.beginPath(); x.arc(0.6, 0, r, 0, 7); x.stroke(); }
+    x.strokeStyle = '#6d4c41'; x.lineWidth = 0.6; x.beginPath(); x.arc(0.6, 0, 2.2, 0, 7); x.stroke();
+  }
+  if (V.hat === 'casco') { // casco de obra con su cresta y la visera adelante
+    x.fillStyle = V.hatCol; x.beginPath(); x.ellipse(1.2, 0, 3.6, 3.1, 0, -1.2, 1.2); x.fill();
+    x.beginPath(); x.arc(0.5, 0, 2.9, 0, 7); x.fill();
+    x.strokeStyle = 'rgba(0,0,0,0.3)'; x.lineWidth = 0.5; x.stroke();
+    x.strokeStyle = shade(V.hatCol, 0.7); x.lineWidth = 0.8; x.beginPath(); x.moveTo(-2.2, 0); x.lineTo(3.2, 0); x.stroke();
+  }
+  if (V.hat === 'mascara') { // mascara de luchador: tapa toda la cabeza, con los ojos ribeteados y las agujetas atras
+    x.fillStyle = V.hatCol; x.beginPath(); x.arc(0.5, 0, 2.9, 0, 7); x.fill();
+    x.strokeStyle = '#fff'; x.lineWidth = 0.5;
+    for (const ey of [-1.1, 1.1]) { x.beginPath(); x.ellipse(2.2, ey, 0.8, 0.6, 0, 0, 7); x.stroke(); }
+    x.fillStyle = '#ffd600'; x.beginPath(); x.moveTo(3.2, 0); x.lineTo(-1, -1.6); x.lineTo(-0.2, 0); x.lineTo(-1, 1.6); x.closePath(); x.fill();
+    x.strokeStyle = '#fafafa'; x.lineWidth = 0.35; x.beginPath(); x.moveTo(-2.3, -0.6); x.lineTo(-3.4, -1.2); x.moveTo(-2.3, 0.6); x.lineTo(-3.4, 1.2); x.stroke();
+  }
+  if (V.hat === 'banda') { x.strokeStyle = V.hatCol; x.lineWidth = 0.9; x.beginPath(); x.arc(0.6, 0, 2.35, 0, 7); x.stroke(); }
+  if (V.prop === 'globos') { // racimo de globos amarrados a la mano izquierda
+    const hx = 0, hy = -6;
+    const G = [[2, -9.5, '#e53935'], [4.4, -8.6, '#fdd835'], [0, -10.6, '#1e88e5'], [3, -11.2, '#43a047'], [5.6, -10.6, '#8e24aa'], [1.2, -8, '#ff7043']];
+    x.strokeStyle = 'rgba(255,255,255,0.7)'; x.lineWidth = 0.25; x.beginPath(); for (const [gx, gy] of G) { x.moveTo(hx, hy); x.lineTo(gx, gy); } x.stroke();
+    for (const [gx, gy, c] of G) { x.fillStyle = c; x.beginPath(); x.ellipse(gx, gy, 1.5, 1.7, 0, 0, 7); x.fill(); x.fillStyle = 'rgba(255,255,255,0.5)'; x.beginPath(); x.arc(gx - 0.5, gy - 0.6, 0.45, 0, 7); x.fill(); }
+  }
+  if (V.prop === 'elotes') { // la sombrilla del carrito de elotes, encima de todo
+    const ux = 10, R = 5;
+    for (let i = 0; i < 8; i++) { x.fillStyle = i % 2 ? '#fafafa' : '#e53935'; x.beginPath(); x.moveTo(ux, 0); x.arc(ux, 0, R, i * Math.PI / 4, (i + 1) * Math.PI / 4); x.closePath(); x.fill(); }
+    x.strokeStyle = 'rgba(0,0,0,0.3)'; x.lineWidth = 0.4; x.beginPath(); x.arc(ux, 0, R, 0, 7); x.stroke();
+    x.fillStyle = '#555'; x.beginPath(); x.arc(ux, 0, 0.6, 0, 7); x.fill();
+  }
   if (V.hat === 'gorro') { // gorro de estambre con su doblez
     x.fillStyle = V.hatCol; x.beginPath(); x.arc(0.3, 0, 2.75, 0, 7); x.fill();
     x.strokeStyle = 'rgba(255,255,255,0.18)'; x.lineWidth = 0.4; x.beginPath(); for (let a = -2.2; a <= 2.2; a += 0.55) { x.moveTo(0.3, 0); x.lineTo(0.3 + Math.cos(a + Math.PI) * 2.5, Math.sin(a + Math.PI) * 2.5); } x.stroke();
@@ -2483,7 +2617,7 @@ function drawPlayer(x, sw) {
   x.restore();
 }
 function makeTextures(scene) {
-  makeLights(scene); makeFiesta(scene); makeMoto(scene); makeDeportiva(scene); makeEscolta(scene); makePerro(scene); makeLandmarkIcons(scene); makeTrocaTacos(scene); makeZonkey(scene); makeTaxi(scene); makePolice(scene); makeUrbano(scene); makePipaGas(scene); makeExplosiones(scene); makeTacoStands(scene); makeCafes(scene); makeChinas(scene); makeYonke(scene); makeEggs(scene); makeScorch(scene);
+  makeLights(scene); makeFiesta(scene); makeMoto(scene); makeDeportiva(scene); makeEscolta(scene); makePerro(scene); makePerros(scene); makeLandmarkIcons(scene); makeTrocaTacos(scene); makeZonkey(scene); makeTaxi(scene); makePolice(scene); makeUrbano(scene); makePipaGas(scene); makeExplosiones(scene); makeTacoStands(scene); makeCafes(scene); makeChinas(scene); makeYonke(scene); makeEggs(scene); makeScorch(scene);
   // personas vistas desde arriba, mirando a la derecha; 8 cuadros de caminata (el cuadro 0 es parado).
   // Una textura por variante de PED_VARIANTS ('ped0'...) y la del jugador ('pedP'); ver drawPerson.
   // Se dibujan a SPR veces la resolucion y el sprite se muestra a escala 1 / SPR para que se vean nitidas.
@@ -2586,6 +2720,48 @@ function makePerro(scene) {
   }
   t.refresh();
   scene.anims.create({ key: 'cola', frames: [{ key: 'perro', frame: 0 }, { key: 'perro', frame: 1 }], frameRate: 8, repeat: -1 });
+}
+// perros callejeros de varias razas, vistos desde arriba mirando a la derecha; cuatro cuadros de caminata
+// (patas cruzadas y la cola de un lado a otro). Textura 'perro<i>' y animacion 'perroAnda<i>'
+const RAZAS = [
+  { body: '#c58747', dark: '#a86b33', ear: '#7a4520', pata: '#8a5426', paliacate: '#c62828', k: 1 },
+  { body: '#2b2b2b', dark: '#1c1c1c', ear: '#111', pata: '#1a1a1a', pecho: '#d9d9d9', k: 1 },
+  { body: '#f2f2f2', dark: '#e2e2e2', ear: '#3a3a3a', pata: '#d0d0d0', manchas: '#3a3a3a', k: 1 },
+  { body: '#e8c08a', dark: '#d4a66a', ear: '#c99a5e', pata: '#c99a5e', orejotas: true, k: 0.62 },
+  { body: '#7d7f86', dark: '#66686e', ear: '#55575c', pata: '#5b5d63', collar: '#1e88e5', ancho: true, k: 1.1 },
+  { body: '#8d6e4c', dark: '#6d5236', ear: '#5d4030', pata: '#5d4030', peludo: true, k: 1 },
+];
+function makePerros(scene) {
+  const FW = 24, FH = 16;
+  RAZAS.forEach((D, i) => {
+    const t = scene.textures.createCanvas('perro' + i, FW * 4 * SPR, FH * SPR), x = t.getContext();
+    for (let f = 0; f < 4; f++) {
+      const ph = [1, 0, -1, 0][f], cola = [1, 0.3, -1, -0.3][f], W = D.ancho ? 1.2 : 1;
+      x.save(); x.scale(SPR, SPR); x.translate(f * FW + 11, FH / 2); x.scale(D.k, D.k);
+      const ell = (c, ex, ey, rx, ry, a) => { x.fillStyle = c; x.beginPath(); x.ellipse(ex, ey, rx, ry, a || 0, 0, 7); x.fill(); };
+      ell('rgba(0,0,0,0.25)', 1, 1, 8, 4.2 * W);
+      x.strokeStyle = D.dark; x.lineWidth = D.peludo ? 2.4 : 1.6; x.lineCap = 'round';
+      x.beginPath(); x.moveTo(-6, 0); x.quadraticCurveTo(-8.5, cola * 2.5, -9.5, cola * 4); x.stroke();
+      // patas: la delantera de un lado va con la trasera del otro
+      for (const [px, py, s] of [[-4, -3.3, 1], [-4, 3.3, -1], [3, -3.1, -1], [3, 3.1, 1]]) ell(D.pata, px + ph * s * 1.3, py * W, 1.4, 1, 0);
+      ell(D.body, -0.5, 0, 6.5, 3.4 * W);
+      if (D.peludo) { x.strokeStyle = D.dark; x.lineWidth = 0.5; x.beginPath(); for (let a = 0; a < 6.3; a += 0.45) { const ex = -0.5 + Math.cos(a) * 6.3, ey = Math.sin(a) * 3.3 * W; x.moveTo(ex, ey); x.lineTo(ex + Math.cos(a) * 0.9, ey + Math.sin(a) * 0.9); } x.stroke(); }
+      ell(D.dark, -1.5, 0, 4, 1.4 * W);
+      if (D.manchas) for (const [mx, my, r] of [[-3, -1.5, 1.3], [1, 1.6, 1.1], [-0.8, -0.2, 0.9], [3, -1.2, 0.8]]) ell(D.manchas, mx, my, r, r * 0.8);
+      if (D.pecho) ell(D.pecho, 4.3, 0, 1, 1.8);
+      if (D.paliacate) { ell(D.paliacate, 5, 0, 1.5, 3); x.fillStyle = '#fff'; for (const py of [-1.6, 0, 1.6]) x.fillRect(4.7, py - 0.3, 0.6, 0.6); }
+      if (D.collar) { ell(D.collar, 5, 0, 0.8, 2.9 * W); ell('#fdd835', 5.6, 0, 0.5, 0.5); }
+      ell(D.body, 7.5, 0, 2.8, 2.5 * (D.ancho ? 1.1 : 1));
+      if (D.orejotas) { ell(D.ear, 6.4, -3, 2.2, 1.3, -0.7); ell(D.ear, 6.4, 3, 2.2, 1.3, 0.7); ell('#f3b8a8', 6.4, -3, 1.2, 0.6, -0.7); ell('#f3b8a8', 6.4, 3, 1.2, 0.6, 0.7); }
+      else { ell(D.ear, 6.6, -2.4, 1.5, 0.9, -0.5); ell(D.ear, 6.6, 2.4, 1.5, 0.9, 0.5); }
+      ell(D.ancho ? D.dark : D.body, 9.6, 0, 1.4, 1.5); // hocico
+      x.fillStyle = '#1a1a1a'; x.beginPath(); x.arc(10.4, 0, 0.8, 0, 7); x.fill();
+      x.restore();
+      t.add(f, 0, f * FW * SPR, 0, FW * SPR, FH * SPR);
+    }
+    t.refresh();
+    scene.anims.create({ key: 'perroAnda' + i, frames: [0, 1, 2, 3].map(f => ({ key: 'perro' + i, frame: f })), frameRate: 10, repeat: -1 });
+  });
 }
 // luces de la noche: 'luz' es un circulo que se desvanece hacia afuera (128 px) y 'cono' el haz de un faro
 // (256 x 128, nace en la orilla izquierda al centro). Se usan para borrar la oscuridad y, teñidas, como resplandor
@@ -4219,7 +4395,7 @@ class Main extends Phaser.Scene {
       e.x = sx; e.y = sy;
       e.icon = this.add.image(sx, sy, 'egg_' + e.k).setScale(0.4).setRotation(rot).setDepth(7).setVisible(!e.got);
     }
-    this.stamina = STAMINA; this.tired = false; this.burning = []; this.fuegos = []; this.manchas = []; this.blastLights = [];
+    this.stamina = STAMINA; this.tired = false; this.burning = []; this.perros = []; this.fuegos = []; this.manchas = []; this.blastLights = [];
     this.chatDeck = []; this.chatCool = 0;
     this.bubble = { el: $('bubble'), ped: null, t: 0 };
     this.staminaBar = this.add.graphics().setDepth(20);
@@ -4258,10 +4434,11 @@ class Main extends Phaser.Scene {
   }
 
   walker(x, y, rate) {
-    const i = pedVariant(), V = PED_VARIANTS[i];
+    const i = pedCalle(), V = PED_VARIANTS[i];
     const s = this.add.sprite(x, y, 'ped' + i, 0).setDepth(5).setScale(1 / SPR);
     s.play({ key: 'walk' + i, startFrame: (Math.random() * 8) | 0 }); s.anims.timeScale = rate * V.speed;
     s.pace = V.speed; // los viejitos caminan mas despacio
+    s.tipo = V.tipo;
     return s;
   }
 
@@ -4399,7 +4576,7 @@ class Main extends Phaser.Scene {
       edgePos(e, ped.s, ped.dir, ped.side, ped);
       if (blocked(ped.x, ped.y) || !regionesListas(ped.x, ped.y, ped.x, ped.y) || (!initial && inView(ped.x, ped.y))) continue;
       ped.sprite = this.walker(ped.x, ped.y, ped.speed / 20);
-      ped.speed *= ped.sprite.pace;
+      ped.speed *= ped.sprite.pace; ped.tipo = ped.sprite.tipo;
       this.peds.push(ped);
     }
     // coyotes: raros, solo a menos de 250 m de la linea y nunca mas de dos
@@ -4416,7 +4593,18 @@ class Main extends Phaser.Scene {
         }
       }
     }
+    // perros callejeros por las banquetas (los de la jauria aparte)
+    n = 0;
+    while (this.perros.filter(d => !d.jauria).length < (Q.gente > 20 ? 4 : 3) && n++ < 3) {
+      const e = randomEdgeNear(walkG, p.x, p.y, initial ? 60 : R + 20, R + 250); if (!e) break;
+      const side = e.c >= 8 ? rnd(-3, 3) : (Math.random() < 0.5 ? 1 : -1) * (e.w / 2 + rnd(0.6, 2.2) * M);
+      const d = { e, dir: Math.random() < 0.5 ? 1 : -1, s: rnd(0, e.len), side, speed: rnd(20, 34), st: 'walk', t: rnd(3, 8), x: 0, y: 0, a: 0 };
+      edgePos(e, d.s, d.dir, d.side, d);
+      if (blocked(d.x, d.y) || !regionesListas(d.x, d.y, d.x, d.y) || (!initial && inView(d.x, d.y))) continue;
+      this.perros.push(this.perroSprite(d));
+    }
     const far = R + 520;
+    this.perros = this.perros.filter(c => { if (dist(c.x, c.y, p.x, p.y) > far) { c.sprite.destroy(); return false; } return true; });
     this.cars = this.cars.filter(c => { if (dist(c.x, c.y, p.x, p.y) > far) { c.sprite.destroy(); return false; } return true; });
     this.peds = this.peds.filter(c => { if (dist(c.x, c.y, p.x, p.y) > far) { c.sprite.destroy(); return false; } return true; });
   }
@@ -4438,6 +4626,7 @@ class Main extends Phaser.Scene {
     if (this.inCar) this.driveCar(this.inCar, ctl, dt); else this.walk(ctl, dt);
     this.updateTraffic(dt);
     this.updatePeds(dt);
+    this.updatePerros(dt);
     this.updateRatero(dt);
     this.pedChat(dt);
     this.updateBurning(dt);
@@ -4523,7 +4712,14 @@ class Main extends Phaser.Scene {
       if (c.rev) { thr = -1; steer = Math.max(-1, Math.min(1, c.x * 1.5)); }
     } else { thr = c.up ? 1 : (c.down || c.rev) ? -1 : 0; steer = c.x; }
     if (broken) thr = 0;
-    const TOP = car.top, ACC = car.acc;
+    // llanta ponchada (karma por atropellar un perrito): no corre y se jala de lado
+    const pon = car.ponchada;
+    if (pon) {
+      pon.t -= dt;
+      if (pon.t <= 0) { car.ponchada = null; toast('🔧 Ya inflaste la llanta como pudiste', 'Ahora sí, a manejar con cuidadito.', 2.5); }
+      else if (Math.abs(fwd) > 20 && (pon.humoT -= dt) <= 0) { pon.humoT = 0.4; this.puff(car.x - Math.sin(car.a) * car.hw * pon.lado, car.y + Math.cos(car.a) * car.hw * pon.lado); }
+    }
+    const TOP = car.top * (car.ponchada ? 0.5 : 1), ACC = car.acc * (car.ponchada ? 0.7 : 1);
     if (thr > 0) fwd += (fwd < 0 ? 420 : ACC * (1 - Math.max(0, fwd) / (TOP + 30))) * thr * dt;
     else if (thr < 0) fwd += (fwd > 0 ? -520 : -150) * -thr * dt;
     else fwd -= Math.sign(fwd) * Math.min(Math.abs(fwd), 90 * dt);
@@ -4533,6 +4729,7 @@ class Main extends Phaser.Scene {
     lat -= lat * Math.min(1, grip * dt);
     const turn = Math.max(-1, Math.min(1, fwd / 90));
     car.a += steer * car.T.steer * turn * dt * (c.brake ? 1.35 : 1);
+    if (car.ponchada) car.a += car.ponchada.lado * 0.4 * turn * dt;
     const nfx = Math.cos(car.a), nfy = Math.sin(car.a);
     car.vx = nfx * fwd - nfy * lat; car.vy = nfy * fwd + nfx * lat;
 
@@ -5035,6 +5232,126 @@ class Main extends Phaser.Scene {
     }
   }
 
+  // ----- perros -----
+  perroSprite(d) {
+    d.raza = (Math.random() * RAZAS.length) | 0;
+    d.sprite = this.add.sprite(d.x, d.y, 'perro' + d.raza, 0).setDepth(5).setScale(1 / SPR).setOrigin(11 / 24, 0.5);
+    d.sprite.play({ key: 'perroAnda' + d.raza, startFrame: (Math.random() * 4) | 0 }); d.sprite.anims.timeScale = d.speed / 26;
+    return d;
+  }
+  // caminan por la banqueta, se paran a olfatear y le ladran a quien pasa; los de la jauria te persiguen
+  updatePerros(dt) {
+    const car = this.inCar, csp = car ? Math.hypot(car.vx, car.vy) : 0, f = this.focus(), tmp = this.tmp, now = this.time.now;
+    for (const d of this.perros) {
+      // atropellado
+      if (car && csp > 40 && d.st !== 'flee' && d.st !== 'vete' && axisDist(d.x, d.y, car) < car.hw + 2) { this.atropellaPerro(d, car); continue; }
+      if (d.st === 'flee' || d.st === 'vete' || d.st === 'jauria') {
+        // corriendo en linea recta (rodeando lo que estorbe): huyendo de ti o persiguiendote
+        d.t -= dt;
+        // cada perro de la jauria le cae por un lado distinto
+        // (alrededor del carro: en una elipse un poco mas grande que la carroceria)
+        const o = d.ofs || 0, ca = car ? Math.cos(car.a) : 1, sa = car ? Math.sin(car.a) : 0;
+        const lx = Math.cos(o) * (car ? car.hl + 5 : 7), ly = Math.sin(o) * (car ? car.hw + 5 : 7);
+        const gx = f.x + lx * ca - ly * sa, gy = f.y + lx * sa + ly * ca;
+        let a = d.st === 'jauria' ? Math.atan2(gy - d.y, gx - d.x) : d.a;
+        // la jauria rodea el carro (o a ti) sin encimarse
+        const pegado = d.st === 'jauria' && dist(d.x, d.y, gx, gy) < 4;
+        const v = pegado ? 0 : (d.st === 'jauria' ? d.speed : 150) * dt;
+        for (const da of [0, 0.6, -0.6, 1.3, -1.3, 2.2, -2.2]) {
+          const nx = d.x + Math.cos(a + da) * v, ny = d.y + Math.sin(a + da) * v;
+          if (!blocked(nx, ny)) { d.x = nx; d.y = ny; a += da; break; }
+        }
+        d.a = a; d.sprite.setPosition(d.x, d.y).setRotation(a);
+        if (d.st === 'jauria') {
+          if (d.t <= 0) { d.st = 'vete'; d.t = 3; d.a = a + Math.PI; continue; }
+          if (now > (d.ladraT || 0)) { d.ladraT = now + rnd(1200, 2600); if (window.SND && dist(d.x, d.y, f.x, f.y) < this.viewR()) SND.play('ladrido', 0.8); }
+          this.mordida(d);
+        } else {
+          d.sprite.setAlpha(Math.min(1, d.t));
+          if (d.t <= 0) { d.sprite.destroy(); d.dead = true; }
+        }
+        continue;
+      }
+      // olfatea un rato y sigue
+      d.t -= dt;
+      if (d.t <= 0) { d.st = d.st === 'walk' ? 'idle' : 'walk'; d.t = d.st === 'idle' ? rnd(1.5, 4) : rnd(4, 10); if (d.st === 'idle') { d.sprite.stop(); d.sprite.setFrame(0); } else d.sprite.play({ key: 'perroAnda' + d.raza, startFrame: 1 }); }
+      // le ladra a quien pasa cerca
+      if (now > (d.ladraT || 0) && dist(d.x, d.y, f.x, f.y) < (car ? 45 : 35)) { d.ladraT = now + rnd(4000, 9000); if (window.SND) SND.play('ladrido', 0.5); }
+      if (d.st === 'idle') { d.sprite.setRotation(d.a + Math.sin(now / 400 + d.s) * 0.3); continue; }
+      d.s += d.speed * dt;
+      if (d.s > d.e.len) {
+        const nx = nextEdge(walkG, d.e, d.dir);
+        if (nx) { d.s -= d.e.len; d.e = nx.e; d.dir = nx.dir; d.side = pedSide(d.e, d.s, d.dir, d.x, d.y, 0.12); }
+        else { d.s = 0; d.dir = -d.dir; d.side = -d.side; }
+      }
+      edgePos(d.e, d.s, d.dir, d.side, tmp);
+      if (!blocked(tmp.x, tmp.y) || blocked(d.x, d.y)) { d.x += (tmp.x - d.x) * Math.min(1, dt * 10); d.y += (tmp.y - d.y) * Math.min(1, dt * 10); }
+      else { d.dir = -d.dir; d.s = d.e.len - d.s; }
+      d.a = tmp.a;
+      d.sprite.setPosition(d.x, d.y).setRotation(d.a);
+    }
+    if (this.perros.some(d => d.dead)) this.perros = this.perros.filter(d => !d.dead);
+  }
+  // el perrito sale chillando y corriendo (ofendido, pero entero); y luego viene el karma
+  atropellaPerro(d, car) {
+    d.st = 'flee'; d.t = 3; d.a = Math.atan2(d.y - car.y, d.x - car.x);
+    d.sprite.play({ key: 'perroAnda' + d.raza }); d.sprite.anims.timeScale = 2.5;
+    this.tweens.add({ targets: d.sprite, scaleX: 1.3 / SPR, scaleY: 0.7 / SPR, duration: 120, yoyo: true });
+    if (window.SND) SND.play('aullido');
+    this.jolt(90, 0.003);
+    if (d.jauria) return; // a los de la jauria nomas los espantas
+    toast('🐕 ¡Atropellaste a un perrito!', 'Salió corriendo, ofendido. Y el karma ya viene en camino...', 3);
+    if (this.time.now < (this.karmaT || 0)) return;
+    this.karmaT = this.time.now + 20000;
+    this.time.delayedCall(1800, () => this.karma());
+  }
+  // el castigo, al azar: la jauria del barrio, una llanta ponchada o la multa por el video que se hizo viral
+  karma() {
+    const ops = [['jauria', 4], ['multa', 2.5]];
+    if (this.inCar && !this.inCar.ponchada && !this.inCar.wrecked) ops.push(['ponchadura', 3.5]);
+    if (this.perros.some(d => d.st === 'jauria')) ops.shift();
+    let r = Math.random() * ops.reduce((s, o) => s + o[1], 0), k = ops[0][0];
+    for (const [n, w] of ops) { if ((r -= w) < 0) { k = n; break; } }
+    if (k === 'jauria') {
+      const f = this.focus(); let n = 0;
+      for (let i = 0; i < 40 && n < 5; i++) {
+        const a = rnd(0, 6.3), R = rnd(150, 230), x = f.x + Math.cos(a) * R, y = f.y + Math.sin(a) * R;
+        if (blocked(x, y) || !regionesListas(x, y, x, y)) continue;
+        const d = this.perroSprite({ x, y, a: a + Math.PI, s: 0, speed: rnd(118, 138), st: 'jauria', t: rnd(26, 32), jauria: true, ofs: n * 1.26 + rnd(-0.3, 0.3) });
+        d.sprite.anims.timeScale = 2.4; this.perros.push(d); n++;
+      }
+      toast('🐕🐕🐕 ¡Llegó la jauría!', 'Los compas del perrito vienen por venganza. ¡Pélate!', 3.5);
+      if (window.SND) { SND.play('ladrido', 1); setTimeout(() => SND.play('ladrido', 0.9), 350); }
+    } else if (k === 'ponchadura') {
+      this.inCar.ponchada = { t: 45, lado: Math.random() < 0.5 ? -1 : 1, humoT: 0 };
+      toast('💨 ¡Se te ponchó una llanta!', 'El karma no perdona. El carro se jala de lado y no corre. Aguanta 45 s o cambia de carro.', 4);
+      if (window.SND) { SND.play('fuga'); SND.play('crash', 0.2); }
+      this.jolt(150, 0.006);
+    } else {
+      const amt = Math.min(state.money, Math.round(rnd(150, 350) / 10) * 10);
+      state.money -= amt; save(); updateStats();
+      toast('📱 ¡Alguien lo grabó todo!', amt > 0 ? 'Se hizo viral: "Conductor atropella perrito en Tijuana". Pagaste el veterinario: -$' + amt : 'Se hizo viral y no traías ni para el veterinario. Te ganaste la fama y ya.', 4.5);
+    }
+  }
+  // la jauria muerde: al carro le baja vida; a pie te cansa
+  mordida(d) {
+    const now = this.time.now, car = this.inCar;
+    if (now < (d.mordT || 0)) return;
+    const pega = car ? axisDist(d.x, d.y, car) < car.hw + 7 : dist(d.x, d.y, this.player.x, this.player.y) < 10;
+    if (!pega) return;
+    d.mordT = now + rnd(1100, 1500);
+    if (car) {
+      if (car.wrecked) return;
+      car.hp -= 2; this.jolt(70, 0.003);
+      if (now > (this.mordAviso || 0)) { this.mordAviso = now + 8000; toast('🐕 ¡Te están mordiendo las llantas!', 'Arráncate, que no se cansan.', 2.5); }
+      if (car.hp <= 0) { this.wreck(car); avisoDeshuesado(car); }
+    } else {
+      this.stamina = Math.max(0, this.stamina - 2); if (this.stamina === 0) this.tired = true; // te cansan (ya no puedes correr)
+      if (now > (this.mordAviso || 0)) { this.mordAviso = now + 8000; toast('🐕 ¡Te están mordiendo los tobillos!', 'Súbete a un carro, ¡ya!', 2.5); }
+    }
+    if (window.SND) SND.play('ladrido', 0.7);
+  }
+
   // ----- el ratero -----
   // si te quedas parado en el carro unos segundos, a veces sale uno corriendo de la banqueta hacia tu puerta: si llega,
   // te baja y se va manejando como loco. Si arrancas antes, se rinde; si lo alcanzas, recuperas el carro con E.
@@ -5206,7 +5523,8 @@ class Main extends Phaser.Scene {
       if (p.coyote || p.st !== 'walk' || p.talked || dist(p.x, p.y, pl.x, pl.y) > 14) continue;
       if (!this.chatDeck.length) this.chatDeck = Phaser.Utils.Array.Shuffle(FRASES_PEATON.slice());
       p.talked = true; b.ped = p; b.t = 4.5; this.chatCool = 2.5;
-      const fr = this.chatDeck.pop();
+      // los personajes casi siempre hablan de lo suyo
+      const fr = p.tipo && Math.random() < 0.8 ? { k: 'colonia', t: pick(FRASES_TIPO[p.tipo]) } : this.chatDeck.pop();
       b.el.className = 'hud bubble ' + fr.k;
       b.el.textContent = fr.t;
       // cada globo sale un poco chueco, como de historieta
