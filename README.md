@@ -35,6 +35,9 @@ T trabajar de taxista · M mapa grande (toca para marcar destino). En celular ha
 - Escoltas 🚙🚙: convoyes de dos camionetas negras con torreta ámbar (no son policías) que cruzan la ciudad en fila, un poco más rápido que el tráfico. Se pueden robar.
 - Conductores erráticos 💥: algunos autos zigzaguean, no frenan por nadie y tarde o temprano se estrellan y quedan deshuesados; el tráfico les da la vuelta.
 - Moto deportiva 🏍️: la más rápida del juego, pero se hace pedazos al primer choque. Sale seguido en el tráfico (máximo dos a la vez).
+- Transporte público 🚌: camiones urbanos (y las calafias) que van a todo lo que da, rebasan, no frenan en los topes, se paran de golpe a subir pasaje y, si te les atraviesas, te pegan por detrás y te pitan. Se pueden robar.
+- Pipas de gas ⛽: andan despacio por las colonias con su cancioncita. Al primer golpe fuerte se les sale el gas; al segundo explotan y la onda expansiva revienta los carros de alrededor (en cadena). Se pueden robar, con cuidadito.
+- Explosiones 💥: destello, bola de fuego, chispas, pedazos, onda expansiva, humo negro, tizne en el piso y luz de noche; los carros de junto salen dañados.
 - Patrullas 🚓: trocas de policía en el tráfico (máximo 3). Si las chocas te cobran multa ($150–800 según la velocidad, una cada 5 s). No se pueden robar.
 - Secretos 🥚: 19 personajes y cosas típicas de Tijuana escondidos cerca de los lugares (el burro cebra, la ensalada César, Javier Bátiz, el Mimo Moy, el señor de los aviones, el pescador de la Presa, el surfista de Playas, un venado en Natura...). Al encontrarlos sueltan una frase y una lana. Están en `EGGS` de src/game.js.
 

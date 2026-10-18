@@ -666,7 +666,7 @@ const chinas = (() => {
 // ---------- el yonke (ficticio) de la Calle Baja California: ahi se venden los carros robados ----------
 // pagan segun el modelo, menos si llega madreado; el precio es lo que dan por uno de agencia sin un rayon
 const YONKE_PRECIO = { 'Sedán': 220, 'Vocho': 140, 'Troca': 300, 'Camioneta': 320, 'Tsurito': 180, 'Combi': 240, 'Muscle car': 480,
-  'Lowrider': 420, 'Calafia': 260, 'Camión de carga': 360, 'Bólido italiano': 1200 };
+  'Lowrider': 420, 'Calafia': 260, 'Camión de carga': 360, 'Bólido italiano': 1200, 'Camión urbano': 380, 'Pipa de gas': 340 };
 const YONKE = (() => {
   const wx = REF_X + 470 * M, wy = REF_Y + 455 * M, tmp = {};
   let best = null, bd = Infinity;
@@ -1714,6 +1714,13 @@ const FRASES_FIESTA = () => [
   'Mi abuela dice que te invita a comer el domingo. Lleva tortillas.',
 ];
 const FRASES_PEATON = Object.entries(FRASES).flatMap(([k, list]) => list.map(t => ({ k, t })));
+const FRASES_CAMION = [
+  '¡El camionero ni frenó!', '¡Súbale, súbale, que hay lugar!', '¡Hágase a un lado, que llevo prisa!',
+  '¡El de la ruta se cree en la Fórmula 1!', '¡Ese chofer va tarde a la vuelta!', '¡Órale, que no es tu carril!',
+  '¡Pásele, pásele, atrás hay lugar!', '¡El camión no frena, nomás pita!', '¡Ese chofer trae prisa por llegar a la base!',
+];
+const FRASES_FUGA = ['¡Le pegaste a la pipa del gas!', '¡Huele a gas!', '¡Se está saliendo el gas!', '¡Cuidado con la pipa!'];
+const FRASES_PIPA = ['¡Voló la pipa del gas!', '¡Se escuchó hasta San Diego!', '¡Explotó la pipa!', '¡Ahora sí hubo gas para toda la colonia!'];
 const FRASES_TOPE = [
   '¡Tope!', '¡Ese tope no venía en el mapa!', '¡Aguas con el tope!', '¡Adiós suspensión!',
   '¡Ese tope lo puso el taller de enfrente!', '¡Se me salió el hígado!', '¡Uy, el escape se quedó atrás!',
@@ -2378,7 +2385,7 @@ function drawPerson(x, V, sw) {
   x.restore();
 }
 function makeTextures(scene) {
-  makeLights(scene); makeFiesta(scene); makeMoto(scene); makeDeportiva(scene); makeEscolta(scene); makePerro(scene); makeLandmarkIcons(scene); makeTrocaTacos(scene); makeZonkey(scene); makeTaxi(scene); makePolice(scene); makeTacoStands(scene); makeCafes(scene); makeChinas(scene); makeYonke(scene); makeEggs(scene); makeScorch(scene);
+  makeLights(scene); makeFiesta(scene); makeMoto(scene); makeDeportiva(scene); makeEscolta(scene); makePerro(scene); makeLandmarkIcons(scene); makeTrocaTacos(scene); makeZonkey(scene); makeTaxi(scene); makePolice(scene); makeUrbano(scene); makePipaGas(scene); makeExplosiones(scene); makeTacoStands(scene); makeCafes(scene); makeChinas(scene); makeYonke(scene); makeEggs(scene); makeScorch(scene);
   // personas vistas desde arriba, mirando a la derecha; 8 cuadros de caminata (el cuadro 0 es parado).
   // Una textura por variante de PED_VARIANTS ('ped0'...) y la del jugador ('pedP'); ver drawPerson.
   // Se dibujan a SPR veces la resolucion y el sprite se muestra a escala 1 / SPR para que se vean nitidas.
@@ -2647,6 +2654,93 @@ function makeEscolta(scene) {
     x.fillStyle = a ? '#ffffff' : '#ffb300'; x.fillRect(L - 1.2, W / 2 - 3, 1.2, 1.6); x.fillRect(L - 1.2, W / 2 + 1.4, 1.2, 1.6);
     t.refresh();
   }
+}
+// camion urbano de ruta: largo, blanco con franjas del color de su ruta, letrero de ruta encendido al frente y el
+// aire acondicionado en el techo. Los choferes van a todo lo que da, se cambian de carril y no frenan por nadie.
+const VT_URBANO = { name: 'Camión urbano', L: 58, W: 20, top: 190, acc: 80, steer: 1.7, hp: 230 };
+const URBANO_COLS = ['#1565c0', '#2e7d32', '#e65100'];
+function makeUrbano(scene) {
+  const { L, W } = VT_URBANO;
+  URBANO_COLS.forEach((col, k) => {
+    const t = scene.textures.createCanvas('urbano' + k, (L + 5) * SPR, (W + 5) * SPR), x = t.getContext();
+    x.scale(SPR, SPR); x.translate(1, 1);
+    const rr = (X, Y, w, h, r, f) => { x.fillStyle = f; x.beginPath(); x.roundRect(X, Y, w, h, r); x.fill(); };
+    x.fillStyle = 'rgba(0,0,0,0.35)'; x.beginPath(); x.roundRect(2, 2, L, W, 3); x.fill();
+    rr(0, 0, L, W, 3, '#f1efe8');
+    // franjas de la ruta a los costados, con la punta inclinada hacia el frente
+    x.fillStyle = col; x.fillRect(1, 0.3, L - 8, 2); x.fillRect(1, W - 2.3, L - 8, 2);
+    x.beginPath(); x.moveTo(L - 7, 0.3); x.lineTo(L - 3, 0.3); x.lineTo(L - 7, 2.3); x.fill();
+    x.beginPath(); x.moveTo(L - 7, W - 0.3); x.lineTo(L - 3, W - 0.3); x.lineTo(L - 7, W - 2.3); x.fill();
+    // ventanillas asomando por las orillas del techo
+    x.fillStyle = GLASS; for (let i = 0; i < 9; i++) { x.fillRect(5 + i * 5.4, 2.3, 4.4, 1); x.fillRect(5 + i * 5.4, W - 3.3, 4.4, 1); }
+    // techo con el aire acondicionado y dos escotillas
+    rr(4, 3.6, L - 12, W - 7.2, 1.5, '#e2dfd5');
+    rr(22, 5, 14, W - 10, 1.2, '#c9c5b8');
+    x.strokeStyle = 'rgba(0,0,0,0.18)'; x.lineWidth = 0.5; x.beginPath(); for (let i = 24; i < 36; i += 2) { x.moveTo(i, 5.6); x.lineTo(i, W - 5.6); } x.stroke();
+    x.fillStyle = '#b8b4a7'; x.fillRect(9, W / 2 - 2.2, 4.4, 4.4); x.fillRect(41, W / 2 - 2.2, 4.4, 4.4);
+    // parabrisas grande y el letrero de ruta en ambar
+    x.fillStyle = GLASS; x.fillRect(L - 4.6, 1.8, 3.4, W - 3.6);
+    x.fillStyle = '#1a1a1a'; x.fillRect(L - 7.8, 3.4, 2.6, W - 6.8);
+    x.fillStyle = '#ffb300'; for (let i = 0; i < 5; i++) x.fillRect(L - 7.4, 4.4 + i * (W - 9) / 5, 1.8, (W - 9) / 5 - 0.7);
+    x.fillStyle = 'rgba(255,255,255,0.25)'; x.fillRect(L - 4, 2.6, 0.9, W - 5.2);
+    x.fillStyle = GLASS; x.fillRect(0.6, 3.5, 1.4, W - 7);
+    x.fillStyle = '#fff6b0'; x.fillRect(L - 1.6, 1.4, 1.6, 2.8); x.fillRect(L - 1.6, W - 4.2, 1.6, 2.8);
+    x.fillStyle = '#ff3b30'; x.fillRect(0, 1.4, 1.3, 2.8); x.fillRect(0, W - 4.2, 1.3, 2.8);
+    x.fillStyle = shade(col, 0.6); x.fillRect(L - 4, -1, 1.6, 1.2); x.fillRect(L - 4, W - 0.2, 1.6, 1.2); // espejos
+    x.strokeStyle = 'rgba(0,0,0,0.45)'; x.lineWidth = 0.6; x.beginPath(); x.roundRect(0, 0, L, W, 3); x.stroke();
+    t.refresh();
+  });
+}
+// pipa de gas LP: cabina roja adelante y el tanque blanco (un cilindro visto desde arriba) con su franja y el
+// letrero de GAS; va despacio vendiendo por las colonias. Dos golpes y explota (ver golpeGas).
+const VT_GAS = { name: 'Pipa de gas', L: 50, W: 19, top: 165, acc: 70, steer: 1.9, hp: 210 };
+function makePipaGas(scene) {
+  const { L, W } = VT_GAS, t = scene.textures.createCanvas('pipa', (L + 5) * SPR, (W + 5) * SPR), x = t.getContext();
+  x.scale(SPR, SPR); x.translate(1, 1);
+  const rr = (X, Y, w, h, r, f) => { x.fillStyle = f; x.beginPath(); x.roundRect(X, Y, w, h, r); x.fill(); };
+  x.fillStyle = 'rgba(0,0,0,0.35)'; x.beginPath(); x.roundRect(2, 2, L, W, 4); x.fill();
+  rr(0.5, 1, 37, W - 2, 1.5, '#4a4a4a'); // chasis
+  // tanque: degradado de lado a lado para que se vea redondo, con las tapas en las puntas
+  const g = x.createLinearGradient(0, 0.5, 0, W - 0.5);
+  g.addColorStop(0, '#9e9e9e'); g.addColorStop(0.3, '#ffffff'); g.addColorStop(0.55, '#f2f2f2'); g.addColorStop(1, '#8c8c8c');
+  x.fillStyle = g; x.beginPath(); x.roundRect(0, 0.5, 36, W - 1, (W - 1) / 2); x.fill();
+  x.strokeStyle = 'rgba(0,0,0,0.35)'; x.lineWidth = 0.5; x.stroke();
+  x.fillStyle = '#1e5aa8'; x.fillRect(6, 0.8, 24, 2.2); x.fillRect(6, W - 3, 24, 2.2); // franja azul a los costados
+  x.fillStyle = '#c62828'; x.fillRect(6, 3, 24, 0.8); x.fillRect(6, W - 3.8, 24, 0.8);
+  // letrero de GAS sobre el tanque, la escotilla y las valvulas de atras
+  x.save(); x.translate(17, W / 2); x.fillStyle = '#c62828'; x.font = 'bold 6.2px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.fillText('GAS', 0, 0.3); x.restore();
+  x.fillStyle = '#b0b0b0'; x.beginPath(); x.arc(30.5, W / 2, 2.2, 0, 7); x.fill(); x.strokeStyle = '#666'; x.lineWidth = 0.5; x.stroke();
+  x.fillStyle = '#d4a017'; x.fillRect(1.2, W / 2 - 1.5, 2.6, 3);
+  x.fillStyle = '#2b2b2b'; x.beginPath(); x.arc(4.5, W - 3.2, 1.8, 0, 7); x.fill(); // carrete de la manguera
+  // cabina roja con parabrisas, espejos y faros
+  rr(37.5, 0.3, L - 37.5, W - 0.6, 3, '#c62828');
+  rr(38.5, 2, 5.5, W - 4, 1, '#a51f1f');
+  x.fillStyle = GLASS; x.fillRect(44.2, 2, 3, W - 4);
+  x.fillStyle = 'rgba(255,255,255,0.2)'; x.fillRect(44.8, 2.8, 0.8, W - 5.6);
+  x.fillStyle = '#7a1414'; x.fillRect(43, -1, 1.6, 1.2); x.fillRect(43, W - 0.2, 1.6, 1.2);
+  x.fillStyle = '#fff6b0'; x.fillRect(L - 1.6, 1.6, 1.6, 2.6); x.fillRect(L - 1.6, W - 4.2, 1.6, 2.6);
+  x.fillStyle = '#ff3b30'; x.fillRect(0, 2, 1.2, 2.4); x.fillRect(0, W - 4.4, 1.2, 2.4);
+  t.refresh();
+}
+// explosiones: 'onda' es el anillo de la onda expansiva y 'mancha' el tizne que deja en el piso
+function makeExplosiones(scene) {
+  let t = scene.textures.createCanvas('onda', 128, 128), x = t.getContext();
+  const g = x.createRadialGradient(64, 64, 40, 64, 64, 63);
+  g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.7, 'rgba(255,255,255,0.9)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = g; x.fillRect(0, 0, 128, 128); t.refresh();
+  t = scene.textures.createCanvas('mancha', 96, 96); x = t.getContext();
+  const r = mulberry(11);
+  for (let i = 0; i < 22; i++) {
+    const a = r() * 6.3, d = r() * 26, rad = 8 + r() * 16;
+    const h = x.createRadialGradient(48 + Math.cos(a) * d, 48 + Math.sin(a) * d, 0, 48 + Math.cos(a) * d, 48 + Math.sin(a) * d, rad);
+    h.addColorStop(0, 'rgba(10,8,6,0.5)'); h.addColorStop(1, 'rgba(10,8,6,0)');
+    x.fillStyle = h; x.fillRect(0, 0, 96, 96);
+  }
+  // rayones que salen del centro
+  x.strokeStyle = 'rgba(15,12,10,0.45)'; x.lineCap = 'round';
+  for (let i = 0; i < 16; i++) { const a = r() * 6.3, l = 26 + r() * 20; x.lineWidth = 1 + r() * 2; x.beginPath(); x.moveTo(48 + Math.cos(a) * 12, 48 + Math.sin(a) * 12); x.lineTo(48 + Math.cos(a) * l, 48 + Math.sin(a) * l); x.stroke(); }
+  t.refresh();
 }
 // patrulla municipal: troca blanca con cofre azul y torreta; dos texturas para que la torreta parpadee
 const VT_POLI = { name: 'Patrulla', L: 38, W: 17, top: 245, acc: 125, steer: 2.4, hp: 150 };
@@ -4024,7 +4118,7 @@ class Main extends Phaser.Scene {
       e.x = sx; e.y = sy;
       e.icon = this.add.image(sx, sy, 'egg_' + e.k).setScale(0.4).setRotation(rot).setDepth(7).setVisible(!e.got);
     }
-    this.stamina = STAMINA; this.tired = false; this.burning = [];
+    this.stamina = STAMINA; this.tired = false; this.burning = []; this.fuegos = []; this.manchas = []; this.blastLights = [];
     this.chatDeck = []; this.chatCool = 0;
     this.bubble = { el: $('bubble'), ped: null, t: 0 };
     this.staminaBar = this.add.graphics().setDepth(20);
@@ -4078,6 +4172,8 @@ class Main extends Phaser.Scene {
     if (o.troca) return { T: VT_TROCA_TACOS, key: 'troca_tacos', ox: (VT_TROCA_TACOS.L / 2 + 3) / (VT_TROCA_TACOS.L + 6), oy: 0.5, dirty: false };
     if (o.zonkey) return { T: VT_ZONKEY, key: 'zonkey', ox: (VT_ZONKEY.L / 2 + 3) / (VT_ZONKEY.L + 6), oy: 0.5, dirty: false };
     if (o.escolta) return { T: VT_ESCOLTA, key: 'escolta0', ox: (VT_ESCOLTA.L / 2 + 1) / (VT_ESCOLTA.L + 5), oy: (VT_ESCOLTA.W / 2 + 1) / (VT_ESCOLTA.W + 5), dirty: false };
+    if (o.urbano) return { T: VT_URBANO, key: 'urbano' + ((Math.random() * URBANO_COLS.length) | 0), ox: (VT_URBANO.L / 2 + 1) / (VT_URBANO.L + 5), oy: (VT_URBANO.W / 2 + 1) / (VT_URBANO.W + 5), dirty: false };
+    if (o.gas) return { T: VT_GAS, key: 'pipa', ox: (VT_GAS.L / 2 + 1) / (VT_GAS.L + 5), oy: (VT_GAS.W / 2 + 1) / (VT_GAS.W + 5), dirty: false };
     if (o.poli) return { T: VT_POLI, key: 'poli0', ox: (VT_POLI.L / 2 + 1) / (VT_POLI.L + 5), oy: (VT_POLI.W / 2 + 1) / (VT_POLI.W + 5), dirty: false };
     const ti = o.ti ?? randomVType(), T = VTYPES[ti], ci = o.ci ?? (Math.random() * T.cols.length) | 0;
     const dirty = o.dirty ?? Math.random() < 0.45, d = dirty ? 1 + ((Math.random() * DIRTY_SEEDS) | 0) : 0;
@@ -4085,7 +4181,7 @@ class Main extends Phaser.Scene {
   }
   makeCar(x, y, a, o) {
     const sp = o && o.T ? o : this.carSpec(o), T = sp.T, f = sp.dirty ? 0.7 : 1;
-    return { x, y, a, vx: 0, vy: 0, T, dirty: sp.dirty, moto: T === VT_MOTO, dosRuedas: T === VT_MOTO || T === VT_DEPORTIVA, poli: T === VT_POLI, hp: Math.round(T.hp * f), maxHp: Math.round(T.hp * f),
+    return { x, y, a, vx: 0, vy: 0, T, dirty: sp.dirty, moto: T === VT_MOTO, dosRuedas: T === VT_MOTO || T === VT_DEPORTIVA, poli: T === VT_POLI, gas: T === VT_GAS, hp: Math.round(T.hp * f), maxHp: Math.round(T.hp * f),
       top: T.top * (sp.dirty ? 0.92 : 1), acc: T.acc * (sp.dirty ? 0.9 : 1), hl: T.L / 2 - 1, hw: T.W / 2 - 1,
       sprite: this.add.image(x, y, sp.key).setOrigin(sp.ox, sp.oy).setRotation(a).setDepth(10).setScale(1 / SPR) };
   }
@@ -4175,12 +4271,20 @@ class Main extends Phaser.Scene {
       const moto = Math.random() < 0.3 && this.cars.filter(c => c.moto).length < 5;
       const poli = !moto && Math.random() < 0.15 && this.cars.filter(c => c.poli).length < 3;
       const deportiva = !moto && !poli && Math.random() < 0.15 && this.cars.filter(c => c.T === VT_DEPORTIVA).length < 2;
-      const spec = this.carSpec({ moto, poli, deportiva });
+      // camiones urbanos por las calles grandes y pipas de gas por donde sea
+      const otro = moto || poli || deportiva;
+      const urbano = !otro && e.c <= 4 && Math.random() < 0.25 && this.cars.filter(c => c.T === VT_URBANO).length < 4;
+      const gas = !otro && !urbano && Math.random() < 0.1 && this.cars.filter(c => c.gas).length < 2;
+      const spec = this.carSpec({ moto, poli, deportiva, urbano, gas });
       if (this.cars.some(c => dist(c.x, c.y, q.x, q.y) < 26 + c.hl + spec.T.L / 2)) continue;
       const car = this.makeCar(q.x, q.y, q.a, spec);
       Object.assign(car, { e, dir, s, lat, lane, speed: 0, max: rnd(50, 80) * (e.c <= 2 ? 1.2 : 1) * (moto ? 1.15 : poli ? 1.1 : deportiva ? 1.35 : car.top / 230) });
+      // transporte publico (el urbano y las calafias): van rapidisimo, rebasan, no frenan en los topes y se paran
+      // de golpe a subir pasaje
+      if (urbano || spec.T.name === 'Calafia') Object.assign(car, { rutero: true, max: rnd(95, 120) * (e.c <= 2 ? 1.15 : 1), latS: lat, paradaT: rnd(12, 30), carrilT: 0, clxT: 0 });
+      if (gas) Object.assign(car, { max: rnd(36, 50), paradaT: rnd(15, 35), golpes: 0 });
       // conductores erraticos: zigzaguean, no frenan por nadie y tarde o temprano se estrellan
-      if (!moto && !poli && !deportiva && Math.random() < 0.06 && this.cars.filter(c => c.loco).length < 2) {
+      if (!otro && !car.rutero && !gas && Math.random() < 0.06 && this.cars.filter(c => c.loco).length < 2) {
         Object.assign(car, { loco: true, ph: rnd(0, 6), wf: rnd(1.6, 2.6), max: car.max * 1.45, locoT: rnd(5, 14), derrape: 0 });
       }
       this.cars.push(car);
@@ -4348,6 +4452,7 @@ class Main extends Phaser.Scene {
         if (car.hp <= 0 && !broken) { this.wreck(car); avisoDeshuesado(car); }
       }
       if (car.T.fragil && speed > 45 && !car.wrecked) { car.hp = 0; this.wreck(car); avisoDeshuesado(car); } // la deportiva: al primer choque
+      if (car.gas && speed > 80) this.golpeGas(car);
     }
     // topes
     let onTope = false;
@@ -4388,20 +4493,199 @@ class Main extends Phaser.Scene {
     car.smokeT = (car.smokeT || 0) - dt;
     if (car.hp < car.maxHp * 0.35 && car.smokeT <= 0) { car.smokeT = 0.12; this.puff(car.x + Math.cos(car.a) * (car.hl - 3), car.y + Math.sin(car.a) * (car.hl - 3)); }
   }
-  // auto destruido: explota, queda chamuscado y abollado, y se quema un rato (luego solo humea)
-  wreck(car) {
+  // auto destruido: explota, queda chamuscado y abollado, y se quema un rato (luego solo humea).
+  // k = tamaño de la explosion (1 un carro, mas grande la pipa de gas)
+  wreck(car, k = 1) {
     if (car.wrecked) return;
+    if (car.gas && !car.boom) { this.explotarGas(car); return; }
     car.wrecked = true;
     car.sprite.setTint(0x3b302a);
+    // el golpe lo levanta y lo deja chueco
+    car.a += rnd(-0.35, 0.35) * Math.min(k, 1.5); car.sprite.setRotation(car.a);
+    this.tweens.add({ targets: car.sprite, scaleX: 1.22 / SPR, scaleY: 1.22 / SPR, duration: 110 * k, yoyo: true, ease: 'Quad.out' });
     car.scorch = this.add.image(car.x, car.y, 'scorch').setRotation(car.a).setDepth(car.sprite.depth + 0.1).setDisplaySize(car.hl * 2.15, car.hw * 2.3);
-    car.burn = 30; car.fireT = 0;
+    car.burn = 30 * Math.min(k, 1.6); car.fireT = 0; car.burnK = k > 1 ? 1.6 : 1;
     this.burning.push(car);
-    const fx = this.add.circle(car.x, car.y, 10, 0xffb030, 0.9).setDepth(17).setBlendMode(Phaser.BlendModes.ADD);
-    this.tweens.add({ targets: fx, scale: 4, alpha: 0, duration: 450, onComplete: () => fx.destroy() });
-    for (let i = 0; i < 10; i++) this.flame(car.x + rnd(-8, 8), car.y + rnd(-8, 8), 1.8);
-    const f = this.focus(), d = dist(car.x, car.y, f.x, f.y); // los choques del trafico lejos de ti no sacuden
-    if (car === this.inCar || d < 260) this.jolt(300, 0.012);
-    if (window.SND && (car === this.inCar || d < this.viewR())) SND.play('boom');
+    this.explosion(car.x, car.y, k, car);
+  }
+  // la explosion: destello, bola de fuego, chispas, pedazos, humo negro, onda expansiva, tizne en el piso,
+  // luz de noche, sacudida y el estruendo. Lejos de la vista solo se hace el daño (ver onda).
+  explosion(x, y, k = 1, src = null) {
+    this.onda(x, y, k, src);
+    const f = this.focus(), d = dist(x, y, f.x, f.y);
+    const cerca = src === this.inCar ? 0 : d;
+    if (window.SND && cerca < this.viewR() * (k > 1 ? 2 : 1)) SND.play('boom', { k, v: 1 - 0.7 * Math.min(1, cerca / (this.viewR() * (k > 1 ? 2 : 1))) });
+    const fuerza = Math.max(0, 1 - cerca / (220 * k));
+    if (fuerza > 0) this.jolt(220 + 200 * k * fuerza, Math.min(0.03, (0.006 + 0.012 * fuerza) * k));
+    if (d > this.viewR() + 120 * k) return;
+    // si estallan muchas juntas (en cadena), cada una suelta menos particulas
+    const now = this.time.now;
+    this.booms = (this.booms || []).filter(t => now - t < 1500); this.booms.push(now);
+    const q = this.booms.length > 3 ? 0.5 : 1, fx = this.fxSet(k > 1.5 ? 'g' : 'c');
+    const ADD = Phaser.BlendModes.ADD;
+    const core = this.add.image(x, y, 'luz').setDepth(18).setBlendMode(ADD).setTint(0xffe2a0).setAlpha(0.9).setScale(0.15 * k);
+    this.tweens.add({ targets: core, scale: (k > 1 ? 0.8 : 1.15) * k, alpha: 0, duration: 220 + 50 * k, ease: 'Quad.out', onComplete: () => core.destroy() });
+    [0xffffff, 0xffa040].forEach((tint, i) => {
+      const ring = this.add.image(x, y, 'onda').setDepth(17.9).setBlendMode(ADD).setTint(tint).setAlpha(0.85).setScale(0.08);
+      this.tweens.add({ targets: ring, scale: (0.95 + i * 0.35) * k, alpha: 0, duration: 380 + i * 220 + 80 * k, ease: 'Cubic.out', onComplete: () => ring.destroy() });
+    });
+    fx.fuego.explode(Math.round(24 * k * q), x, y);
+    fx.chispas.explode(Math.round(18 * k * q), x, y);
+    fx.pedazos.explode(Math.round(10 * k * q), x, y);
+    this.time.delayedCall(90, () => fx.humo.explode(Math.round(12 * k * q), x, y));
+    // la pipa: estallidos secundarios alrededor y charcos de fuego que se quedan ardiendo
+    if (k > 1.5) {
+      for (let i = 0; i < 4; i++) this.time.delayedCall(140 + i * 120, () => {
+        const ex = x + rnd(-45, 45), ey = y + rnd(-45, 45);
+        fx.fuego.explode(Math.round(10 * q), ex, ey); fx.chispas.explode(Math.round(6 * q), ex, ey);
+      });
+      for (let i = 0; i < 6; i++) {
+        const a = rnd(0, 6.3), r = rnd(20, 75), px = x + Math.cos(a) * r, py = y + Math.sin(a) * r;
+        if (!blocked(px, py)) this.fuegos.push({ x: px, y: py, t: rnd(8, 16), ft: rnd(0, 0.3) });
+      }
+      this.flashPantalla(0.5 * fuerza);
+    } else if (fuerza > 0.5) this.flashPantalla(0.22 * fuerza);
+    // tizne en el piso (los mas viejos se van borrando)
+    const m = this.add.image(x, y, 'mancha').setDepth(1).setRotation(rnd(0, 6.3)).setScale(0.7 * k).setAlpha(0.9);
+    this.manchas.push(m);
+    if (this.manchas.length > 24) this.manchas.shift().destroy();
+    this.tweens.add({ targets: m, alpha: 0, delay: 45000, duration: 8000, onComplete: () => { const i = this.manchas.indexOf(m); if (i >= 0) this.manchas.splice(i, 1); m.destroy(); } });
+    // luz para la noche
+    const L = { x, y, r: 70 * k, a: 1 }; this.blastLights.push(L);
+    this.tweens.add({ targets: L, a: 0, r: 100 * k, duration: 900 + 400 * k, onComplete: () => this.blastLights.splice(this.blastLights.indexOf(L), 1) });
+  }
+  // emisores de particulas de las explosiones (c de carro y g de la pipa), se crean la primera vez
+  fxSet(t) {
+    this.fx = this.fx || {};
+    if (this.fx[t]) return this.fx[t];
+    const k = t === 'g' ? 2.4 : 1, ADD = Phaser.BlendModes.ADD, A = { min: 0, max: 360 };
+    const e = (tex, depth, cfg) => this.add.particles(0, 0, tex, Object.assign({ emitting: false, angle: A }, cfg)).setDepth(depth);
+    return (this.fx[t] = {
+      humo: e('luz', 17.4, { lifespan: { min: 1800, max: 3000 + 600 * k }, speed: { min: 8 * k, max: 40 * k }, scale: { start: 0.22 * k, end: 0.95 * k }, alpha: { start: 0.55, end: 0 }, tint: [0x1c1c1c, 0x2a2a2a, 0x3b3633, 0x4a4440], accelerationY: -10 }),
+      fuego: e('luz', 17.5, { lifespan: { min: 350, max: 650 + 200 * k }, speed: { min: 15 * k, max: 115 * k }, scale: { start: (k > 1 ? 0.22 : 0.3) * k, end: 0.04 }, alpha: { start: 0.9, end: 0 }, color: [0xffe7a0, 0xffd14a, 0xff7a1a, 0xc4300a, 0x3a1206], colorEase: 'quad.out', blendMode: ADD }),
+      pedazos: e('confeti', 17.6, { lifespan: { min: 600, max: 1100 + 200 * k }, speed: { min: 70 * k, max: 230 * k }, scale: { start: 1.6, end: 0.9 }, rotate: { start: 0, end: 720 }, alpha: { start: 1, end: 0.3 }, tint: [0x161616, 0x3d3d3d, 0x6b6b6b, 0x8a5a2a] }),
+      chispas: e('chispa', 17.7, { lifespan: { min: 250, max: 600 }, speed: { min: 120 * k, max: 320 * k }, scale: { start: 0.7, end: 0 }, color: [0xffffff, 0xffe27a, 0xff9a2a], blendMode: ADD }),
+    });
+  }
+  // destello naranja en toda la pantalla (mas fuerte mientras mas cerca)
+  flashPantalla(a) {
+    if (a < 0.05) return;
+    if (!this.flashR) {
+      const W = this.scale.width, H = this.scale.height;
+      this.flashR = this.add.rectangle(-W, -H, W * 3, H * 3, 0xffc070).setOrigin(0).setScrollFactor(0).setDepth(25).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0);
+      this.scale.on('resize', (gs) => this.flashR.setPosition(-gs.width, -gs.height).setSize(gs.width * 3, gs.height * 3));
+    }
+    this.tweens.killTweensOf(this.flashR);
+    this.flashR.setAlpha(Math.min(0.6, a));
+    this.tweens.add({ targets: this.flashR, alpha: 0, duration: 450, ease: 'Quad.out' });
+  }
+  // onda expansiva: daña y avienta lo que este cerca; los que quedan sin vida estallan en cadena (un poco despues)
+  onda(x, y, k, src) {
+    const R = k > 1.5 ? 160 : 55, DMG = k > 1.5 ? 300 : 45;
+    const me = this.inCar;
+    const todos = this.cars.concat(this.parked); if (me) todos.push(me);
+    for (const o of todos) {
+      if (o === src || o.wrecked) continue;
+      const d = dist(x, y, o.x, o.y); if (d > R) continue;
+      const f = 1 - d / R, ang = Math.atan2(o.y - y, o.x - x);
+      o.hp -= DMG * f;
+      if (o === me) { me.vx += Math.cos(ang) * 260 * f; me.vy += Math.sin(ang) * 260 * f; }
+      else o.speed = 0;
+      if (o.gas) { if (!o.boom) this.time.delayedCall(rnd(250, 500), () => { if (!o.wrecked) this.explotarGas(o); }); }
+      else if (o.hp <= 0) this.time.delayedCall(rnd(80, 320), () => { if (o.wrecked) return; this.wreck(o); if (o === this.inCar) avisoDeshuesado(o); });
+    }
+    if (k <= 1.5) return;
+    // la gente sale volando al piso y luego corre
+    for (const p of this.peds) {
+      if (p.st === 'down' || p.dead || dist(x, y, p.x, p.y) > R * 1.3) continue;
+      p.st = 'down'; p.t = rnd(2, 3.5); p.sprite.setScale(1.2 / SPR, 0.6 / SPR).setTint(0xaaaaaa); p.sprite.anims.pause();
+    }
+    if (!me) {
+      const p = this.player, d = dist(x, y, p.x, p.y);
+      if (d < R) {
+        const ang = Math.atan2(p.y - y, p.x - x), emp = 40 * (1 - d / R), nx = p.x + Math.cos(ang) * emp, ny = p.y + Math.sin(ang) * emp;
+        if (!blocked(nx, ny)) { p.x = nx; p.y = ny; p.sprite.setPosition(nx, ny); }
+        toast('💥 ¡Te aventó la onda expansiva!', 'Estuvo cerca. Mejor no te acerques a las pipas.', 2.5);
+      }
+    }
+  }
+  // pipa de gas: con cada golpe fuerte lleva la cuenta; al primero se empieza a salir el gas y al segundo explota
+  golpeGas(c) {
+    if (!c.gas || c.wrecked || c.boom || this.time.now < (c.golpeT || 0)) return;
+    c.golpeT = this.time.now + 700; c.golpes = (c.golpes || 0) + 1;
+    if (c.golpes >= 2) { this.explotarGas(c); return; }
+    c.fuga = true; c.fugaT = 0;
+    const f = this.focus();
+    if (dist(c.x, c.y, f.x, f.y) < this.viewR()) {
+      toast('⚠️ ' + pick(FRASES_FUGA), 'Otro golpe y vuela. ¡Aléjate!', 3);
+      if (window.SND) SND.play('fuga');
+    }
+  }
+  explotarGas(c) {
+    if (c.boom || c.wrecked) return;
+    c.boom = true; c.hp = 0; c.fuga = false;
+    const f = this.focus();
+    if (c === this.inCar) toast('💥 ¡Volaste con todo y pipa!', 'Bájate con E, si te quedó con qué.', 3.5);
+    else if (dist(c.x, c.y, f.x, f.y) < this.viewR() * 1.5) toast('💥 ' + pick(FRASES_PIPA), '', 3);
+    this.wreck(c, 2.6);
+  }
+  // el gas que se sale: vapor blanco con su silbido
+  fugaGas(c, dt) {
+    if ((c.fugaT -= dt) > 0) return;
+    c.fugaT = 0.12;
+    const f = this.focus(); if (dist(c.x, c.y, f.x, f.y) > this.viewR() + 60) return;
+    const hx = Math.cos(c.a), hy = Math.sin(c.a), bx = c.x - hx * c.hl * 0.2 + rnd(-4, 4), by = c.y - hy * c.hl * 0.2 + rnd(-4, 4);
+    const v = this.add.image(bx, by, 'vapor').setDepth(11).setAlpha(0.7).setScale(0.5 / SPR);
+    this.tweens.add({ targets: v, x: bx + rnd(-14, 14), y: by + rnd(-14, 14), alpha: 0, scale: 1.6 / SPR, duration: 900, onComplete: () => v.destroy() });
+  }
+  // el chofer de la ruta: te pega por detras (o al de enfrente) y sigue como si nada
+  embestir(c, o) {
+    const now = this.time.now;
+    if (c.speed < 40 || now < (c.embT || 0)) return;
+    c.embT = now + 2500;
+    const hx = Math.cos(c.a), hy = Math.sin(c.a), sp = c.speed;
+    c.speed *= 0.35;
+    if (o === this.inCar) {
+      o.vx += hx * sp * 0.8; o.vy += hy * sp * 0.8; o.hp -= 4 + sp / 12;
+      this.jolt(160, 0.008);
+      if (window.SND) SND.play('crash', 0.5);
+      toast('🚌 ' + pick(FRASES_CAMION), 'Tu auto: -' + Math.round(4 + sp / 12) + ' de vida', 2.2);
+      if (o.gas) this.golpeGas(o);
+      if (o.hp <= 0 && !o.wrecked) { this.wreck(o); avisoDeshuesado(o); }
+      return;
+    }
+    o.speed = 0; o.hp -= sp / 8;
+    const f = this.focus();
+    if (window.SND && dist(c.x, c.y, f.x, f.y) < this.viewR()) SND.play('crash', 0.3);
+    if (o.gas) this.golpeGas(o);
+    else if (o.hp <= 0) this.wreck(o);
+  }
+  // rebasar: se pasa a otro carril del mismo sentido si esta libre (solo en calles grandes)
+  cambiarCarril(c) {
+    const now = this.time.now, e = c.e;
+    if (now < (c.carrilT || 0) || e.c > MAJOR) return false;
+    c.carrilT = now + 900;
+    const cands = e.one ? [0, 1, 2] : [c.lane ^ 1], tmp = {};
+    for (const k of cands) {
+      const lat = laneLat(e, k); if (Math.abs(lat - c.lat) < 1) continue;
+      let libre = true;
+      for (const ds of [-c.hl - 12, 0, c.hl + 35]) {
+        edgePos(e, Math.max(0, Math.min(e.len, c.s + ds)), c.dir, lat, tmp);
+        const pl = this.inCar;
+        if (pl && axisDist(tmp.x, tmp.y, pl) < pl.hw + c.hw + 3) libre = false;
+        for (const o of this.cars) if (o !== c && Math.abs(o.x - tmp.x) < 80 && Math.abs(o.y - tmp.y) < 80 && axisDist(tmp.x, tmp.y, o) < o.hw + c.hw + 3) { libre = false; break; }
+        if (!libre) break;
+      }
+      if (libre) { c.lane = k; c.lat = lat; return true; }
+    }
+    return false;
+  }
+  claxon(c) {
+    const now = this.time.now;
+    if (now < (c.clxT || 0)) return;
+    c.clxT = now + rnd(2500, 5000);
+    const f = this.focus(), d = dist(c.x, c.y, f.x, f.y), R = this.viewR();
+    if (window.SND && d < R) SND.play('claxon', 0.3 + 0.7 * (1 - d / R));
   }
   flame(x, y, big = 1) {
     const f = this.add.circle(x, y, rnd(2.5, 4.5) * big, Math.random() < 0.5 ? 0xff6a00 : 0xffc23a, 0.95).setDepth(16).setBlendMode(Phaser.BlendModes.ADD);
@@ -4420,8 +4704,21 @@ class Main extends Phaser.Scene {
       c.burn -= dt; c.fireT -= dt;
       if (c.fireT > 0) return true;
       const hx = c.x + Math.cos(c.a) * c.hl * 0.45, hy = c.y + Math.sin(c.a) * c.hl * 0.45; // el cofre
-      if (c.burn > 0) { c.fireT = 0.06; this.flame(hx + rnd(-5, 5), hy + rnd(-5, 5), 1.3); this.flame(c.x + rnd(-6, 6), c.y + rnd(-5, 5)); if (Math.random() < 0.35) this.blackSmoke(hx, hy - 6); }
+      const K = c.burnK || 1;
+      if (c.burn > 0) {
+        c.fireT = 0.06; this.flame(hx + rnd(-5, 5) * K, hy + rnd(-5, 5) * K, 1.3 * K); this.flame(c.x + rnd(-6, 6) * K, c.y + rnd(-5, 5) * K, K);
+        if (K > 1) this.flame(c.x - Math.cos(c.a) * c.hl * 0.5 + rnd(-6, 6), c.y - Math.sin(c.a) * c.hl * 0.5 + rnd(-6, 6), 1.4);
+        if (Math.random() < 0.35 * K) this.blackSmoke(hx, hy - 6);
+      }
       else { c.fireT = 0.35; this.blackSmoke(hx, hy); }
+      return true;
+    });
+    // charcos de gas ardiendo alrededor de donde estallo la pipa
+    this.fuegos = this.fuegos.filter(q => {
+      q.t -= dt; if (q.t <= 0) return false;
+      if (dist(q.x, q.y, f.x, f.y) > R || (q.ft -= dt) > 0) return true;
+      q.ft = 0.09; this.flame(q.x + rnd(-4, 4), q.y + rnd(-4, 4), q.t > 3 ? 1.2 : 0.7);
+      if (Math.random() < 0.12) this.blackSmoke(q.x, q.y - 4);
       return true;
     });
   }
@@ -4457,7 +4754,7 @@ class Main extends Phaser.Scene {
     if (!otro && !pared) return false;
     c.speed = 0; c.hp = 0; this.wreck(c);
     // al de enfrente le va peor si iba de frente o muy rapido; las patrullas y escoltas solo se paran
-    if (otro && !otro.wrecked && this.cars.includes(otro)) { otro.speed = 0; if (!otro.poli && !otro.escolta && Math.random() < 0.5) { otro.hp = 0; this.wreck(otro); } }
+    if (otro && !otro.wrecked && this.cars.includes(otro)) { otro.speed = 0; if (otro.gas) this.golpeGas(otro); else if (!otro.poli && !otro.escolta && Math.random() < 0.5) { otro.hp = 0; this.wreck(otro); } }
     const f = this.focus();
     if (dist(c.x, c.y, f.x, f.y) < this.viewR() && this.time.now > (this.locoAvisoT || 0)) {
       this.locoAvisoT = this.time.now + 20000;
@@ -4528,6 +4825,8 @@ class Main extends Phaser.Scene {
       }
       if (best.moto) this.startDelivery();
       else if (best.T === VT_DEPORTIVA) toast('🏍️ ¡Moto deportiva!', 'Corre como ninguna, pero al primer choque se hace pedazos. Con cuidadito.', 3);
+      else if (best.gas) toast('⛽ ¡Te robaste una pipa de gas!', 'Dos golpes fuertes y vuela con todo y tú. Maneja suavecito.', 3.5);
+      else if (best.T === VT_URBANO) toast('🚌 ¡Te robaste el camión de la ruta!', '¡Súbale, súbale! Hoy no se cobra pasaje.', 3);
       else toast(pick(FRASES_ROBO), best.T.name + (best.dirty ? ' bien tijuaneado' : ' de agencia'), 2.4);
     } else this.parked.splice(this.parked.indexOf(best), 1);
     best.vx = best.vy = 0;
@@ -4551,19 +4850,33 @@ class Main extends Phaser.Scene {
       if (c.wrecked) continue; // los deshuesados se quedan donde quedaron
       const hx = Math.cos(c.a), hy = Math.sin(c.a);
       if (c.loco && this.locoChoca(c, hx, hy, dt)) continue;
-      const ax = c.x + hx * (c.hl + 13), ay = c.y + hy * (c.hl + 13);
-      let stop = this.inCar ? axisDist(ax, ay, pl) < pl.hw + 10 : dist(ax, ay, pl.x, pl.y) < 16;
+      // el transporte publico frena hasta el ultimo momento (se le pega al de adelante)
+      const look = c.rutero ? 7 : 13, gap = c.rutero ? 3 : 8;
+      const ax = c.x + hx * (c.hl + look), ay = c.y + hy * (c.hl + look);
+      let stop = this.inCar ? axisDist(ax, ay, pl) < pl.hw + (c.rutero ? 3 : 10) : dist(ax, ay, pl.x, pl.y) < 16, bloq = null;
+      if (stop && c.rutero && this.inCar) { this.embestir(c, pl); if (this.cambiarCarril(c)) stop = false; else this.claxon(c); }
       if (!stop && !c.loco) for (const o of this.cars) {
-        if (o === c || axisDist(ax, ay, o) >= o.hw + 8) continue;
+        if (o === c || axisDist(ax, ay, o) >= o.hw + gap) continue;
         // un deshuesado en el camino: se le da la vuelta por un lado
         if (o.wrecked) { if (!c.desvioT) { const lado = ((o.x - c.x) * -hy + (o.y - c.y) * hx) > 0 ? -1 : 1; c.desvio = lado * (o.hw + c.hw + 6); c.desvioT = 3; } continue; }
-        stop = true; break;
+        stop = true; bloq = o; break;
       }
-      if (!stop) for (const o of this.parked) { if (axisDist(ax, ay, o) < o.hw + 8) { stop = true; break; } }
+      if (!stop) for (const o of this.parked) { if (axisDist(ax, ay, o) < o.hw + gap) { stop = true; bloq = o; break; } }
       if (!stop) for (const o of this.peds) { if (o.st === 'walk' && dist(ax, ay, o.x, o.y) < 9) { stop = true; break; } }
+      // si alguien le estorba: a veces se lo lleva de corbata, y si hay carril libre se cambia; si no, claxon
+      if (c.rutero && bloq) {
+        if (c.speed > 70 && Math.random() < 0.3) this.embestir(c, bloq);
+        if (this.cambiarCarril(c)) stop = false; else this.claxon(c);
+      }
+      // paradas: el camion a subir pasaje y la pipa a vender gas
+      if (c.paradaT !== undefined) {
+        if (c.paradaS > 0) { stop = true; if ((c.paradaS -= dt) <= 0) c.paradaT = c.gas ? rnd(20, 45) : rnd(15, 35); }
+        else if ((c.paradaT -= dt) <= 0 && !stop) c.paradaS = c.gas ? rnd(4, 7) : rnd(2, 3.5);
+      }
       let want = stop ? 0 : c.max;
-      for (const i of topesNear(c.x, c.y)) if (dist(c.x, c.y, topes[i].x, topes[i].y) < 45) want = Math.min(want, 35);
-      c.speed += Math.max(-300 * dt, Math.min(90 * dt, want - c.speed));
+      if (!c.rutero) for (const i of topesNear(c.x, c.y)) if (dist(c.x, c.y, topes[i].x, topes[i].y) < 45) want = Math.min(want, 35);
+      c.speed += Math.max((c.rutero ? -420 : -300) * dt, Math.min((c.rutero ? 150 : 90) * dt, want - c.speed));
+      if (c.gas && c.fuga) this.fugaGas(c, dt);
       c.s += c.speed * dt;
       while (c.s > c.e.len) {
         // la escolta de atras toma las mismas vueltas que la de adelante
@@ -4575,10 +4888,18 @@ class Main extends Phaser.Scene {
       let lat = c.lat;
       if (c.desvioT) { c.desvioT = Math.max(0, c.desvioT - dt); lat += c.desvio * Math.min(1, c.desvioT * 2); }
       if (c.loco) lat += Math.sin(this.time.now / 1000 * c.wf + c.ph) * c.e.w * 0.28 + c.derrape;
+      if (c.rutero) { c.latS += (lat - c.latS) * Math.min(1, dt * 5); lat = c.latS; } // el volantazo al cambiarse de carril
       edgePos(c.e, c.s, c.dir, lat, tmp);
       c.x += (tmp.x - c.x) * Math.min(1, dt * 12); c.y += (tmp.y - c.y) * Math.min(1, dt * 12);
       c.a += angDiff(c.a, tmp.a) * Math.min(1, dt * 7);
       c.sprite.setPosition(c.x, c.y).setRotation(c.a);
+    }
+    // la cancioncita de la pipa de gas cuando anda cerca
+    if (window.SND && (this.gasMelT = (this.gasMelT || 0) - dt) <= 0) {
+      this.gasMelT = 2;
+      const f = this.focus(), R = this.viewR() * 1.3;
+      let d = Infinity; for (const c of this.cars) if (c.gas && !c.wrecked) d = Math.min(d, dist(c.x, c.y, f.x, f.y));
+      if (d < R) { this.gasMelT = rnd(9, 13); SND.play('gasLP', 0.35 + 0.65 * (1 - d / R)); }
     }
     // choques del jugador contra autos
     if (this.inCar) {
@@ -4595,6 +4916,7 @@ class Main extends Phaser.Scene {
           me.x += nx * (R - d); me.y += ny * (R - d);
           const vn = me.vx * nx + me.vy * ny; if (vn < 0) { me.vx -= 1.4 * vn * nx; me.vy -= 1.4 * vn * ny; }
           if (o.poli) this.hitPoli(sp);
+          if (sp > 55) { if (o.gas) this.golpeGas(o); if (me.gas) this.golpeGas(me); }
           if (sp > 120) { this.jolt(100, 0.006); me.hp -= sp / 25; o.speed = 0; }
           if (me.T.fragil && sp > 45) me.hp = 0; // la deportiva no aguanta ni un rozon
         }
@@ -4938,6 +5260,9 @@ class Main extends Phaser.Scene {
         if (c.escolta) glow(c.x, c.y, 15, Math.floor(time / 170) % 2 ? 0xffb300 : 0xffffff, 0.7);
       };
       for (const c of this.cars) if (!c.wrecked) lights(c);
+      for (const L of this.blastLights) { cut('luz', L.x, L.y, L.r * L.a + 10); glow(L.x, L.y, L.r * 0.8, 0xff9a3a, 0.8 * L.a); } // explosiones
+      for (const c of this.burning) if (c.burn > 0) { const r = 26 * (c.burnK || 1) * (0.9 + 0.1 * Math.sin(time / 70 + c.x)); cut('luz', c.x, c.y, r * 1.6); glow(c.x, c.y, r, 0xff7a1a, 0.45); }
+      for (const q of this.fuegos) { cut('luz', q.x, q.y, 28); glow(q.x, q.y, 16, 0xff7a1a, 0.4); }
       if (this.fiesta) for (const L of this.fiesta.lights) { cut('luz', L.x, L.y, L.r); glow(L.x, L.y, L.r * 0.7, L.tint, 0.5 * L.a); } // cohetes
       if (this.inCar) lights(this.inCar);
       else cut('luz', this.player.x, this.player.y, 42);
