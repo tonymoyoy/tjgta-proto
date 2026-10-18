@@ -2384,17 +2384,79 @@ function drawPerson(x, V, sw) {
   }
   x.restore();
 }
+// el jugador, con mas detalle que la gente de la calle: tenis blancos con suela y agujetas, mezclilla con costuras,
+// camisa amarilla de manga corta con cuello y sombra en los pliegues, reloj, orejas, patillas y gorra roja con
+// gajos, boton y visera. Mira a la derecha (+x); sw = balanceo de la caminata (-1..1)
+function drawPlayer(x, sw) {
+  const k = 1.1;
+  x.save(); x.scale(k, k); x.lineCap = 'round'; x.lineJoin = 'round';
+  const ell = (c, ex, ey, rx, ry, a) => { x.fillStyle = c; x.beginPath(); x.ellipse(ex, ey, rx, ry, a || 0, 0, 7); x.fill(); };
+  // sombra
+  ell('rgba(0,0,0,0.28)', 1.3, 1.3, 4.6, 6.6);
+  // piernas de mezclilla con su costura y tenis blancos (suela gris, puntera y agujetas)
+  for (const side of [-1, 1]) {
+    const off = sw * 6.5 * side, y = side * 2;
+    x.strokeStyle = '#1b3a82'; x.lineWidth = 3.1; x.beginPath(); x.moveTo(0, y); x.lineTo(off, y); x.stroke();
+    x.strokeStyle = 'rgba(255,255,255,0.18)'; x.lineWidth = 0.9; x.beginPath(); x.moveTo(0, y - side * 0.6); x.lineTo(off, y - side * 0.6); x.stroke();
+    x.strokeStyle = '#e0a84a'; x.lineWidth = 0.35; x.beginPath(); x.moveTo(0, y + side * 0.9); x.lineTo(off, y + side * 0.9); x.stroke();
+    ell('#9e9e9e', off + 0.9, y, 2.2, 1.6);
+    ell('#f5f5f5', off + 0.9, y, 1.9, 1.3);
+    ell('#d32f2f', off + 2.2, y, 0.6, 0.9);
+    x.strokeStyle = '#bdbdbd'; x.lineWidth = 0.3; x.beginPath(); for (const d of [-0.2, 0.5, 1.2]) { x.moveTo(off + d, y - 0.6); x.lineTo(off + d, y + 0.6); } x.stroke();
+  }
+  // torso: camisa con luz en los hombros, pliegues, costura de los hombros y el cuello
+  const g = x.createRadialGradient(0.6, 0, 0.5, 0, 0, 5.4);
+  g.addColorStop(0, '#ffe57a'); g.addColorStop(0.6, '#ffd23f'); g.addColorStop(1, '#d9a91c');
+  x.fillStyle = g; x.beginPath(); x.ellipse(-0.3, 0, 2.9, 5.3, 0, 0, 7); x.fill();
+  x.strokeStyle = 'rgba(80,50,0,0.5)'; x.lineWidth = 0.6; x.stroke();
+  x.strokeStyle = 'rgba(120,80,0,0.35)'; x.lineWidth = 0.35;
+  x.beginPath(); x.moveTo(-1.8, -3.4); x.quadraticCurveTo(-0.6, -1.8, -1.6, 0); x.moveTo(-1.8, 3.4); x.quadraticCurveTo(-0.6, 1.8, -1.6, 0); x.stroke();
+  x.beginPath(); x.moveTo(0.4, -4.6); x.lineTo(-0.4, -3.2); x.moveTo(0.4, 4.6); x.lineTo(-0.4, 3.2); x.stroke();
+  // brazos por fuera de los hombros: manga corta amarilla, antebrazo, mano y reloj en la izquierda
+  for (const side of [-1, 1]) {
+    const off = -sw * 3.6 * side, y0 = side * 5.4, y1 = side * 6.1;
+    x.strokeStyle = '#8a5a36'; x.lineWidth = 2.3; x.beginPath(); x.moveTo(-0.2, y0); x.lineTo(off, y1); x.stroke();
+    x.strokeStyle = '#c68e5f'; x.lineWidth = 1.7; x.beginPath(); x.moveTo(-0.2, y0); x.lineTo(off, y1); x.stroke();
+    ell('#e8b923', -0.3, side * 5.1, 1.9, 1.45);
+    ell('#ffd23f', -0.2, side * 5.0, 1.6, 1.15);
+    ell('#7a4e2e', off + Math.sign(off || 1) * 0.5, y1 + side * 0.1, 1.3, 1.25); ell('#c08657', off + Math.sign(off || 1) * 0.5, y1 + side * 0.1, 1.05, 1); // mano
+    if (side === -1) { const wx = off * 0.8 + (off >= 0 ? -0.3 : 0.3); x.strokeStyle = '#1a1a1a'; x.lineWidth = 0.9; x.beginPath(); x.moveTo(wx, y1 - 0.75); x.lineTo(wx, y1 + 0.75); x.stroke(); x.fillStyle = '#cfd8dc'; x.fillRect(wx - 0.25, y1 - 0.3, 0.5, 0.6); }
+  }
+  // cuello de la camisa por delante de la nuca
+  x.fillStyle = '#f2c22c'; x.beginPath(); x.moveTo(2.2, -1.9); x.lineTo(3.3, 0); x.lineTo(2.2, 1.9); x.lineTo(1.4, 0); x.closePath(); x.fill();
+  x.strokeStyle = 'rgba(80,50,0,0.5)'; x.lineWidth = 0.3; x.stroke();
+  // cabeza: orejas, cara, nariz, patillas y nuca
+  ell('#b97f52', 0.9, -2.6, 0.75, 0.6); ell('#b97f52', 0.9, 2.6, 0.75, 0.6);
+  ell('#c68e5f', 0.9, 0, 2.5, 2.5);
+  ell('#b07548', 3.2, 0, 0.55, 0.45); // nariz
+  ell('#111', -0.4, 0, 1.4, 2.4); // nuca con el pelo corto
+  x.fillStyle = '#111'; x.fillRect(0.2, -2.4, 1.1, 0.5); x.fillRect(0.2, 1.9, 1.1, 0.5); // patillas
+  // gorra roja: corona con gajos, boton, visera con sombra y orilla
+  ell('rgba(0,0,0,0.3)', 2.6, 0.25, 1.8, 2.1); // sombra de la visera en la cara
+  x.fillStyle = '#b52f22'; x.beginPath(); x.moveTo(1.9, -1.8); x.quadraticCurveTo(4.6, -1.9, 4.6, 0); x.quadraticCurveTo(4.6, 1.9, 1.9, 1.8); x.closePath(); x.fill();
+  x.strokeStyle = '#7f1d14'; x.lineWidth = 0.35; x.beginPath(); x.moveTo(4.2, -1.3); x.quadraticCurveTo(4.7, 0, 4.2, 1.3); x.stroke();
+  const gc = x.createRadialGradient(0.8, -0.6, 0.3, 0.4, 0, 2.8);
+  gc.addColorStop(0, '#ef5a4a'); gc.addColorStop(1, '#a8281b');
+  x.fillStyle = gc; x.beginPath(); x.arc(0.3, 0, 2.3, 0, 7); x.fill();
+  x.strokeStyle = 'rgba(0,0,0,0.35)'; x.lineWidth = 0.35; x.stroke();
+  x.strokeStyle = 'rgba(90,15,10,0.6)'; x.lineWidth = 0.3; x.beginPath();
+  for (const a of [0, Math.PI / 3, -Math.PI / 3, Math.PI * 2 / 3, -Math.PI * 2 / 3]) { x.moveTo(0.3, 0); x.lineTo(0.3 + Math.cos(a) * 2.2, Math.sin(a) * 2.2); }
+  x.stroke();
+  ell('#7f1d14', 0.3, 0, 0.45, 0.45); // boton de arriba
+  x.fillStyle = '#f5f5f5'; x.fillRect(-2.0, -0.8, 0.45, 1.6); // ajustador de atras
+  x.restore();
+}
 function makeTextures(scene) {
   makeLights(scene); makeFiesta(scene); makeMoto(scene); makeDeportiva(scene); makeEscolta(scene); makePerro(scene); makeLandmarkIcons(scene); makeTrocaTacos(scene); makeZonkey(scene); makeTaxi(scene); makePolice(scene); makeUrbano(scene); makePipaGas(scene); makeExplosiones(scene); makeTacoStands(scene); makeCafes(scene); makeChinas(scene); makeYonke(scene); makeEggs(scene); makeScorch(scene);
   // personas vistas desde arriba, mirando a la derecha; 8 cuadros de caminata (el cuadro 0 es parado).
   // Una textura por variante de PED_VARIANTS ('ped0'...) y la del jugador ('pedP'); ver drawPerson.
   // Se dibujan a SPR veces la resolucion y el sprite se muestra a escala 1 / SPR para que se vean nitidas.
   const PF = PED_FRAME * SPR;
-  const sheet = (key, V) => {
+  const sheet = (key, V, draw) => {
     const t = scene.textures.createCanvas('ped' + key, PF * 8, PF), x = t.getContext();
     for (let f = 0; f < 8; f++) {
       x.save(); x.translate(f * PF + PF / 2, PF / 2); x.scale(SPR, SPR);
-      drawPerson(x, V, Math.sin(f / 8 * Math.PI * 2));
+      if (draw) draw(x, Math.sin(f / 8 * Math.PI * 2)); else drawPerson(x, V, Math.sin(f / 8 * Math.PI * 2));
       x.restore();
       t.add(f, 0, f * PF, 0, PF, PF);
     }
@@ -2402,7 +2464,7 @@ function makeTextures(scene) {
     scene.anims.create({ key: 'walk' + key, frames: Array.from({ length: 8 }, (_, f) => ({ key: 'ped' + key, frame: f })), frameRate: 9, repeat: -1 });
   };
   PED_VARIANTS.forEach((V, i) => sheet(i, V));
-  sheet(PLAYER_SHIRT, PLAYER_LOOK);
+  sheet(PLAYER_SHIRT, PLAYER_LOOK, drawPlayer);
   sheet('C', COYOTE_LOOK);
   makeAros(scene);
 }
@@ -4796,7 +4858,8 @@ class Main extends Phaser.Scene {
       const car = this.inCar, a = car.a;
       if (Math.hypot(car.vx, car.vy) > 60) return;
       let ex = null;
-      for (const side of [1, -1]) { const x = car.x - Math.sin(a) * (car.hw + 8) * side, y = car.y + Math.cos(a) * (car.hw + 8) * side; if (!blocked(x, y)) { ex = [x, y]; break; } }
+      // por la puerta del conductor (la izquierda); si esta tapada, por la del copiloto
+      for (const side of [-1, 1]) { const x = car.x - Math.sin(a) * (car.hw + 8) * side, y = car.y + Math.cos(a) * (car.hw + 8) * side; if (!blocked(x, y)) { ex = [x, y]; break; } }
       if (!ex) { toast('No puedes bajarte aquí', ''); return; }
       car.vx = car.vy = 0;
       this.parked.push(car); this.inCar = null;
