@@ -554,6 +554,26 @@ function randomEdgeNear(g, x, y, r0, r1) {
   }
   return null;
 }
+// lo mismo pero solo en las celdas de alrededor (rapido); s queda medido a lo largo del tramo, mas el angulo del segmento
+function nearestOnGraphCerca(g, x, y) {
+  const cx = Math.floor(x / g.GC), cy = Math.floor(y / g.GC);
+  let best = null, bd = 1e9;
+  for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+    const ids = g.grid.get(GK(cx + dx, cy + dy)); if (!ids) continue;
+    for (const id of ids) {
+      const e = g.edges[id], p = e.p;
+      for (let q = 0; q < p.length - 2; q += 2) {
+        const d = segDist(x, y, p[q], p[q + 1], p[q + 2], p[q + 3]);
+        if (d < bd) {
+          const sx = p[q + 2] - p[q], sy = p[q + 3] - p[q + 1], l = Math.hypot(sx, sy) || 1;
+          const t = Math.max(0, Math.min(1, ((x - p[q]) * sx + (y - p[q + 1]) * sy) / (l * l)));
+          bd = d; best = { e, s: e.cum[q / 2] + t * l, a: Math.atan2(sy, sx), d };
+        }
+      }
+    }
+  }
+  return best;
+}
 function nearestOnGraph(g, x, y) {
   let best = null, bd = 1e9;
   for (const e of g.edges) {
@@ -1719,6 +1739,17 @@ const FRASES_CAMION = [
   '¡El de la ruta se cree en la Fórmula 1!', '¡Ese chofer va tarde a la vuelta!', '¡Órale, que no es tu carril!',
   '¡Pásele, pásele, atrás hay lugar!', '¡El camión no frena, nomás pita!', '¡Ese chofer trae prisa por llegar a la base!',
 ];
+const FRASES_RATERO = [
+  '¡Bájate, compa, que ando con prisa!', '¡Ese carrito está bien bonito, me lo llevo!', '¡Ahorita te lo regreso... algún día!',
+  '¡Gracias por calentármelo!', '¡Uy, con el motor prendido y todo!', '¡Hágase pa\'llá, que este ya es mío!',
+  '¡Muévete, que voy tarde!', '¡Te lo cuido, no te apures!',
+];
+const FRASES_RATERO_MANEJA = ['¡Yiiijaaa!', '¡Agárrenme si pueden!', '¡Este sí corre!', '¡Abran paso!', '¡Nos vemos en el yonke!', '¡Ni el semáforo me para!'];
+const FRASES_RATERO_FALLA = ['¡Ni modo, otro día!', '¡Uy, este sí se puso listo!', '¡Ya ni robar se puede en paz!', '¡Ahí la próxima!'];
+const FRASES_ROBADO = [
+  '¡Oye, ese es mi carro!', '¡Regrésame el carro, ratero!', '¡Ey! ¡Que alguien lo pare!', '¡No manches, ni el seguro le puse!',
+  '¡Oye! ¡Ese carro me lo robé yo primero!', '¡Ahí va mi carro... y mis tacos!', '¡Hey! ¡Ni las gracias dio!',
+];
 const FRASES_FUGA = ['¡Le pegaste a la pipa del gas!', '¡Huele a gas!', '¡Se está saliendo el gas!', '¡Cuidado con la pipa!'];
 const FRASES_PIPA = ['¡Voló la pipa del gas!', '¡Se escuchó hasta San Diego!', '¡Explotó la pipa!', '¡Ahora sí hubo gas para toda la colonia!'];
 const FRASES_TOPE = [
@@ -2377,6 +2408,11 @@ function drawPerson(x, V, sw) {
   else { face(); back(); if (V.hair === 'cola') { x.fillStyle = H; x.beginPath(); x.ellipse(-2.8, 0, 1.8, 1.1, 0, 0, 7); x.fill(); } if (V.hair === 'chongo') { x.fillStyle = H; x.beginPath(); x.arc(-2.2, 0, 1.5, 0, 7); x.fill(); } }
   // sombreros
   if (V.hat === 'gorra') { x.fillStyle = V.hatCol; x.beginPath(); x.arc(0.4, 0, 2.7, Math.PI * 0.55, Math.PI * 1.45); x.closePath(); x.fill(); x.beginPath(); x.arc(0.6, 0, 2.6, 0, 7); x.fill(); x.fillRect(0.2, -1.6, 3.2, 3.2); }
+  if (V.hat === 'gorro') { // gorro de estambre con su doblez
+    x.fillStyle = V.hatCol; x.beginPath(); x.arc(0.3, 0, 2.75, 0, 7); x.fill();
+    x.strokeStyle = 'rgba(255,255,255,0.18)'; x.lineWidth = 0.4; x.beginPath(); for (let a = -2.2; a <= 2.2; a += 0.55) { x.moveTo(0.3, 0); x.lineTo(0.3 + Math.cos(a + Math.PI) * 2.5, Math.sin(a + Math.PI) * 2.5); } x.stroke();
+    x.strokeStyle = 'rgba(0,0,0,0.45)'; x.lineWidth = 0.9; x.beginPath(); x.arc(0.3, 0, 2.3, -1.2, 1.2); x.stroke();
+  }
   if (V.hat === 'vaquero') {
     x.fillStyle = V.hatCol; x.beginPath(); x.ellipse(0.7, 0, 4.4, 4.0, 0, 0, 7); x.fill(); x.strokeStyle = 'rgba(0,0,0,0.35)'; x.lineWidth = 0.5; x.stroke();
     x.fillStyle = 'rgba(0,0,0,0.18)'; x.beginPath(); x.ellipse(0.5, 0, 2.4, 2.1, 0, 0, 7); x.fill();
@@ -2466,6 +2502,7 @@ function makeTextures(scene) {
   PED_VARIANTS.forEach((V, i) => sheet(i, V));
   sheet(PLAYER_SHIRT, PLAYER_LOOK, drawPlayer);
   sheet('C', COYOTE_LOOK);
+  sheet('R', RATERO_LOOK);
   makeAros(scene);
 }
 // aros de los lugares y de los destinos (ver crearAro): cuatro capas en blanco que se tiñen del color del aro,
@@ -2514,6 +2551,8 @@ function makeAros(scene) {
 const PLAYER_SHIRT = 'P'; // textura 'pedP' y animacion 'walkP'
 // el jugador: camisa amarilla, pantalon de mezclilla y gorra roja (como siempre)
 // el coyote: un señor flaco, todo de oscuro y con gorra negra; se pierde entre la gente (ver ofrecerCoyote)
+// el ratero: sudadera guinda con gorro de estambre negro; anda por las banquetas esperando que alguien se pare
+const RATERO_LOOK = { female: false, age: 'joven', build: 'delgado', skin: '#b07a50', shirt: '#6d1f2f', pants: '#2b2b2b', hair: 'corto', hairCol: '#111', hat: 'gorro', hatCol: '#1a1a1a', k: 1 };
 const COYOTE_LOOK = { female: false, age: 'adulto', build: 'delgado', skin: '#a8714a', shirt: '#2b2b2b', pants: '#1f2a38', hair: 'corto', hairCol: '#111', hat: 'gorra', hatCol: '#151515', k: 1 };
 const PLAYER_LOOK = { female: false, age: 'adulto', build: 'normal', skin: '#c68e5f', shirt: '#ffd23f', pants: '#1d3f8f', hair: 'corto', hairCol: '#111', hat: 'gorra', hatCol: '#c0392b', k: 1 };
 // taxi libre clasico de Tijuana: guayin roja con franjas negras y crema.
@@ -4399,6 +4438,7 @@ class Main extends Phaser.Scene {
     if (this.inCar) this.driveCar(this.inCar, ctl, dt); else this.walk(ctl, dt);
     this.updateTraffic(dt);
     this.updatePeds(dt);
+    this.updateRatero(dt);
     this.pedChat(dt);
     this.updateBurning(dt);
 
@@ -4815,6 +4855,7 @@ class Main extends Phaser.Scene {
     const pared = c.derrapeV && (blocked(fx, fy) || Math.abs(c.derrape) > c.e.w / 2 + 14 * M);
     if (!otro && !pared) return false;
     c.speed = 0; c.hp = 0; this.wreck(c);
+    if (c.robado) { c.robado = false; const f = this.focus(); if (dist(c.x, c.y, f.x, f.y) < this.viewR() * 1.5) toast('💥 ¡El ratero chocó tu carro!', 'Y salió corriendo. Ni modo, a buscar otro.', 3); }
     // al de enfrente le va peor si iba de frente o muy rapido; las patrullas y escoltas solo se paran
     if (otro && !otro.wrecked && this.cars.includes(otro)) { otro.speed = 0; if (otro.gas) this.golpeGas(otro); else if (!otro.poli && !otro.escolta && Math.random() < 0.5) { otro.hp = 0; this.wreck(otro); } }
     const f = this.focus();
@@ -4877,8 +4918,14 @@ class Main extends Phaser.Scene {
     if (!best) return;
     if (best.hp <= 0) { toast('Ese auto ya no sirve', ''); return; }
     if (best.poli) { toast('🚓 ¿Robarle la patrulla a la poli?', 'Ni lo pienses, compa.', 2); return; }
+    const recuperado = best.robado;
     if (this.cars.includes(best)) {
       this.cars.splice(this.cars.indexOf(best), 1);
+      if (best.robado) {
+        best.robado = false; best.loco = false;
+        if (this.bubble.ped === best) this.bubble.t = 0;
+        toast('🔑 ¡Recuperaste tu carro!', pick(['"¡Y no vuelvas!"', '"¡Órale, a correr!"', '"Ese carro tiene dueño, compa."']), 3);
+      }
       // el conductor sale corriendo
       const g = nearestOnGraph(walkG, best.x, best.y);
       if (g) {
@@ -4886,7 +4933,8 @@ class Main extends Phaser.Scene {
           sprite: this.walker(best.x, best.y, 2.2) };
         this.peds.push(ped);
       }
-      if (best.moto) this.startDelivery();
+      if (recuperado) { /* ya se aviso arriba */ }
+      else if (best.moto) this.startDelivery();
       else if (best.T === VT_DEPORTIVA) toast('🏍️ ¡Moto deportiva!', 'Corre como ninguna, pero al primer choque se hace pedazos. Con cuidadito.', 3);
       else if (best.gas) toast('⛽ ¡Te robaste una pipa de gas!', 'Dos golpes fuertes y vuela con todo y tú. Maneja suavecito.', 3.5);
       else if (best.T === VT_URBANO) toast('🚌 ¡Te robaste el camión de la ruta!', '¡Súbale, súbale! Hoy no se cobra pasaje.', 3);
@@ -4987,6 +5035,107 @@ class Main extends Phaser.Scene {
     }
   }
 
+  // ----- el ratero -----
+  // si te quedas parado en el carro unos segundos, a veces sale uno corriendo de la banqueta hacia tu puerta: si llega,
+  // te baja y se va manejando como loco. Si arrancas antes, se rinde; si lo alcanzas, recuperas el carro con E.
+  updateRatero(dt) {
+    const car = this.inCar, r = this.ratero;
+    this.rateroCool = (this.rateroCool ?? 40) - dt;
+    this.gritosRatero(dt);
+    if (!r) {
+      this.paradoT = car && Math.hypot(car.vx, car.vy) < 8 ? (this.paradoT || 0) + dt : 0;
+      if (this.paradoT < 4 || this.rateroCool > 0) return;
+      if (car.wrecked || car.T === VT_TROCA_TACOS || car.T === VT_ZONKEY || this.taxi || this.delivery || this.paro || this.fiesta) return;
+      this.rateroCool = 2; // cada dos segundos se echa el volado
+      if (Math.random() < 0.4) this.llegaRatero(car);
+      return;
+    }
+    r.t -= dt;
+    if (r.st === 'huye') {
+      // se va corriendo lejos del carro y desaparece
+      const a = r.a, nx = r.x + Math.cos(a) * 80 * dt, ny = r.y + Math.sin(a) * 80 * dt;
+      if (!blocked(nx, ny)) { r.x = nx; r.y = ny; } else r.a += 1.2;
+      r.sprite.setPosition(r.x, r.y).setRotation(r.a).setAlpha(Math.min(1, r.t));
+      if (r.t <= 0) { r.sprite.destroy(); if (this.bubble.ped === r) this.bubble.t = 0; this.ratero = null; }
+      return;
+    }
+    const c = r.car, sp = Math.hypot(c.vx, c.vy);
+    if (this.inCar !== c || sp > 45 || r.t <= 0) { this.rateroFalla(); return; }
+    // va a la puerta del conductor (o a la otra si esa esta tapada)
+    let k = c.hw + 5, tx = c.x + Math.sin(c.a) * k, ty = c.y - Math.cos(c.a) * k;
+    if (blocked(tx, ty)) { tx = c.x - Math.sin(c.a) * k; ty = c.y + Math.cos(c.a) * k; }
+    const d = dist(r.x, r.y, tx, ty);
+    if (d > 260) { this.rateroFalla(); return; }
+    if (d < 6) { if (sp < 20) this.robarCarro(r); return; }
+    let a = Math.atan2(ty - r.y, tx - r.x);
+    const v = Math.min(78 * dt, d);
+    for (const da of [0, 0.7, -0.7, 1.4, -1.4]) {
+      const nx = r.x + Math.cos(a + da) * v, ny = r.y + Math.sin(a + da) * v;
+      if (!blocked(nx, ny)) { r.x = nx; r.y = ny; a += da; break; }
+    }
+    r.a = a; r.sprite.setPosition(r.x, r.y).setRotation(a);
+  }
+  llegaRatero(car) {
+    for (let i = 0; i < 16; i++) {
+      const a = rnd(0, 6.3), R = rnd(90, 130), x = car.x + Math.cos(a) * R, y = car.y + Math.sin(a) * R;
+      if (blocked(x, y) || !regionesListas(x, y, x, y)) continue;
+      // que pueda llegar en linea recta, sin edificios de por medio
+      let ok = true;
+      for (let t = 0.1; t < 0.95; t += 0.1) if (blocked(x + (car.x - x) * t, y + (car.y - y) * t)) { ok = false; break; }
+      if (!ok) continue;
+      const sprite = this.add.sprite(x, y, 'pedR', 0).setDepth(9).setScale(1 / SPR);
+      sprite.play('walkR'); sprite.anims.timeScale = 2.4;
+      this.ratero = { x, y, a: Math.atan2(car.y - y, car.x - x), sprite, car, st: 'va', t: 12 };
+      this.rateroCool = rnd(70, 120);
+      toast('⚠️ ¡Aguas, un ratero!', 'Viene corriendo por tu carro. ¡Arráncate!', 3);
+      this.globo(this.ratero, 'ratero', pick(['"¡Quieto ahí, compa!"', '"¡Ese carro está bonito!"', '"¡Espérame tantito!"', '"¡No te vayas, eh!"']), 2.5);
+      return;
+    }
+  }
+  rateroFalla() {
+    const r = this.ratero;
+    r.st = 'huye'; r.t = 3; r.a = Math.atan2(r.y - r.car.y, r.x - r.car.x);
+    this.globo(r, 'ratero', '"' + pick(FRASES_RATERO_FALLA) + '"', 2.5);
+    if (this.inCar === r.car) toast('😎 ¡Te le pelaste al ratero!', '', 2);
+  }
+  // el robo: te bajan por tu puerta y el carro se va al trafico con el ratero manejando como loco
+  robarCarro(r) {
+    const car = r.car, P = this.player;
+    r.sprite.destroy(); this.ratero = null;
+    car.vx = car.vy = 0; this.inCar = null;
+    const k = car.hw + 13, fx = car.x + Math.sin(car.a) * k, fy = car.y - Math.cos(car.a) * k;
+    const [ex, ey] = !blocked(fx, fy) ? [fx, fy] : !blocked(r.x, r.y) ? [r.x, r.y] : [car.x - Math.sin(car.a) * k, car.y + Math.cos(car.a) * k];
+    P.x = ex; P.y = ey; P.a = car.a;
+    P.sprite.setVisible(true).setPosition(ex, ey).setRotation(car.a);
+    this.cameras.main.startFollow(P.sprite, true, 0.15, 0.15);
+    this.staminaBar.clear();
+    this.jolt(220, 0.008);
+    if (window.SND) SND.play('crash', 0.25);
+    toast('😱 ' + pick(FRASES_ROBADO), 'Te bajaron del carro. Si lo alcanzas, recupéralo con E.', 4);
+    const g = nearestOnGraphCerca(traffic, car.x, car.y);
+    if (!g) { this.parked.push(car); this.setObjective(); return; }
+    const dir = g.e.one ? 1 : Math.cos(g.a - car.a) >= 0 ? 1 : -1, lane = (Math.random() * 4) | 0;
+    Object.assign(car, { e: g.e, dir, s: dir > 0 ? g.s : g.e.len - g.s, lat: laneLat(g.e, lane), lane, speed: 0, max: 150,
+      robado: true, loco: true, ph: rnd(0, 6), wf: rnd(1.6, 2.6), locoT: rnd(10, 18), derrape: 0, derrapeV: 0, desvioT: 0, gritoT: 3.5 });
+    this.cars.push(car);
+    this.carRobado = car;
+    this.globo(car, 'ratero', '"' + pick(FRASES_RATERO) + '"', 3);
+    if (window.SND) SND.play('claxon', 0.8);
+    this.setObjective();
+  }
+  // mientras se lo lleva, va gritando y pitando
+  gritosRatero(dt) {
+    const c = this.carRobado;
+    if (!c) return;
+    if (!c.robado || c.wrecked || !this.cars.includes(c)) { this.carRobado = null; return; }
+    if ((c.gritoT -= dt) > 0) return;
+    c.gritoT = rnd(4, 6.5);
+    const f = this.focus();
+    if (dist(c.x, c.y, f.x, f.y) > this.viewR()) return;
+    this.globo(c, 'ratero', '"' + pick(FRASES_RATERO_MANEJA) + '"', 2.2);
+    this.claxon(c);
+  }
+
   updatePeds(dt) {
     const tmp = this.tmp, car = this.inCar;
     const csp = car ? Math.hypot(car.vx, car.vy) : 0;
@@ -5046,7 +5195,7 @@ class Main extends Phaser.Scene {
     if (b.ped) {
       b.t -= dt;
       this.placeBubble();
-      if (b.t <= 0 || b.ped.st === 'down' || dist(b.ped.x, b.ped.y, this.player.x, this.player.y) > 140) { b.ped = null; b.el.classList.remove('on'); }
+      if (b.t <= 0 || b.ped.st === 'down' || dist(b.ped.x, b.ped.y, this.focus().x, this.focus().y) > (b.ped.robado ? 260 : 140)) { b.ped = null; b.el.classList.remove('on'); }
     }
     const cy = this.coy;
     if (cy) { cy.t -= dt; if (cy.t <= 0 || this.inCar || dist(cy.p.x, cy.p.y, this.player.x, this.player.y) > 70) { this.coy = null; this.setObjective(); } }

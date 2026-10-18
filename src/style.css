@@ -235,3 +235,4 @@ body:not(.touch) #keystouch { display: none; }
   #bR { bottom: 42px; }
   #bT { bottom: 46px; }
 }
+.bubble.ratero { --bg: #2a1015; --bd: #e53935; --fg: #ffe3e3; font-weight: 700; }
