@@ -395,6 +395,7 @@ function inWater(x, y) {
 // la neblina es espesa en la orilla y se abre hacia adentro en NIEBLA_ANCHO; no se puede pasar de NIEBLA px
 // (ahi ya casi no se ve nada). La camara puede asomarse NIEBLA_FUERA px mas alla, que es pura neblina.
 const NIEBLA = 40 * M, NIEBLA_ANCHO = 170 * M, NIEBLA_FUERA = 80 * M;
+const NIEBLA_TRAMO = 4096; // largo de las franjas de nubes de la neblina (ver makeNiebla)
 const NIEBLA_LEJOS = 100 * M; // los paros y los destinos de taxi y entregas no caen tan adentro de la neblina
 function enNiebla(x, y, d) { return x < d || x > WORLD_W - d || y > WORLD_H - d; }
 function blocked(x, y) {
@@ -5858,22 +5859,33 @@ class Main extends Phaser.Scene {
       { x: W + F, y: -L, a: Math.PI / 2, len: H + F + 2 * L }, // este: hacia el sur, adentro hacia -x
       { x: W + F + L, y: H + F, a: Math.PI, len: W + 2 * F + 2 * L }, // sur: hacia el oeste, adentro hacia -y
     ];
-    this.niebla = [];
-    for (const l of lados) {
-      const im = [this.add.image(0, 0, 'niebla').setDisplaySize(l.len, L)];
-      for (const k of ['nieblaA', 'nieblaB']) im.push(this.add.tileSprite(0, 0, l.len, TH, k).setScale(1, L / TH));
-      for (const o of im) { o.setOrigin(0, 0).setPosition(l.x, l.y).setRotation(l.a).setDepth(22); this.niebla.push(o); }
-    }
+    // las nubes son franjas de NIEBLA_TRAMO que se recorren a lo largo de su orilla siguiendo a la camara: Phaser
+    // le hace a cada tileSprite un lienzo de su tamaño y una franja de toda la orilla (mas de 32 mil px desde que el
+    // mapa es toda la ciudad) Firefox no la acepta y el juego se quedaba sin imagen
+    this.niebla = []; this.nieblaNubes = [];
+    lados.forEach((l, li) => {
+      const g = this.add.image(0, 0, 'niebla').setDisplaySize(l.len, L);
+      g.setOrigin(0, 0).setPosition(l.x, l.y).setRotation(l.a).setDepth(22); this.niebla.push(g);
+      ['nieblaA', 'nieblaB'].forEach((k, ki) => {
+        const o = this.add.tileSprite(0, 0, Math.min(NIEBLA_TRAMO, l.len), TH, k).setScale(1, L / TH);
+        o.setOrigin(0, 0).setRotation(l.a).setDepth(22); this.niebla.push(o);
+        this.nieblaNubes.push({ o, l, vel: ki ? -5 : 9, base: (li * 3 + ki + 1) * 97 });
+      });
+    });
     this.nieblaT = 0; this.nieblaAviso = 0; this.bordoAviso = 0;
   }
   updateNiebla(dt, f) {
     this.nieblaT += dt;
     const noche = this.night ? this.night.a : 0, c = Phaser.Display.Color.Interpolate.ColorWithColor({ r: 255, g: 255, b: 255 }, { r: 58, g: 64, b: 88 }, 100, noche * 100);
     const tint = Phaser.Display.Color.GetColor(c.r, c.g, c.b);
-    this.niebla.forEach((o, i) => {
-      o.setTint(tint);
-      if (o.tilePositionX !== undefined) o.tilePositionX = this.nieblaT * (i % 3 === 1 ? 9 : -5) + i * 97;
-    });
+    for (const o of this.niebla) o.setTint(tint);
+    const cm = this.cameras.main.midPoint;
+    for (const n of this.nieblaNubes) {
+      const { o, l } = n, ca = Math.cos(l.a), sa = Math.sin(l.a);
+      const off = Math.round(Math.max(0, Math.min(l.len - o.width, (cm.x - l.x) * ca + (cm.y - l.y) * sa - o.width / 2)));
+      o.setPosition(l.x + ca * off, l.y + sa * off);
+      o.tilePositionX = this.nieblaT * n.vel + n.base + off;
+    }
     // al toparte con la neblina, un aviso de vez en cuando
     this.nieblaAviso -= dt;
     if (this.nieblaAviso <= 0 && enNiebla(f.x, f.y, NIEBLA + 4 * M)) {
