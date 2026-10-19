@@ -21,32 +21,36 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); c
 
 .hud { position: fixed; pointer-events: none; z-index: 5; }
 /* panel compacto: dinero y avance en una linea; el objetivo solo aparece cuando hay algo que hacer */
-#stats { top: 10px; left: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
-  padding: 4px 10px; font-size: 13px; line-height: 1.4; }
+/* mismo estilo que la portada y las opciones: vidrio oscuro con tono morado, linea naranja arriba, titulos amarillos con sombra roja */
+#stats { top: 10px; left: 10px; border-radius: 10px; padding: 5px 12px 6px; font-size: 13px; line-height: 1.4; text-shadow: 0 1px 2px #000;
+  background: linear-gradient(160deg, rgba(58,26,52,.5), rgba(0,0,0,0) 60%), rgba(14,10,18,.8);
+  border: 1px solid rgba(255,255,255,.12); box-shadow: 0 4px 14px rgba(0,0,0,.45), inset 0 2px 0 -1px #ff7a3c; }
 #stats .row { display: flex; align-items: baseline; gap: 10px; white-space: nowrap; }
-#stats .money { font-size: 18px; font-weight: bold; color: var(--good); letter-spacing: 0.5px; }
+#stats .money { font-size: 19px; font-weight: bold; font-style: italic; color: var(--good); letter-spacing: 0.5px; text-shadow: 1px 1px 0 #0b3d17, 2px 2px 0 #000; }
 /* los contadores: cada uno entero (en vertical se brinca de linea entre ellos, en los separadores) */
 #counts span { white-space: nowrap; }
 #stats .obj { color: var(--accent); max-width: 300px; font-size: 12px; }
 #stats .obj:empty { display: none; }
-#mini { top: 12px; right: 12px; width: 180px; height: 180px; border-radius: 50%; border: 3px solid rgba(0,0,0,.7);
-  box-shadow: 0 0 0 2px var(--line); background: #222; }
+#mini { top: 12px; right: 12px; width: 180px; height: 180px; border-radius: 50%; border: 3px solid rgba(14,10,18,.9);
+  box-shadow: 0 0 0 2px rgba(255,140,60,.75), 0 4px 16px rgba(0,0,0,.55); background: #222; }
 /* avisos arriba al centro, entre el panel y el minimapa (left/right los ajusta layoutTop() en game.js);
    escondidos no ocupan lugar, asi el que se ve queda pegado arriba */
 #topmsg { top: 10px; left: 25%; right: 25%; display: flex; flex-direction: column; align-items: center; gap: 6px; }
 #topmsg > div { max-width: 100%; text-align: center; }
-#street { font-size: 20px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; color: var(--accent);
-  text-shadow: 2px 2px 0 #000, -1px -1px 0 #000; line-height: 1.15;
+#street { font-size: 21px; font-weight: bold; font-style: italic; letter-spacing: 2px; text-transform: uppercase; color: var(--accent);
+  text-shadow: 2px 2px 0 #b3261e, 3px 3px 0 #000, -1px -1px 0 #000; line-height: 1.2;
   opacity: 0; max-height: 0; overflow: hidden; transition: opacity .6s, max-height .6s; }
 #street.on { opacity: 1; max-height: 90px; }
-#street small { display: block; font-size: 11px; letter-spacing: 2px; color: var(--text); }
-#toast { background: var(--panel); border: 1px solid var(--line); border-top: 3px solid var(--accent); border-radius: 10px;
-  font-size: 14px; box-shadow: 0 6px 18px rgba(0,0,0,.4);
+#street small { display: block; font-size: 11px; font-style: normal; letter-spacing: 3px; color: var(--text); text-shadow: 1px 1px 0 #000, 0 0 4px #000; }
+#toast { background: linear-gradient(160deg, rgba(58,26,52,.55), rgba(0,0,0,0) 60%), rgba(14,10,18,.88);
+  border: 1px solid rgba(255,255,255,.12); border-top: 3px solid #ff7a3c; border-radius: 12px;
+  font-size: 14px; box-shadow: 0 8px 22px rgba(0,0,0,.5);
   opacity: 0; max-height: 0; padding: 0 16px; overflow: hidden; transform: translateY(-10px);
   transition: opacity .35s, max-height .35s, padding .35s, transform .35s; }
 #toast.on { opacity: 1; max-height: 220px; padding: 8px 16px 10px; transform: none; }
-#toast b { display: block; font-size: 18px; color: var(--accent); margin-bottom: 2px; }
-#timer { font-size: 28px; font-weight: bold; color: var(--text); text-shadow: 2px 2px 0 #000; display: none; }
+#toast b { display: block; font-size: 19px; font-style: italic; letter-spacing: 1px; color: var(--accent); margin-bottom: 2px;
+  text-shadow: 1px 1px 0 #b3261e, 2px 2px 0 #000; }
+#timer { font-size: 30px; font-weight: bold; font-style: italic; color: var(--text); text-shadow: 2px 2px 0 #b3261e, 3px 3px 0 #000; display: none; }
 
 /* globo de dialogo de los peatones, estilo historieta; cada tipo de personaje cambia los colores */
 .bubble { --bg: #fffdf4; --bd: #1a1a1a; --fg: #1a1a1a; z-index: 6; /* encima de los paneles: dura pocos segundos */
@@ -89,8 +93,9 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); c
 #arrow .dist { position: absolute; top: 46px; left: 50%; transform: translateX(-50%); white-space: nowrap;
   font: 700 12px/1.3 system-ui, sans-serif; color: #fff; background: rgba(0,0,0,.62); border: 1px solid rgba(87,209,107,.7);
   padding: 1px 7px; border-radius: 9px; text-shadow: 0 1px 1px #000; }
-#optbtn { display: none; top: 202px; right: 12px; width: 40px; height: 40px; border-radius: 50%; background: rgba(0,0,0,.6);
-  font-size: 20px; line-height: 40px; text-align: center; cursor: pointer; pointer-events: auto; user-select: none; }
+#optbtn { display: none; top: 202px; right: 12px; width: 40px; height: 40px; border-radius: 50%; background: rgba(14,10,18,.78);
+  border: 1px solid rgba(255,255,255,.22); box-shadow: 0 3px 10px rgba(0,0,0,.45);
+  font-size: 20px; line-height: 38px; text-align: center; cursor: pointer; pointer-events: auto; user-select: none; }
 .touch #optbtn { top: 140px; }
 /* menu de opciones: mismo estilo que la portada (titulo amarillo con sombra roja, tonos del atardecer, botones de vidrio oscuro) */
 #opts { display: none; position: fixed; inset: 0; z-index: 11; background: rgba(8,6,12,.72); align-items: center; justify-content: center; padding: 10px;
@@ -223,16 +228,18 @@ body:not(.touch) #keystouch { display: none; }
 #touch { display: none; }
 .touch #touch { display: block; }
 #stick { position: fixed; left: 22px; bottom: 22px; width: 130px; height: 130px; border-radius: 50%; z-index: 6;
-  background: rgba(255,255,255,.08); border: 2px solid rgba(255,255,255,.25); }
+  background: radial-gradient(circle, rgba(14,10,18,.15) 40%, rgba(14,10,18,.45)); border: 2px solid rgba(255,140,60,.45); }
 #knob { position: absolute; left: 40px; top: 40px; width: 50px; height: 50px; border-radius: 50%;
-  background: rgba(255,255,255,.35); }
-.tbtn { position: fixed; z-index: 6; width: 64px; height: 64px; border-radius: 50%; background: rgba(0,0,0,.45);
-  border: 2px solid rgba(255,255,255,.35); color: var(--text); font-weight: bold; font-size: 13px;
+  background: radial-gradient(circle at 40% 35%, rgba(255,255,255,.55), rgba(255,255,255,.25)); border: 1px solid rgba(255,255,255,.5);
+  box-shadow: 0 3px 8px rgba(0,0,0,.4); }
+.tbtn { position: fixed; z-index: 6; width: 64px; height: 64px; border-radius: 50%; background: rgba(14,10,18,.55);
+  border: 2px solid rgba(255,255,255,.3); color: var(--text); font-weight: bold; font-size: 13px; letter-spacing: .5px;
+  text-shadow: 0 1px 2px #000; box-shadow: 0 3px 10px rgba(0,0,0,.35);
   display: flex; align-items: center; justify-content: center; text-align: center; }
-#bE { right: 24px; bottom: 100px; background: rgba(255,210,63,.35); }
+#bE { right: 24px; bottom: 100px; background: rgba(255,210,63,.3); border-color: rgba(255,210,63,.85); color: #ffe68a; }
 /* abajo a la derecha, en cuadricula: FRENO y SUBIR/BAJAR arriba, REVERSA y TAXI abajo */
 #bB { right: 100px; bottom: 100px; }
-#bR { right: 100px; bottom: 24px; font-size: 10px; background: rgba(90,140,255,.3); }
+#bR { right: 100px; bottom: 24px; font-size: 10px; background: rgba(90,140,255,.28); border-color: rgba(140,175,255,.6); }
 #bT { right: 28px; bottom: 28px; width: 56px; height: 56px; }
 /* el minimapa se toca para abrir el mapa grande */
 #mini { pointer-events: auto; cursor: pointer; }
