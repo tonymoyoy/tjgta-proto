@@ -764,8 +764,9 @@ const chunkBaches = gridIndex(baches, CHUNK, 'bb');
 // ---------- arboles ----------
 // Tijuana es seca: pocos y repartidos. Algunas calles tienen arboles en la banqueta y la mayoria casi no;
 // mas en los parques, una que otra palma en las plazas y alguno suelto en lotes y patios.
-// Se pintan dentro de los trozos del mapa, asi que no cuestan al jugar; el tronco y lo grueso de la copa son
-// solidos para el jugador (a pie y manejando, ver arbolEn y arbolEnCaja).
+// La sombra se pinta dentro de los trozos del mapa; el arbol va encima de la gente y los carros (copasTrozo), asi
+// la gente pasa por debajo de las copas. El tronco y lo grueso de la copa son solidos para el jugador (a pie y
+// manejando) y para los carros (ver arbolEn y arbolEnCaja).
 // Los edificios se cargan por regiones, asi que lo de no quedar dentro o detras de uno se revisa al pintar el
 // trozo: en cada cuadrito de 30 px se queda el primer candidato (en orden) que no choca con un edificio.
 // tipos: 0 laurel de la India, 1 palma, 2 jacaranda, 3 pirul. (localStorage tjrush-arboles = 'no' los quita)
@@ -871,10 +872,11 @@ function arbolEnCaja(x, y, c, s, hl, hw) {
   }
   return n;
 }
-// cada tipo tiene ARB_VAR dibujos; vistos desde arriba, con la sombra hacia el sureste (la luz viene del noroeste)
+// cada tipo tiene ARB_VAR dibujos; vistos desde arriba, con la sombra hacia el sureste (la luz viene del noroeste).
+// parte 0: solo la sombra (va en el piso del trozo); 1: el arbol sin la sombra (va encima, ver arbolesAtlas)
 const ARB_SPR = {};
-function arbolSprite(t, v) {
-  const key = t * 10 + v; if (ARB_SPR[key]) return ARB_SPR[key];
+function arbolSprite(t, v, parte) {
+  const key = parte * 100 + t * 10 + v; if (ARB_SPR[key]) return ARB_SPR[key];
   const c = document.createElement('canvas'); c.width = c.height = ARB_SZ * RES;
   const x = c.getContext('2d', CTX2D); x.scale(RES, RES); x.translate(ARB_SZ / 2, ARB_SZ / 2);
   const rnd = mulberry(key * 977 + 11);
@@ -886,7 +888,8 @@ function arbolSprite(t, v) {
       x.quadraticCurveTo(Math.cos(a - 0.38) * l * 0.55, Math.sin(a - 0.38) * l * 0.55, Math.cos(a) * l, Math.sin(a) * l);
       x.quadraticCurveTo(Math.cos(a + 0.38) * l * 0.55, Math.sin(a + 0.38) * l * 0.55, 0, 0); x.fill();
     };
-    x.fillStyle = 'rgba(0,0,0,0.24)'; x.save(); x.translate(7, 8); for (let i = 0; i < n; i++) hoja(a0 + i / n * 6.283, L, 0); x.restore();
+    x.fillStyle = 'rgba(0,0,0,0.24)'; x.save(); x.translate(7, 8); if (!parte) for (let i = 0; i < n; i++) hoja(a0 + i / n * 6.283, L, 0); x.restore();
+    if (!parte) return ARB_SPR[key] = c;
     x.fillStyle = '#a08850'; for (let i = 0; i < 5; i++) hoja(a0 + 0.3 + i * 1.25, L * 0.8, 0);
     for (let i = 0; i < n; i++) { const a = a0 + i / n * 6.283 + (rnd() - 0.5) * 0.2; x.fillStyle = i % 2 ? '#7ea23a' : '#9cbc52'; hoja(a, L * (0.85 + rnd() * 0.2), 0); }
     x.strokeStyle = 'rgba(45,65,20,0.7)'; x.lineWidth = 0.6;
@@ -899,7 +902,7 @@ function arbolSprite(t, v) {
     const lob = [[0, 0, R * 0.62]];
     for (let i = 0; i < n; i++) { const a = i / n * 6.283 + rnd() * 0.5, d = R * (0.35 + rnd() * 0.15); lob.push([Math.cos(a) * d, Math.sin(a) * d, R * (0.4 + rnd() * 0.15)]); }
     const bolas = (dx, dy, k, col) => { x.fillStyle = col; x.beginPath(); for (const [a, b, r] of lob) { x.moveTo(a * k + dx + r * k, b * k + dy); x.arc(a * k + dx, b * k + dy, r * k, 0, 7); } x.fill(); };
-    bolas(R * 0.3, R * 0.35, 1, 'rgba(0,0,0,0.26)');
+    if (!parte) { bolas(R * 0.3, R * 0.35, 1, 'rgba(0,0,0,0.26)'); return ARB_SPR[key] = c; }
     if (t === ARB_JACA) bolas(0, 0, 1, '#3f5a2c'); // la jacaranda deja ver hojas verdes entre las flores
     bolas(0, 0, t === ARB_JACA ? 0.95 : 1, COLS[0]);
     for (const [a, b, r] of lob) { x.fillStyle = COLS[1]; x.beginPath(); x.arc(a - r * 0.2, b - r * 0.2, r * 0.7, 0, 7); x.fill(); }
@@ -907,6 +910,13 @@ function arbolSprite(t, v) {
     for (let i = 0; i < 26; i++) { const a = rnd() * 6.283, d = rnd() * R * 0.8; x.beginPath(); x.arc(Math.cos(a) * d - R * 0.12, Math.sin(a) * d - R * 0.12, 0.7 + rnd() * 0.9, 0, 7); x.fill(); }
   }
   return ARB_SPR[key] = c;
+}
+// todos los arboles (sin sombra) en una sola textura, para que Phaser los dibuje de un jalon; cuadro t*ARB_VAR+v
+function arbolesAtlas() {
+  const S = ARB_SZ * RES, c = document.createElement('canvas'); c.width = S * ARB_VAR; c.height = S * 4;
+  const x = c.getContext('2d');
+  for (let t = 0; t < 4; t++) for (let v = 0; v < ARB_VAR; v++) x.drawImage(arbolSprite(t, v, 1), v * S, t * S);
+  return c;
 }
 const bacheGrid = gridIndex(baches, TCELL, 'bb');
 function bachesNear(x, y) { return bacheGrid.get(GK(Math.floor(x / TCELL), Math.floor(y / TCELL))) || []; }
@@ -1419,7 +1429,7 @@ function* chunkSteps(cx, cy) {
 
   yield;
   yield* drawBuildings(ctx, bl, rs, cx, cy);
-  for (const i of chunkArboles.get(k) || []) { if (!arbolVa(i)) continue; ctx.drawImage(arbolSprite(arboles.T[i], arboles.V[i]), arboles.X[i] - ARB_SZ / 2, arboles.Y[i] - ARB_SZ / 2, ARB_SZ, ARB_SZ); }
+  for (const i of chunkArboles.get(k) || []) { if (!arbolVa(i)) continue; ctx.drawImage(arbolSprite(arboles.T[i], arboles.V[i], 0), arboles.X[i] - ARB_SZ / 2, arboles.Y[i] - ARB_SZ / 2, ARB_SZ, ARB_SZ); }
   // lado de Estados Unidos
   const x0 = cx * CHUNK, x1 = x0 + CHUNK;
   const fr = fronteraPts(x0 - 2, x1 + 2);
@@ -4678,6 +4688,7 @@ class Main extends Phaser.Scene {
       const k = cx + ',' + cy, tk = 'ch' + k;
       this.textures.addCanvas(tk, cv);
       this.chunks.set(k, this.add.image(cx * CHUNK - 1, cy * CHUNK - 1, tk).setOrigin(0).setDepth(0).setScale(1 / RES));
+      this.copasTrozo(cx, cy, k);
     };
     // todo de una vez: el trozo a medias se descarta (comparte las capas de los edificios) y se pinta completo con los demas
     if (all) { this.chunkJob = null; this.chunkDone = null; for (const [cx, cy] of want) add(cx, cy, drawChunk(cx, cy)); }
@@ -4703,8 +4714,27 @@ class Main extends Phaser.Scene {
     }
     for (const [k, img] of this.chunks) {
       const [cx, cy] = k.split(',').map(Number);
-      if (cx < cx0 - KEEP || cx > cx1 + KEEP || cy < cy0 - KEEP || cy > cy1 + KEEP) { img.destroy(); this.textures.remove('ch' + k); this.chunks.delete(k); }
+      if (cx < cx0 - KEEP || cx > cx1 + KEEP || cy < cy0 - KEEP || cy > cy1 + KEEP) {
+        img.destroy(); this.textures.remove('ch' + k); this.chunks.delete(k);
+        for (const a of this.copas.get(k) || []) a.destroy();
+        this.copas.delete(k);
+      }
     }
+  }
+  // los arboles de un trozo (los que tienen ahi el centro), encima de la gente y los carros: la sombra ya quedo en el piso
+  copasTrozo(cx, cy, k) {
+    if (!this.copas) {
+      this.copas = new Map();
+      const tx = this.textures.addCanvas('arboles', arbolesAtlas()), S = ARB_SZ * RES;
+      for (let t = 0; t < 4; t++) for (let v = 0; v < ARB_VAR; v++) tx.add(t * ARB_VAR + v, 0, v * S, t * S, S, S);
+    }
+    const L = [];
+    for (const i of chunkArboles.get(GK(cx, cy)) || []) {
+      const x = arboles.X[i], y = arboles.Y[i];
+      if (Math.floor(x / CHUNK) !== cx || Math.floor(y / CHUNK) !== cy || !arbolVa(i)) continue;
+      L.push(this.add.image(x, y, 'arboles', arboles.T[i] * ARB_VAR + arboles.V[i]).setDepth(13).setScale(1 / RES));
+    }
+    this.copas.set(k, L);
   }
 
   // ----- poblacion -----
@@ -5082,7 +5112,7 @@ class Main extends Phaser.Scene {
       const p = this.player, d = dist(x, y, p.x, p.y);
       if (d < R) {
         const ang = Math.atan2(p.y - y, p.x - x), emp = 40 * (1 - d / R), nx = p.x + Math.cos(ang) * emp, ny = p.y + Math.sin(ang) * emp;
-        if (!blocked(nx, ny)) { p.x = nx; p.y = ny; p.sprite.setPosition(nx, ny); }
+        if (!blocked(nx, ny) && !arbolEn(nx, ny, 3)) { p.x = nx; p.y = ny; p.sprite.setPosition(nx, ny); }
         toast('💥 ¡Te aventó la onda expansiva!', 'Estuvo cerca. Mejor no te acerques a las pipas.', 2.5);
       }
     }
@@ -5228,7 +5258,7 @@ class Main extends Phaser.Scene {
     const fx = c.x + hx * (c.hl + 2), fy = c.y + hy * (c.hl + 2);
     let otro = null;
     if (c.speed > 35) for (const o of this.cars.concat(this.parked)) if (o !== c && Math.abs(o.x - c.x) < 60 && Math.abs(o.y - c.y) < 60 && axisDist(fx, fy, o) < o.hw + 1) { otro = o; break; }
-    const pared = c.derrapeV && (blocked(fx, fy) || Math.abs(c.derrape) > c.e.w / 2 + 14 * M);
+    const pared = c.derrapeV && (blocked(fx, fy) || arbolEn(fx, fy, 0) || Math.abs(c.derrape) > c.e.w / 2 + 14 * M);
     if (!otro && !pared) return false;
     c.speed = 0; c.hp = 0; this.wreck(c);
     if (c.robado) { c.robado = false; const f = this.focus(); if (dist(c.x, c.y, f.x, f.y) < this.viewR() * 1.5) toast('💥 ¡El ratero chocó tu carro!', 'Y salió corriendo. Ni modo, a buscar otro.', 3); }
