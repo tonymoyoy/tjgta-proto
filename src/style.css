@@ -148,17 +148,16 @@ body:not(.touch) #keystouch { display: none; }
 #bigmap .maphint { position: absolute; left: 0; right: 70px; bottom: 8px; margin: 0; color: #eee; font-size: 12px; text-align: center;
   text-shadow: 0 1px 2px #000; pointer-events: none; }
 
-/* portada: la ilustracion del taxi de fondo; el menu va del lado oscuro (a la derecha acostado, abajo parado) */
-#intro { position: fixed; inset: 0; z-index: 10; display: flex; align-items: safe center; justify-content: flex-end; overflow-y: auto;
+/* portada y pantalla de carga: la ilustracion del taxi de fondo; el menu (o la barra de carga) va del lado oscuro
+   (a la derecha acostado, abajo parado). Las dos se ven igual, asi que al terminar de cargar solo cambia la barra por los botones */
+#intro, #cargando { position: fixed; inset: 0; z-index: 10; display: flex; align-items: safe center; justify-content: flex-end; overflow-y: auto;
   background: linear-gradient(90deg, rgba(0,0,0,0) 30%, rgba(8,6,12,.78) 58%, rgba(8,6,12,.92)),
     url(img/portada.jpg) 30% center / cover no-repeat, #121212;
-  padding: 16px 5vw; padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(5vw, env(safe-area-inset-right));
-  animation: introEntra .6s ease-out; }
-@keyframes introEntra { from { opacity: 0; } to { opacity: 1; } }
-#intro .card { max-width: 460px; width: 100%; text-align: center; text-shadow: 0 1px 3px #000; }
-#intro h1 { font-size: clamp(40px, 8vw, 80px); margin: 0; color: var(--accent); letter-spacing: 4px; line-height: 1.1;
+  padding: 16px 5vw; padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(5vw, env(safe-area-inset-right)); }
+#intro .card, #cargando .card { max-width: 460px; width: 100%; text-align: center; text-shadow: 0 1px 3px #000; }
+#intro h1, #cargando .t { font-size: clamp(40px, 8vw, 80px); margin: 0; color: var(--accent); letter-spacing: 4px; line-height: 1.1;
   text-shadow: 4px 4px 0 #b3261e, 8px 8px 0 #000; font-style: italic; }
-#intro h2 { margin: 4px 0 12px; font-size: 16px; letter-spacing: 6px; color: var(--text); }
+#intro h2, #cargando .sub { margin: 4px 0 12px; font-size: 16px; letter-spacing: 6px; color: var(--text); }
 #resumen { color: var(--text); font-size: 15px; margin-bottom: 14px; }
 #resumen b { color: var(--accent); }
 #intro .menu { display: flex; flex-direction: column; align-items: center; gap: 10px; }
@@ -178,8 +177,8 @@ body:not(.touch) #keystouch { display: none; }
 /* celular acostado: poco alto, se quita la descripcion para que quepa todo junto */
 @media (max-height: 500px) and (min-width: 560px) {
   #intro { padding-top: 8px; padding-bottom: 8px; }
-  #intro .card { max-width: 380px; }
-  #intro h1 { font-size: 46px; }
+  #intro .card, #cargando .card { max-width: 380px; }
+  #intro h1, #cargando .t { font-size: 46px; }
   #intro h2 { font-size: 12px; margin-bottom: 6px; }
   #resumen { font-size: 13px; margin-bottom: 8px; }
   #intro .menu { gap: 7px; }
@@ -190,20 +189,24 @@ body:not(.touch) #keystouch { display: none; }
 /* parado (vertical): el taxi arriba (centrado y completo, ocupa el ancho) y el menu abajo.
    --pw es el ancho de la imagen; el taxi va de 5% a 57% de ella y su centro esta en 31% */
 @media (orientation: portrait) {
-  #intro { --pw: min(185vw, 105vh); align-items: flex-end; justify-content: center; padding-right: max(16px, env(safe-area-inset-right));
+  #intro, #cargando { --pw: min(185vw, 105vh); align-items: flex-end; justify-content: center; padding-right: max(16px, env(safe-area-inset-right));
     padding-bottom: max(24px, env(safe-area-inset-bottom));
     background: linear-gradient(180deg, rgba(0,0,0,.2), rgba(0,0,0,0) 25%, rgba(0,0,0,0) 62%, #0c0a10) center top / 100% calc(var(--pw) * .5586 + 2px) no-repeat,
       url(img/portada.jpg) calc(50vw - var(--pw) * .31) top / var(--pw) auto no-repeat, #0c0a10; }
 }
 
-/* pantalla de carga (los mismos colores que el arranque de Android) */
-#cargando { position: fixed; inset: 0; z-index: 20; background: #121212; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 10px; }
-#cargando img { width: 30vmin; height: 30vmin; border-radius: 6vmin; }
-#cargando .t { font: 900 11vmin/1 "DejaVu Sans", sans-serif; color: var(--accent); text-shadow: 0 .6vmin 0 #000; }
-#cargando .barra { width: min(320px, 60vw); height: 6px; border-radius: 3px; background: #2c2c31; overflow: hidden; margin-top: 6px; }
-#cargando .barra i { display: block; height: 100%; width: 4%; background: var(--accent); transition: width .25s; }
-#cargando .msg { color: var(--muted); font-size: 13px; }
+/* pantalla de carga: encima de la portada mientras se leen el mapa y el juego */
+#cargando { z-index: 20; }
+#cargando .card { padding-bottom: 8vh; }
+#cargando .t, #cargando .sub { font-weight: bold; }
+@media (orientation: portrait) {
+  #cargando { align-items: flex-start; }
+  #cargando .card { padding: 0; margin-top: calc(var(--pw) * .5586 + 10px); }
+}
+#cargando .barra { width: min(300px, 80%); height: 8px; border-radius: 4px; background: rgba(255,255,255,.15); overflow: hidden;
+  margin: 18px auto 10px; box-shadow: 0 0 0 1px rgba(0,0,0,.5); }
+#cargando .barra i { display: block; height: 100%; width: 4%; background: var(--accent); transition: width .25s; box-shadow: 0 0 10px var(--accent); }
+#cargando .msg { color: var(--text); font-size: 14px; }
 
 #touch { display: none; }
 .touch #touch { display: block; }
