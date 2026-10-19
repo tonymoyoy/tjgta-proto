@@ -1263,6 +1263,68 @@ function* drawBuildings(ctx, bl, rs, cx, cy) {
     ctx.restore();
   }
 }
+// esquinas redondeadas: donde se juntan dos calles, la guarnicion hace una curva de radio ESQ_R en vez del pico
+// de 90 grados. Por cada cuña entre dos calles vecinas se rellena el pedacito entre las dos orillas y el arco: primero
+// con la orilla polvosa y luego con asfalto (concentrico, ver la orilla polvosa en chunkSteps).
+// Los vertices salen de las calles de los 9 trozos de alrededor (en el trozo de un vertice vienen todas sus calles).
+// (localStorage tjrush-esquinas = 'no' las quita)
+const ESQ_R = 4 * M, ESQ_POLVO = 4.5;
+let ESQ_ON = true;
+try { ESQ_ON = localStorage.getItem('tjrush-esquinas') !== 'no'; } catch (e) { }
+function esquinasTrozo(cx, cy) {
+  const out = [];
+  if (!ESQ_ON) return out;
+  const pad = 120, x0 = cx * CHUNK - pad, y0 = cy * CHUNK - pad, x1 = (cx + 1) * CHUNK + pad, y1 = (cy + 1) * CHUNK + pad;
+  const vistas = new Set(), V = new Map();
+  for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (const ri of chunkRoads.get(GK(cx + i, cy + j)) || []) {
+    if (vistas.has(ri)) continue; vistas.add(ri);
+    const r = roads[ri]; if (r.c > 6 || (r.f & 1)) continue;
+    const p = r.p, n = p.length / 2, h = r.w * M / 2;
+    for (let q = 0; q < n; q++) {
+      const x = p[q * 2], y = p[q * 2 + 1];
+      if (x < x0 || x > x1 || y < y0 || y > y1) continue;
+      const k = Math.round(x * 2) * 1e6 + Math.round(y * 2);
+      let v = V.get(k); if (!v) V.set(k, v = { x, y, d: [], n: 0 });
+      v.n++;
+      for (const o of [q - 1, q + 1]) {
+        if (o < 0 || o >= n) continue;
+        const dx = p[o * 2] - x, dy = p[o * 2 + 1] - y, L = Math.hypot(dx, dy);
+        if (L > 1) v.d.push({ a: Math.atan2(dy, dx), ux: dx / L, uy: dy / L, L, h });
+      }
+    }
+  }
+  for (const v of V.values()) {
+    if (v.n < 2 || v.d.length < 2) continue; // la vuelta de una sola calle ya sale redonda (lineJoin)
+    v.d.sort((a, b) => a.a - b.a);
+    for (let i = 0; i < v.d.length; i++) {
+      const A = v.d[i], B = v.d[(i + 1) % v.d.length];
+      let th = B.a - A.a; if (th <= 0) th += Math.PI * 2;
+      if (th < 0.6 || th > 2.6) continue; // casi derecho (no hay pico) o muy cerrado
+      out.push({ x: v.x, y: v.y, A, B, th });
+    }
+  }
+  return out;
+}
+// la cuña entre las orillas de A y B (a k px hacia adentro del asfalto) cerrada con el arco
+function esquinaPath(ctx, e, k) {
+  const { A, B, th } = e, hA = A.h - k, hB = B.h - k;
+  const nAx = -A.uy, nAy = A.ux, nBx = B.uy, nBy = -B.ux;
+  const rx = nBx * hB - nAx * hA, ry = nBy * hB - nAy * hA, det = A.uy * B.ux - A.ux * B.uy;
+  const sA = (-rx * B.uy + B.ux * ry) / det, tB = (A.ux * ry - A.uy * rx) / det;
+  if (sA < 0 || tB < 0) return false;
+  const tan = Math.tan(th / 2);
+  // que la curva no se pase del tramo (cuadras chiquitas o calles en diagonal)
+  const dT = Math.min((ESQ_R + k) / tan, A.L * 0.8 - sA, B.L * 0.8 - tB);
+  const R = dT * tan - k; if (R < 2) return false;
+  const Cx = e.x + nAx * hA + A.ux * sA, Cy = e.y + nAy * hA + A.uy * sA;
+  const t1x = Cx + A.ux * dT, t1y = Cy + A.uy * dT, t2x = Cx + B.ux * dT, t2y = Cy + B.uy * dT;
+  let bx = A.ux + B.ux, by = A.uy + B.uy; const bl = Math.hypot(bx, by); bx /= bl; by /= bl;
+  const Rk = R + k, oc = Rk / Math.sin(th / 2), Ox = Cx + bx * oc, Oy = Cy + by * oc;
+  const a1 = Math.atan2(t1y - Oy, t1x - Ox), a2 = Math.atan2(t2y - Oy, t2x - Ox);
+  let da = a2 - a1; while (da > Math.PI) da -= Math.PI * 2; while (da < -Math.PI) da += Math.PI * 2;
+  ctx.beginPath(); ctx.moveTo(Cx, Cy); ctx.lineTo(t1x, t1y); ctx.arc(Ox, Oy, Rk, a1, a2, da < 0); ctx.closePath();
+  return true;
+}
 // Un trozo se pinta por pasos (generador): asi se reparte en varios cuadros y no da tirones.
 // Las capas de los edificios (bRoof...) se comparten, asi que solo puede haber un trozo a medias a la vez.
 function* chunkSteps(cx, cy) {
@@ -1305,6 +1367,10 @@ function* chunkSteps(cx, cy) {
     // orilla polvosa junto a la banqueta; el asfalto limpio de los cruces la tapa
     pass(list, r => r.w * M, '#4b4842', r => r.c <= 6);
     pass(list, r => r.w * M - 9, asfalto, r => r.c <= 6);
+    // esquinas redondeadas (ver esquinasTrozo)
+    const esq = esquinasTrozo(cx, cy);
+    ctx.fillStyle = '#4b4842'; for (const e of esq) if (esquinaPath(ctx, e, 0)) ctx.fill();
+    ctx.fillStyle = asfalto; for (const e of esq) if (esquinaPath(ctx, e, ESQ_POLVO)) ctx.fill();
     // solo la raya de en medio que separa los dos sentidos (doble en avenidas, punteada en calles);
     // sin lineas de carril ni rayas en calles de un sentido: se mezclaban y ensuciaban el dibujo
     ctx.setLineDash([]);
