@@ -735,7 +735,8 @@ const chunkBaches = gridIndex(baches, CHUNK, 'bb');
 // ---------- arboles ----------
 // Tijuana es seca: pocos y repartidos. Algunas calles tienen arboles en la banqueta y la mayoria casi no;
 // mas en los parques, una que otra palma en las plazas y alguno suelto en lotes y patios.
-// Son de adorno (no chocas con ellos) y se pintan dentro de los trozos del mapa, asi que no cuestan al jugar.
+// Se pintan dentro de los trozos del mapa, asi que no cuestan al jugar; el tronco y lo grueso de la copa son
+// solidos para el jugador (a pie y manejando, ver arbolEn y arbolEnCaja).
 // Los edificios se cargan por regiones, asi que lo de no quedar dentro o detras de uno se revisa al pintar el
 // trozo: en cada cuadrito de 30 px se queda el primer candidato (en orden) que no choca con un edificio.
 // tipos: 0 laurel de la India, 1 palma, 2 jacaranda, 3 pirul. (localStorage tjrush-arboles = 'no' los quita)
@@ -817,6 +818,29 @@ function arbolVa(i) {
     }
   }
   return A.OK[g] === i;
+}
+// choques con los arboles: radio de lo solido por tipo (la palma solo el tronco). En el trozo de un punto vienen
+// todos los arboles a menos de ARB_SZ / 2, y eso alcanza para un carro (el camion mide 58 de largo)
+const ARB_R = [2.2 * M, 1.3 * M, 2.2 * M, 1.8 * M];
+const arbolSirve = (i, x, y) => regionesListas(x, y, x, y) && arbolVa(i); // sin los edificios cargados aun no se sabe
+function arbolEn(x, y, r) {
+  const L = chunkArboles.get(GK(Math.floor(x / CHUNK), Math.floor(y / CHUNK))); if (!L) return false;
+  for (const i of L) {
+    const R = ARB_R[arboles.T[i]] + r, dx = arboles.X[i] - x, dy = arboles.Y[i] - y;
+    if (dx * dx + dy * dy < R * R && arbolSirve(i, x, y)) return true;
+  }
+  return false;
+}
+// cuanto se mete un carro (centro x,y, direccion c,s y medio largo/ancho hl,hw) en los arboles; 0 si no toca
+function arbolEnCaja(x, y, c, s, hl, hw) {
+  const L = chunkArboles.get(GK(Math.floor(x / CHUNK), Math.floor(y / CHUNK))); if (!L) return 0;
+  let n = 0;
+  for (const i of L) {
+    const dx = arboles.X[i] - x, dy = arboles.Y[i] - y, R = ARB_R[arboles.T[i]];
+    const qu = Math.max(0, Math.abs(dx * c + dy * s) - hl), qv = Math.max(0, Math.abs(dy * c - dx * s) - hw), d = Math.hypot(qu, qv);
+    if (d < R && arbolSirve(i, x, y)) n += 1 + (R - d) / 4;
+  }
+  return n;
 }
 // cada tipo tiene ARB_VAR dibujos; vistos desde arriba, con la sombra hacia el sureste (la luz viene del noroeste)
 const ARB_SPR = {};
@@ -1454,6 +1478,8 @@ function save() {
   state.eaten = tacos.filter(t => t.eaten).map(t => t.name);
   state.cafes = cafes.filter(c => c.drunk).map(c => c.name);
   state.eggs = EGGS.filter(e => e.got).map(e => e.k);
+  const sc = window.TJGTA && TJGTA.scene && TJGTA.scene.scenes[0];
+  if (sc && sc.player) state.pos = sc.posicion();
   state.t = Date.now();
   const json = JSON.stringify(state);
   try { localStorage.setItem(SAVE_KEY, json); } catch (e) { /* sin almacenamiento */ }
@@ -2691,7 +2717,8 @@ const COYOTE_LOOK = { female: false, age: 'adulto', build: 'delgado', skin: '#a8
 const PLAYER_LOOK = { female: false, age: 'adulto', build: 'normal', skin: '#c68e5f', shirt: '#ffd23f', pants: '#1d3f8f', hair: 'corto', hairCol: '#111', hat: 'gorra', hatCol: '#c0392b', k: 1 };
 // taxi libre clasico de Tijuana: guayin roja con franjas negras y crema.
 // Se dibuja a SPR veces la resolucion y el sprite va a escala 1 / SPR.
-// moto de repartidor vista desde arriba con su caja termica, a SPR veces la resolucion
+// moto de repartidor (scooter) vista desde arriba mirando a la derecha, con su caja termica; una textura por
+// color ('moto0'...), a SPR veces la resolucion
 // perro callejero color caramelo con paliacate, visto desde arriba mirando a la derecha;
 // dos cuadros: la cola a un lado y al otro
 function makePerro(scene) {
@@ -2860,24 +2887,59 @@ function makeZonkey(scene) {
   x.fillStyle = '#fffde7'; for (const [px, py] of [[6, cy - 2], [13, cy + 2.6], [17, cy - 1.8]]) { x.beginPath(); x.arc(px, py, 0.5, 0, 7); x.fill(); }
   t.refresh();
 }
+// colores de la caja y la chamarra (sin logos de ninguna aplicacion): [principal, oscuro, claro]
+const MOTO_COLS = [['#1e8f4e', '#0d4a28', '#5cc98a'], ['#ef7d1a', '#8a4208', '#ffb366'], ['#c62828', '#6d1010', '#ef6a6a'], ['#1f6fc0', '#0d3a6b', '#6aaef0']];
 function makeMoto(scene) {
-  const t = scene.textures.createCanvas('moto', 26 * SPR, 14 * SPR), x = t.getContext();
-  x.scale(SPR, SPR);
-  x.fillStyle = 'rgba(0,0,0,0.3)'; x.beginPath(); x.ellipse(14, 8.5, 11, 4, 0, 0, 7); x.fill();
-  // llantas y cuerpo
-  x.fillStyle = '#111'; x.fillRect(19, 5.8, 5, 2.4); x.fillRect(1.5, 5.8, 5, 2.4);
-  x.fillStyle = '#2b2b2b'; x.beginPath(); x.roundRect(4, 5, 17, 4, 2); x.fill();
-  x.strokeStyle = '#999'; x.lineWidth = 1; x.beginPath(); x.moveTo(19, 2.2); x.lineTo(19, 11.8); x.stroke();
-  x.fillStyle = '#fff6b0'; x.fillRect(22.5, 6, 1.5, 2);
-  // caja termica verde en la parte de atras
-  x.fillStyle = '#1e8f4e'; x.fillRect(1, 2.5, 8, 9); x.strokeStyle = '#0d4a28'; x.lineWidth = 0.8; x.strokeRect(1, 2.5, 8, 9);
-  x.fillStyle = '#f2f2f2'; x.fillRect(3.2, 5.5, 3.6, 3);
-  // repartidor: hombros, brazos al manubrio y casco
-  x.fillStyle = '#1e8f4e'; x.beginPath(); x.ellipse(13, 7, 2.6, 4.2, 0, 0, 7); x.fill();
-  x.strokeStyle = '#1e8f4e'; x.lineWidth = 1.6; x.beginPath(); x.moveTo(13, 3.5); x.lineTo(18.5, 2.6); x.moveTo(13, 10.5); x.lineTo(18.5, 11.4); x.stroke();
-  x.fillStyle = '#e8e8e8'; x.beginPath(); x.arc(14, 7, 2.6, 0, 7); x.fill();
-  x.fillStyle = '#1d2733'; x.fillRect(15.4, 5.6, 1.4, 2.8);
-  t.refresh();
+  MOTO_COLS.forEach(([col, osc, clr], i) => {
+    const t = scene.textures.createCanvas('moto' + i, 26 * SPR, 14 * SPR), x = t.getContext();
+    x.scale(SPR, SPR);
+    const rr = (px, py, w, h, r, fill) => { x.fillStyle = fill; x.beginPath(); x.roundRect(px, py, w, h, r); x.fill(); };
+    x.fillStyle = 'rgba(0,0,0,0.3)'; x.beginPath(); x.ellipse(14, 8.6, 11.5, 4.6, 0, 0, 7); x.fill();
+    // llantas con dibujo y salpicadera de adelante
+    for (const [px, w] of [[2.2, 5.6], [20.4, 5.3]]) {
+      rr(px, 5.6, w, 2.8, 1.3, '#151515');
+      x.strokeStyle = '#3a3a3a'; x.lineWidth = 0.35; x.beginPath();
+      for (let q = px + 0.8; q < px + w - 0.4; q += 0.9) { x.moveTo(q, 5.8); x.lineTo(q, 8.2); } x.stroke();
+    }
+    rr(19.4, 5.8, 3.8, 2.4, 1, col); rr(19.8, 6.2, 2.8, 0.6, 0.3, clr);
+    // escape cromado a la derecha, de atras
+    rr(4.2, 9.3, 7.2, 1.5, 0.75, '#8d9399'); rr(4.6, 9.5, 6.4, 0.5, 0.25, '#d6dadf'); x.fillStyle = '#333'; x.beginPath(); x.arc(4.6, 10.05, 0.45, 0, 7); x.fill();
+    // cuerpo de scooter: piso para los pies y el frente
+    x.fillStyle = '#2b2d31'; x.beginPath(); x.moveTo(8, 4.6); x.lineTo(16, 4.4); x.quadraticCurveTo(19.5, 4.6, 20.4, 7); x.quadraticCurveTo(19.5, 9.4, 16, 9.6); x.lineTo(8, 9.4); x.closePath(); x.fill();
+    x.fillStyle = '#44474d'; x.beginPath(); x.moveTo(9, 5.2); x.lineTo(16, 5.1); x.quadraticCurveTo(18.6, 5.4, 19.2, 7); x.lineTo(9, 7); x.closePath(); x.fill();
+    x.fillStyle = col; x.beginPath(); x.moveTo(16.6, 4.6); x.quadraticCurveTo(20, 5, 20.9, 7); x.quadraticCurveTo(20, 9, 16.6, 9.4); x.quadraticCurveTo(18, 7, 16.6, 4.6); x.fill();
+    // manubrio con puños, espejos y el faro
+    x.strokeStyle = '#1a1a1a'; x.lineWidth = 0.9; x.lineCap = 'round'; x.beginPath(); x.moveTo(18.6, 2.4); x.quadraticCurveTo(19.6, 7, 18.6, 11.6); x.stroke();
+    x.fillStyle = '#0d0d0d'; x.fillRect(17.6, 1.6, 1.8, 1.3); x.fillRect(17.6, 11.1, 1.8, 1.3);
+    x.strokeStyle = '#777'; x.lineWidth = 0.35; x.beginPath(); x.moveTo(19, 3.4); x.lineTo(20.2, 1.4); x.moveTo(19, 10.6); x.lineTo(20.2, 12.6); x.stroke();
+    for (const py of [1.1, 12.9]) { x.fillStyle = '#222'; x.beginPath(); x.ellipse(20.4, py, 0.9, 0.7, 0, 0, 7); x.fill(); x.fillStyle = '#9fc3d8'; x.beginPath(); x.ellipse(20.5, py, 0.55, 0.4, 0, 0, 7); x.fill(); }
+    x.fillStyle = '#fff6b0'; x.beginPath(); x.ellipse(20.5, 7, 0.7, 1.4, 0, 0, 7); x.fill(); x.fillStyle = '#ffffff'; x.beginPath(); x.ellipse(20.7, 6.6, 0.3, 0.45, 0, 0, 7); x.fill();
+    // caja termica atras: sombra, costados, tapa con ribete, franja reflejante y un dibujito de bolsa de comida
+    x.fillStyle = 'rgba(0,0,0,0.35)'; x.fillRect(1.6, 2.6, 8.6, 9.6);
+    rr(0.6, 1.4, 8.8, 11.2, 0.9, osc);
+    rr(1.1, 1.9, 7.8, 10.2, 0.7, col);
+    x.fillStyle = clr; x.fillRect(1.1, 1.9, 7.8, 0.7); x.fillRect(1.1, 1.9, 0.6, 10.2);
+    x.strokeStyle = osc; x.lineWidth = 0.4; x.strokeRect(2, 2.8, 6, 8.4);
+    x.fillStyle = 'rgba(235,240,245,0.9)'; x.fillRect(1.1, 10.4, 7.8, 0.8);
+    x.fillStyle = '#f5f5f5'; x.beginPath(); x.roundRect(3.3, 5, 3.4, 3.4, 0.5); x.fill();
+    x.strokeStyle = osc; x.lineWidth = 0.4; x.beginPath(); x.arc(5, 5.8, 0.9, Math.PI, 0); x.stroke(); x.strokeRect(3.9, 5.8, 2.2, 2.1);
+    // calavera roja
+    x.fillStyle = '#e53935'; x.fillRect(0.1, 5.6, 0.6, 2.8);
+    // repartidor: espalda con la chamarra (con franja reflejante), brazos al manubrio con guantes y casco con mica
+    x.fillStyle = 'rgba(0,0,0,0.3)'; x.beginPath(); x.ellipse(13.6, 7.6, 3, 4.4, 0, 0, 7); x.fill();
+    x.strokeStyle = osc; x.lineWidth = 1.7; x.beginPath(); x.moveTo(13.2, 3.4); x.quadraticCurveTo(16, 2.2, 17.8, 2.3); x.moveTo(13.2, 10.6); x.quadraticCurveTo(16, 11.8, 17.8, 11.7); x.stroke();
+    x.strokeStyle = col; x.lineWidth = 1.2; x.beginPath(); x.moveTo(13.2, 3.4); x.quadraticCurveTo(16, 2.2, 17.4, 2.3); x.moveTo(13.2, 10.6); x.quadraticCurveTo(16, 11.8, 17.4, 11.7); x.stroke();
+    x.fillStyle = '#1b1b1b'; x.beginPath(); x.arc(17.9, 2.3, 0.75, 0, 7); x.arc(17.9, 11.7, 0.75, 0, 7); x.fill();
+    x.fillStyle = osc; x.beginPath(); x.ellipse(12.8, 7, 2.9, 4.5, 0, 0, 7); x.fill();
+    x.fillStyle = col; x.beginPath(); x.ellipse(12.9, 7, 2.5, 4.1, 0, 0, 7); x.fill();
+    x.fillStyle = 'rgba(235,240,245,0.85)'; x.fillRect(11.2, 3.2, 0.7, 7.6);
+    x.fillStyle = '#e9ecef'; x.beginPath(); x.arc(14.2, 7, 2.5, 0, 7); x.fill();
+    x.fillStyle = '#ffffff'; x.beginPath(); x.arc(13.6, 6.3, 1.1, 0, 7); x.fill();
+    x.fillStyle = col; x.fillRect(11.8, 6.55, 3.4, 0.9);
+    x.fillStyle = '#1d2733'; x.beginPath(); x.moveTo(15.4, 5.3); x.quadraticCurveTo(17.2, 7, 15.4, 8.7); x.quadraticCurveTo(16.2, 7, 15.4, 5.3); x.fill();
+    x.strokeStyle = '#9aa3ab'; x.lineWidth = 0.3; x.beginPath(); x.arc(14.2, 7, 2.5, 0, 7); x.stroke();
+    t.refresh();
+  });
 }
 // moto deportiva vista desde arriba mirando a la derecha: carenado de color con franja, piloto agachado de
 // chamarra negra y casco; una textura por color ('deportiva0'...), a SPR veces la resolucion
@@ -4402,13 +4464,18 @@ class Main extends Phaser.Scene {
     this.target = this.crearAro(0x57d16b, 4, true);
     this.route = null; this.routeT = 0;
 
-    // el jugador aparece donde se eligio al arrancar (ver elegirInicio)
+    // el jugador aparece donde se quedo la ultima vez (con su carro) o donde se eligio al arrancar (ver elegirInicio)
     const { pos, side } = INICIO;
-    this.player = { x: side.x, y: side.y, a: pos.a, sprite: this.add.sprite(side.x, side.y, 'ped' + PLAYER_SHIRT, 0).setDepth(12).setScale(1 / SPR) };
-    const car = this.makeCar(pos.x, pos.y, pos.a, { taxi: true });
-    this.parked.push(car);
+    this.player = { x: side.x, y: side.y, a: side.a ?? pos.a, sprite: this.add.sprite(side.x, side.y, 'ped' + PLAYER_SHIRT, 0).setDepth(12).setScale(1 / SPR) };
     this.inCar = null;
-    this.cameras.main.startFollow(this.player.sprite, true, 0.15, 0.15);
+    if (pos) {
+      const car = this.makeCar(pos.x, pos.y, pos.a, INICIO.v || { taxi: true });
+      if (INICIO.hp != null) car.hp = Math.max(1, Math.min(car.maxHp, INICIO.hp));
+      if (INICIO.dentro) { this.inCar = car; this.player.sprite.setVisible(false); } else this.parked.push(car);
+      this.ultimoCarro = car;
+    }
+    this.cameras.main.startFollow((this.inCar || this.player).sprite, true, 0.15, 0.15);
+    this.guardaT = 15;
     this.cameras.main.setZoom(this.baseZoom());
 
     this.taxi = null; this.waypoint = null;
@@ -4427,6 +4494,19 @@ class Main extends Phaser.Scene {
     setupBigMap(this);
   }
 
+  // donde quedaste, para volver ahi al abrir otra vez (en metros desde la esquina de referencia, asi aguanta que
+  // el mapa crezca): tu y tu carro (en el que vas o del que te bajaste, si sigue cerca y sirve)
+  posicion() {
+    const m = (x, y, a) => [Math.round((x - REF_X) / M * 10) / 10, Math.round((y - REF_Y) / M * 10) / 10, Math.round(a * 100) / 100];
+    const P = this.inCar || this.player, r = { p: m(P.x, P.y, P.a) };
+    const car = this.inCar || this.ultimoCarro;
+    const v = car && (car.moto ? { moto: true } : car.T === VT_DEPORTIVA ? { deportiva: true } : car.T === VT_TAXI ? { taxi: true } :
+      car.T === VT_URBANO ? { urbano: true } : car.gas ? { gas: true } : car.v && !car.special ? car.v : null);
+    if (v && car.hp > 0 && !car.wrecked && (car === this.inCar || (this.parked.includes(car) && dist(car.x, car.y, P.x, P.y) < 400)))
+      r.c = { p: m(car.x, car.y, car.a), v, hp: Math.round(car.hp), dentro: car === this.inCar };
+    return r;
+  }
+
   // en celular vertical se aleja un poco: la pantalla es angosta y si no casi no se ve a los lados
   baseZoom() {
     const chico = Math.min(window.innerWidth, window.innerHeight) < 600, vertical = window.innerHeight > window.innerWidth;
@@ -4442,9 +4522,9 @@ class Main extends Phaser.Scene {
     return s;
   }
 
-  // o: { moto, taxi, ti (tipo), ci (color), dirty }; sin tipo se escoge uno al azar
+  // o: { moto, taxi, ti (tipo), ci (color), dirty o d (cual mugre) }; sin tipo se escoge uno al azar
   carSpec(o = {}) {
-    if (o.moto) return { T: VT_MOTO, key: 'moto', ox: 0.5, oy: 0.5, dirty: false };
+    if (o.moto) return { T: VT_MOTO, key: 'moto' + ((Math.random() * MOTO_COLS.length) | 0), ox: 0.5, oy: 0.5, dirty: false };
     if (o.deportiva) return { T: VT_DEPORTIVA, key: 'deportiva' + ((Math.random() * DEPORTIVA_COLS.length) | 0), ox: 15 / 28, oy: 0.5, dirty: false };
     if (o.taxi) return { T: VT_TAXI, key: 'taxi', ox: 0.5, oy: 0.5, dirty: false };
     if (o.troca) return { T: VT_TROCA_TACOS, key: 'troca_tacos', ox: (VT_TROCA_TACOS.L / 2 + 3) / (VT_TROCA_TACOS.L + 6), oy: 0.5, dirty: false };
@@ -4454,13 +4534,13 @@ class Main extends Phaser.Scene {
     if (o.gas) return { T: VT_GAS, key: 'pipa', ox: (VT_GAS.L / 2 + 1) / (VT_GAS.L + 5), oy: (VT_GAS.W / 2 + 1) / (VT_GAS.W + 5), dirty: false };
     if (o.poli) return { T: VT_POLI, key: 'poli0', ox: (VT_POLI.L / 2 + 1) / (VT_POLI.L + 5), oy: (VT_POLI.W / 2 + 1) / (VT_POLI.W + 5), dirty: false };
     const ti = o.ti ?? randomVType(), T = VTYPES[ti], ci = o.ci ?? (Math.random() * T.cols.length) | 0;
-    const dirty = o.dirty ?? Math.random() < 0.45, d = dirty ? 1 + ((Math.random() * DIRTY_SEEDS) | 0) : 0;
-    return { T, key: vehicleTexture(this, ti, ci, d), ox: (T.L / 2 + 1) / (T.L + 5), oy: (T.W / 2 + 1) / (T.W + 5), dirty };
+    const dirty = o.d != null ? o.d > 0 : o.dirty ?? Math.random() < 0.45, d = o.d ?? (dirty ? 1 + ((Math.random() * DIRTY_SEEDS) | 0) : 0);
+    return { T, key: vehicleTexture(this, ti, ci, d), ox: (T.L / 2 + 1) / (T.L + 5), oy: (T.W / 2 + 1) / (T.W + 5), dirty, v: { ti, ci, d } };
   }
   makeCar(x, y, a, o) {
     const sp = o && o.T ? o : this.carSpec(o), T = sp.T, f = sp.dirty ? 0.7 : 1;
     return { x, y, a, vx: 0, vy: 0, T, dirty: sp.dirty, moto: T === VT_MOTO, dosRuedas: T === VT_MOTO || T === VT_DEPORTIVA, poli: T === VT_POLI, gas: T === VT_GAS, hp: Math.round(T.hp * f), maxHp: Math.round(T.hp * f),
-      top: T.top * (sp.dirty ? 0.92 : 1), acc: T.acc * (sp.dirty ? 0.9 : 1), hl: T.L / 2 - 1, hw: T.W / 2 - 1,
+      top: T.top * (sp.dirty ? 0.92 : 1), acc: T.acc * (sp.dirty ? 0.9 : 1), hl: T.L / 2 - 1, hw: T.W / 2 - 1, v: sp.v,
       sprite: this.add.image(x, y, sp.key).setOrigin(sp.ox, sp.oy).setRotation(a).setDepth(10).setScale(1 / SPR) };
   }
 
@@ -4624,6 +4704,7 @@ class Main extends Phaser.Scene {
     touch.pressed = {};
 
     if (this.inCar) this.driveCar(this.inCar, ctl, dt); else this.walk(ctl, dt);
+    if ((this.guardaT -= dt) <= 0) { this.guardaT = 15; save(); } // por si cierran la app sin que avise
     this.updateTraffic(dt);
     this.updatePeds(dt);
     this.updatePerros(dt);
@@ -4667,8 +4748,10 @@ class Main extends Phaser.Scene {
       const run = running ? 1.8 : 1, sp = (this.perk.cafe ? 70 : 62) * run * Math.min(1, m);
       mx /= m; my /= m;
       const nx = p.x + mx * sp * dt, ny = p.y + my * sp * dt;
-      if (!blocked(nx, p.y) && !this.carBlocks(p.x, p.y, nx, p.y, 3)) p.x = nx;
-      if (!blocked(p.x, ny) && !this.carBlocks(p.x, p.y, p.x, ny, 3)) p.y = ny;
+      // los arboles como los carros: no te metes en uno, pero si apareciste encima si te puedes salir
+      const arb = (x1, y1) => arbolEn(x1, y1, 3) && !arbolEn(p.x, p.y, 3);
+      if (!blocked(nx, p.y) && !this.carBlocks(p.x, p.y, nx, p.y, 3) && !arb(nx, p.y)) p.x = nx;
+      if (!blocked(p.x, ny) && !this.carBlocks(p.x, p.y, p.x, ny, 3) && !arb(p.x, ny)) p.y = ny;
       p.a = Math.atan2(my, mx);
       if (!p.sprite.anims.isPlaying) p.sprite.play('walk' + PLAYER_SHIRT);
       p.sprite.anims.timeScale = run * Math.min(1, m) * 1.2;
@@ -5080,6 +5163,8 @@ class Main extends Phaser.Scene {
     const hl = self ? self.hl : 14, hw = self ? self.hw : 6;
     let n = 0;
     for (const [u, v] of [[hl, hw], [hl, -hw], [-hl, hw], [-hl, -hw], [hl + 2, 0], [0, hw], [0, -hw]]) if (blocked(x + c * u - s * v, y + s * u + c * v)) { if (!count) return true; n++; }
+    const arb = arbolEnCaja(x, y, c, s, hl, hw);
+    if (arb) { if (!count) return true; n += arb; }
     // los demas vehiculos son capsulas a lo largo de su eje
     const h = Math.max(0, hl - hw), pts = [[x, y], [x + c * h, y + s * h], [x - c * h, y - s * h]];
     for (const list of [this.cars, this.parked]) for (const o of list) {
@@ -5097,10 +5182,10 @@ class Main extends Phaser.Scene {
       if (Math.hypot(car.vx, car.vy) > 60) return;
       let ex = null;
       // por la puerta del conductor (la izquierda); si esta tapada, por la del copiloto
-      for (const side of [-1, 1]) { const x = car.x - Math.sin(a) * (car.hw + 8) * side, y = car.y + Math.cos(a) * (car.hw + 8) * side; if (!blocked(x, y)) { ex = [x, y]; break; } }
+      for (const side of [-1, 1]) { const x = car.x - Math.sin(a) * (car.hw + 8) * side, y = car.y + Math.cos(a) * (car.hw + 8) * side; if (!blocked(x, y) && !arbolEn(x, y, 3)) { ex = [x, y]; break; } }
       if (!ex) { toast('No puedes bajarte aquí', ''); return; }
       car.vx = car.vy = 0;
-      this.parked.push(car); this.inCar = null;
+      this.parked.push(car); this.inCar = null; this.ultimoCarro = car;
       this.player.x = ex[0]; this.player.y = ex[1];
       this.player.sprite.setVisible(true).setPosition(ex[0], ex[1]);
       this.cameras.main.startFollow(this.player.sprite, true, 0.15, 0.15);
@@ -6714,8 +6799,23 @@ window.addEventListener('keydown', (ev) => {
   if (($('intro').style.display !== 'none' && !optsOpen) || $('actabox').style.display === 'flex' || ev.target.tagName === 'INPUT') return;
   if (ev.key === 'o' || ev.key === 'O' || (ev.key === 'Escape' && optsOpen)) toggleOptions();
 });
-// el jugador aparece en una calle al azar, en la banqueta y con un auto estacionado al lado
+// el jugador aparece donde se quedo (ver posicion) o, la primera vez, en una calle al azar, en la banqueta y con
+// un auto estacionado al lado
 let INICIO = null;
+function inicioGuardado() {
+  const q = state.pos, ok = (p) => Array.isArray(p) && p.length === 3 && p.every(Number.isFinite);
+  if (!q || !ok(q.p)) return null;
+  const w = (p) => ({ x: REF_X + p[0] * M, y: REF_Y + p[1] * M, a: p[2] });
+  const side = w(q.p), c = q.c && ok(q.c.p) && q.c.v && typeof q.c.v === 'object' ? q.c : null;
+  if (side.x < NIEBLA || side.x > WORLD_W - NIEBLA || side.y > WORLD_H - NIEBLA || side.y < borderY(side.x) + 6) return null;
+  const v = c && (c.v.ti != null ? (VTYPES[c.v.ti] && Number.isInteger(c.v.ci) && c.v.ci >= 0 && c.v.ci < VTYPES[c.v.ti].cols.length &&
+    Number.isInteger(c.v.d) && c.v.d >= 0 && c.v.d <= DIRTY_SEEDS ? { ti: c.v.ti, ci: c.v.ci, d: c.v.d } : null)
+    : ['moto', 'deportiva', 'taxi', 'urbano', 'gas'].find(k => c.v[k]));
+  if (!v) return { side, pos: null, guardado: true };
+  return { side, pos: w(c.p), v: typeof v === 'string' ? { [v]: true } : v, hp: Number.isFinite(c.hp) ? c.hp : null, dentro: !!c.dentro, guardado: true };
+}
+// ya con los edificios cargados: ¿no quedo dentro de un edificio (porque cambio el mapa)?
+const inicioLibre = (I) => !blocked(I.side.x, I.side.y) && (!I.pos || I.dentro || !blocked(I.pos.x, I.pos.y));
 function elegirInicio() {
   let pos, side;
   for (let tries = 0; tries < 200; tries++) {
@@ -6750,9 +6850,13 @@ async function start() {
   if (optsOpen) toggleOptions();
   // antes de entrar: los lugares en su banqueta y los edificios de donde vas a aparecer
   $('go').textContent = 'Cargando el mapa…';
-  INICIO = elegirInicio();
+  INICIO = inicioGuardado() || elegirInicio();
   const R = 3000, s = INICIO.side;
   await Promise.all([acomodarLugares(), esperarRegiones(s.x - R, s.y - R, s.x + R, s.y + R)]);
+  if (INICIO.guardado && !inicioLibre(INICIO)) {
+    INICIO = elegirInicio(); const t = INICIO.side;
+    await esperarRegiones(t.x - R, t.y - R, t.x + R, t.y + R);
+  }
   $('intro').style.display = 'none';
   if (window.SND) SND.init();
   $('optbtn').style.display = 'block';
@@ -6765,7 +6869,7 @@ async function start() {
     scene: [Main], fps: { target: 60, smoothStep: false },
   });
   window.addEventListener('resize', () => game.scale.resize(window.innerWidth * DPR, window.innerHeight * DPR));
-  window.TJGTA = game; game.dbg = { WORLD_W, WORLD_H, regiones, esperarRegiones, chunkBlds, miniCuadros, miniVista, borderY, INICIO, arboles, chinas, VTYPES, vehicleTexture, state, drawChunk, chunkSteps, areaFill, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, walkableTo, waterAreas, roads, PED_VARIANTS };
+  window.TJGTA = game; game.dbg = { WORLD_W, WORLD_H, regiones, esperarRegiones, chunkBlds, miniCuadros, miniVista, borderY, INICIO, arboles, arbolVa, arbolEn, chinas, VTYPES, vehicleTexture, state, drawChunk, chunkSteps, areaFill, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, walkableTo, waterAreas, roads, PED_VARIANTS };
 }
 $('go').addEventListener('click', start);
 

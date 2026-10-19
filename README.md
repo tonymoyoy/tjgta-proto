@@ -28,7 +28,7 @@ T trabajar de taxista · M mapa grande (toca para marcar destino). En celular ha
 - Ruta del taco 🌮: 205 taquerías reales del mapa (las que llegaron con cada ampliación, a 700 m o más una de otra; desde la última, a 1.5 km).
 - Cafés ☕: 176 cafés reales para coleccionar.
 - Comida china 🏮: 6 locales ficticios en la Calle Coahuila; al entrar pierdes dinero (no se coleccionan).
-- Repartidor 🛵: roba una moto de repartidor y entrega el pedido antes de que se acabe el tiempo.
+- Repartidor 🛵: roba una moto de repartidor (scooter con caja térmica verde, naranja, roja o azul) y entrega el pedido antes de que se acabe el tiempo.
 - Taxi: recoge pasajeros y llévalos a un lugar antes de que se acabe el tiempo.
 - Paros 🤝: 59 personajes en las colonias (lejos de los lugares típicos) te piden un favor: llevar al gato al veterinario, pozole a la jefa, flores al panteón, croquetas al albergue de perritos, una perrita rescatada con su nueva familia... Se aceptan con E (botón ACEPTAR), tienen tiempo y pagan según la distancia. Están en `PAROS` de src/game.js.
 - Vehículos: 10 tipos (sedán, vocho, troca, camioneta, tsurito, combi, muscle car, lowrider, calafia, camión de carga), cada uno limpio o sucio y madreado. Los sucios aguantan menos golpes y corren un poco menos. Se dibujan en `vehicleTexture()` de src/game.js.
@@ -46,7 +46,9 @@ T trabajar de taxista · M mapa grande (toca para marcar destino). En celular ha
 
   ![Los 19 secretos](docs/easter-eggs.png)
 
-El progreso se guarda en el navegador.
+El progreso se guarda en el navegador (en la app, también en el almacén del teléfono), junto con dónde te quedaste: al volver a abrir apareces en el mismo lugar, y si ibas manejando, en el mismo carro.
+
+Los árboles son sólidos: no se pueden atravesar a pie ni en carro (chocar fuerte contra uno daña el carro, como una pared).
 
 ## Estructura
 - `src/game.js` lógica del juego (render del mapa en trozos, tráfico, peatones, actividades, HUD).
