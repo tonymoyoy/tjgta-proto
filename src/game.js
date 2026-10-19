@@ -1302,6 +1302,22 @@ function* drawBuildings(ctx, bl, rs, cx, cy) {
     ctx.restore();
   }
 }
+// ¿lo tapa un edificio? Las paredes y el techo se elevan hacia el norte (capa k: k px arriba y k*LEAN a la derecha),
+// asi que lo que esta en la banqueta o la calle detras (al norte) de un edificio queda debajo de su dibujo: un punto
+// esta tapado si al bajar k px (y correrse k*LEAN a la izquierda) cae en un edificio que se eleva al menos k
+// (y que ahi no esta borrado por una calle o banqueta). Ver ocultarTapados.
+const elevacion = b => b.L || (b.L = LIFTS.find(([hm]) => b.h < hm)[1]);
+function bajoTecho(x, y) {
+  for (let k = 1; k <= EXTRA_UP; k += 3) {
+    const px = x - k * LEAN, py = y + k;
+    const a = bldGrid.get(GK(Math.floor(px / BCELL), Math.floor(py / BCELL))); if (!a) continue;
+    for (const b of a) {
+      if (px < b.bb[0] || px > b.bb[2] || py < b.bb[1] || py > b.bb[3] || elevacion(b) < k) continue;
+      if (pip(px, py, b.p) && !onRoad(px, py)) return true;
+    }
+  }
+  return false;
+}
 // esquinas redondeadas: donde se juntan dos calles, la guarnicion hace una curva de radio ESQ_R en vez del pico
 // de 90 grados. Por cada cuña entre dos calles vecinas se rellena el pedacito entre las dos orillas y el arco: primero
 // con la orilla polvosa y luego con asfalto (concentrico, ver la orilla polvosa en chunkSteps).
@@ -4737,6 +4753,24 @@ class Main extends Phaser.Scene {
     this.copas.set(k, L);
   }
 
+  // lo que pasa detras de un edificio (ver bajoTecho) se desvanece en vez de verse encima del techo;
+  // tu y tu carro quedan como fantasma para que no te pierdas
+  ocultarTapados(dt) {
+    const v = this.cameras.main.worldView, k = Math.min(1, dt * 12), P = this.player;
+    const ve = (x, y) => x > v.x - 40 && x < v.right + 40 && y > v.y - 40 && y < v.bottom + 40;
+    const fade = (o, sp, min) => {
+      if (!sp || !sp.visible || !ve(o.x, o.y)) return;
+      const t = bajoTecho(o.x, o.y) ? min : 1;
+      if (sp.alpha !== t) sp.setAlpha(Math.abs(t - sp.alpha) < 0.02 ? t : sp.alpha + (t - sp.alpha) * k);
+      if (o.scorch) o.scorch.setAlpha(sp.alpha);
+    };
+    for (const p of this.peds) if (!p.dead) fade(p, p.sprite, 0);
+    for (const d of this.perros) if (!d.dead && d.st !== 'vete') fade(d, d.sprite, 0);
+    if (this.ratero) fade(this.ratero, this.ratero.sprite, 0);
+    for (const L of [this.cars, this.parked]) for (const c of L) if (c !== this.inCar) fade(c, c.sprite, 0);
+    if (this.inCar) fade(this.inCar, this.inCar.sprite, 0.4); else fade(P, P.sprite, 0.4);
+  }
+
   // ----- poblacion -----
   viewR() { const c = this.cameras.main; return Math.hypot(c.width, c.height) / 2 / c.zoom; }
   populate(initial) {
@@ -4837,6 +4871,7 @@ class Main extends Phaser.Scene {
     this.updateRatero(dt);
     this.pedChat(dt);
     this.updateBurning(dt);
+    this.ocultarTapados(dt);
 
     const f = this.focus();
     this.updateNiebla(dt, f);
@@ -7006,7 +7041,7 @@ async function start() {
     scene: [Main], fps: { target: 60, smoothStep: false },
   });
   window.addEventListener('resize', () => game.scale.resize(window.innerWidth * DPR, window.innerHeight * DPR));
-  window.TJGTA = game; game.dbg = { WORLD_W, WORLD_H, regiones, esperarRegiones, chunkBlds, miniCuadros, miniVista, borderY, INICIO, traffic, nextEdge, arboles, arbolVa, arbolEn, chinas, VTYPES, vehicleTexture, state, drawChunk, chunkSteps, areaFill, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, walkableTo, waterAreas, roads, PED_VARIANTS };
+  window.TJGTA = game; game.dbg = { WORLD_W, WORLD_H, regiones, esperarRegiones, chunkBlds, miniCuadros, miniVista, borderY, INICIO, traffic, nextEdge, arboles, arbolVa, arbolEn, bajoTecho, chinas, VTYPES, vehicleTexture, state, drawChunk, chunkSteps, areaFill, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, walkableTo, waterAreas, roads, PED_VARIANTS };
 }
 $('go').addEventListener('click', start);
 

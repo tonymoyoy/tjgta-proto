@@ -49,6 +49,7 @@ T trabajar de taxista · M mapa grande (toca para marcar destino). En celular ha
 El progreso se guarda en el navegador (en la app, también en el almacén del teléfono), junto con dónde te quedaste: al volver a abrir apareces en el mismo lugar, y si ibas manejando, en el mismo carro.
 
 Los árboles son sólidos: no se pueden atravesar a pie ni en carro (chocar fuerte contra uno daña el carro, como una pared, y los conductores erráticos se estrellan con ellos). Las copas van encima: la gente camina por debajo de ellas.
+Lo que pasa detrás de un edificio (al norte, donde se dibujan sus paredes y su techo) se oculta; tú y tu carro se ven como fantasma.
 
 ## Estructura
 - `src/game.js` lógica del juego (render del mapa en trozos, tráfico, peatones, actividades, HUD).
