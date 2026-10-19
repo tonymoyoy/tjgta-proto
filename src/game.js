@@ -513,6 +513,31 @@ function buildGraph(filter, oneways) {
 }
 const inMx = (r) => { const p = r.p; for (let i = 0; i < p.length; i += 2) if (p[i + 1] < borderY(p[i]) + 30) return false; return true; };
 const traffic = buildGraph(r => r.c <= 6 && !(r.f & 4) && inMx(r), true);
+// calles de las que el trafico ya no podria salir (un sentido que acaba en nada, cachitos sueltos): se buscan las
+// componentes fuertemente conexas (Tarjan sin recursion) y los tramos fuera de las grandes quedan como trampa.
+// Ahi no aparecen carros ni se meten (el jugador si puede entrar)
+(function marcarTrampas(g) {
+  const N = g.nN, idx = new Int32Array(N).fill(-1), low = new Int32Array(N), onS = new Uint8Array(N), comp = new Int32Array(N), it = new Int32Array(N);
+  const S = [], call = [], size = []; let c = 0;
+  for (let s = 0; s < N; s++) {
+    if (idx[s] >= 0) continue;
+    idx[s] = low[s] = c++; S.push(s); onS[s] = 1; call.push(s);
+    while (call.length) {
+      const v = call[call.length - 1], A = g.adj[v];
+      if (it[v] < A.length) {
+        const o = A[it[v]++], w = o.dir > 0 ? o.e.b : o.e.a;
+        if (idx[w] < 0) { idx[w] = low[w] = c++; S.push(w); onS[w] = 1; call.push(w); }
+        else if (onS[w] && idx[w] < low[v]) low[v] = idx[w];
+      } else {
+        call.pop();
+        if (call.length) { const u = call[call.length - 1]; if (low[v] < low[u]) low[u] = low[v]; }
+        if (low[v] === idx[v]) { let w, k = 0; do { w = S.pop(); onS[w] = 0; comp[w] = size.length; k++; } while (w !== v); size.push(k); }
+      }
+    }
+  }
+  g.trampas = 0;
+  for (const e of g.edges) if ((e.trampa = comp[e.a] !== comp[e.b] || size[comp[e.a]] < 40)) g.trampas++;
+})(traffic);
 // andadores (clases 8 y 9) que quedan dentro de una calle ya ensanchada se ignoran: si no, la gente camina sobre el asfalto
 const footwayOnRoad = (r) => { let n = 0; for (let i = 0; i < r.p.length; i += 2) if (onRoad(r.p[i], r.p[i + 1])) n++; return n * 2 > r.p.length / 3; };
 const walkG = buildGraph(r => r.c >= 2 && r.c <= 9 && r.c !== 7 && inMx(r) && !(r.c >= 8 && footwayOnRoad(r)), false);
@@ -538,8 +563,11 @@ function edgePos(e, s, dir, lat, out) {
 }
 function nextEdge(g, e, dir) {
   const n = dir > 0 ? e.b : e.a;
-  let opts = g.adj[n].filter(o => o.e !== e);
-  if (!opts.length) opts = g.adj[n];
+  // seguir por otra calle; si no hay, la vuelta en U; meterse a una trampa (ver marcarTrampas) solo si no queda de otra
+  const sal = g.adj[n].filter(o => o.e !== e);
+  let opts = sal.filter(o => !o.e.trampa);
+  if (!opts.length) opts = g.adj[n].filter(o => o.e === e);
+  if (!opts.length) opts = sal;
   if (!opts.length) return null;
   const tmp = {}; edgePos(e, e.len - 0.5, dir, 0, tmp); const inA = tmp.a;
   let best = null, bs = -9;
@@ -4689,6 +4717,7 @@ class Main extends Phaser.Scene {
     let n = 0;
     while (this.cars.length < Q.autos && n++ < 6) {
       const e = randomEdgeNear(traffic, p.x, p.y, initial ? 80 : R + 40, R + 300); if (!e) break;
+      if (e.trampa) continue;
       const dir = e.one ? 1 : (Math.random() < 0.5 ? 1 : -1), s = rnd(0, e.len);
       const lane = (Math.random() * 4) | 0, lat = laneLat(e, lane);
       const q = edgePos(e, s, dir, lat, {});
@@ -6947,7 +6976,7 @@ async function start() {
     scene: [Main], fps: { target: 60, smoothStep: false },
   });
   window.addEventListener('resize', () => game.scale.resize(window.innerWidth * DPR, window.innerHeight * DPR));
-  window.TJGTA = game; game.dbg = { WORLD_W, WORLD_H, regiones, esperarRegiones, chunkBlds, miniCuadros, miniVista, borderY, INICIO, arboles, arbolVa, arbolEn, chinas, VTYPES, vehicleTexture, state, drawChunk, chunkSteps, areaFill, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, walkableTo, waterAreas, roads, PED_VARIANTS };
+  window.TJGTA = game; game.dbg = { WORLD_W, WORLD_H, regiones, esperarRegiones, chunkBlds, miniCuadros, miniVista, borderY, INICIO, traffic, nextEdge, arboles, arbolVa, arbolEn, chinas, VTYPES, vehicleTexture, state, drawChunk, chunkSteps, areaFill, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, walkableTo, waterAreas, roads, PED_VARIANTS };
 }
 $('go').addEventListener('click', start);
 

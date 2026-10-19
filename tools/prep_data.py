@@ -496,6 +496,131 @@ else:
 
 roads += extra_roads
 
+# ---- calles cortadas que deberian estar unidas: en los datos muchas calles se quedan a unos metros de otra (de
+# punta a punta o de punta a un costado) y en el juego quedaban cerradas por los dos lados. Si la punta suelta
+# apunta hacia la otra calle (menos de UNE_ANG), esta cerca (UNE_PUNTA de punta a punta, UNE_LADO al costado) y en
+# medio no hay edificios, agua ni otra calle, se agrega un tramo que las une (al final, para no mover los indices).
+# Al costado se le mete un vertice a la otra calle para que el cruce sea un nodo del grafo de trafico.
+UNE_PUNTA, UNE_LADO, UNE_ANG = 220, 150, math.radians(50)
+def unir_calles():
+    from shapely.geometry import LineString, Polygon, Point
+    from shapely.strtree import STRtree
+    auto = lambda r: r[0] <= 6 and not (r[2] & 5)
+    usos = {}
+    for r in roads:
+        if r[0] > 6:
+            continue
+        f = r[3]; n = len(f) // 2
+        for i in range(n):
+            k = (f[2 * i], f[2 * i + 1]); usos[k] = usos.get(k, 0) + (1 if i in (0, n - 1) else 2)
+    puntas = []  # (x, y, ux, uy, indice de la calle)
+    for ri, r in enumerate(roads):
+        if not auto(r):
+            continue
+        f = r[3]; n = len(f) // 2
+        for i, j in ((0, 1), (n - 1, n - 2)):
+            x, y = f[2 * i], f[2 * i + 1]
+            if usos[(x, y)] != 1:
+                continue
+            # la direccion con la que llega a la punta (un punto unos metros atras)
+            q = j; step = 1 if j > i else -1
+            while 0 <= q + step < n and math.hypot(f[2 * q] - x, f[2 * q + 1] - y) < 30:
+                q += step
+            dx, dy = x - f[2 * q], y - f[2 * q + 1]; L = math.hypot(dx, dy)
+            if L > 0:
+                puntas.append((x, y, dx / L, dy / L, ri))
+    C = 300
+    rej = {}
+    for p in puntas:
+        rej.setdefault((p[0] // C, p[1] // C), []).append(p)
+    lineas = [LineString(list(zip(r[3][0::2], r[3][1::2]))) for r in roads]
+    arbol = STRtree(lineas)
+    agua = [Polygon(list(zip(a[1][0::2], a[1][1::2]))).buffer(0) for a in areas if a[0] == 7 and len(a[1]) >= 6]
+    arbol_agua = STRtree(agua)
+    apunta = lambda p, tx, ty: math.acos(max(-1, min(1, ((tx - p[0]) * p[2] + (ty - p[1]) * p[3]) / (math.hypot(tx - p[0], ty - p[1]) or 1)))) < UNE_ANG
+    usadas, cands = set(), []
+    for p in puntas:
+        if (p[0], p[1]) in usadas:
+            continue
+        best = None
+        # de punta a punta (las dos apuntando una a la otra)
+        for i in (-1, 0, 1):
+            for j in (-1, 0, 1):
+                for o in rej.get((p[0] // C + i, p[1] // C + j), []):
+                    d = math.hypot(o[0] - p[0], o[1] - p[1])
+                    if o[4] == p[4] or (o[0], o[1]) in usadas or d > UNE_PUNTA or d < 5 or not apunta(p, o[0], o[1]) or not apunta(o, p[0], p[1]):
+                        continue
+                    if not best or d < best[0]:
+                        best = (d, o[0], o[1], o[4], None)
+        # de punta al costado de otra calle
+        if not best:
+            pt = LineString([(p[0], p[1]), (p[0] + p[2] * UNE_LADO, p[1] + p[3] * UNE_LADO)])
+            for li in arbol.query(pt):
+                li = int(li); r = roads[li]
+                if li == p[4] or not auto(r) or not lineas[li].intersects(pt):
+                    continue
+                x = lineas[li].intersection(pt)
+                for g in (getattr(x, "geoms", None) or [x]):
+                    if g.geom_type != "Point":
+                        continue
+                    d = math.hypot(g.x - p[0], g.y - p[1])
+                    if d > 5 and (not best or d < best[0]):
+                        best = (d, round(g.x), round(g.y), li, True)
+        if not best:
+            continue
+        d, tx, ty, ti, lado = best
+        seg = LineString([(p[0], p[1]), (tx, ty)])
+        if any(int(k) not in (p[4], ti) and lineas[int(k)].intersects(seg) for k in arbol.query(seg)):
+            continue
+        if any(agua[int(k)].intersects(seg) for k in arbol_agua.query(seg)):
+            continue
+        cands.append([p, tx, ty, ti, lado, seg])
+        usadas.add((p[0], p[1])); usadas.add((tx, ty))
+    # que no pasen por un edificio (solo se revisan los que caen en las celdas de algun candidato)
+    E = 500
+    porcelda = {}
+    for ci, c in enumerate(cands):
+        x0, y0, x1, y1 = c[5].bounds
+        for i in range(int(x0) // E, int(x1) // E + 1):
+            for j in range(int(y0) // E, int(y1) // E + 1):
+                porcelda.setdefault((i, j), []).append(ci)
+    malos = set()
+    for b in blds:
+        f = b[1]; xs, ys = f[0::2], f[1::2]
+        x0, y0, x1, y1 = min(xs), min(ys), max(xs), max(ys)
+        cs = set()
+        for i in range(x0 // E, x1 // E + 1):
+            for j in range(y0 // E, y1 // E + 1):
+                cs.update(porcelda.get((i, j), ()))
+        cs -= malos
+        if not cs:
+            continue
+        pg = Polygon(list(zip(xs, ys)))
+        if not pg.is_valid:
+            pg = pg.buffer(0)
+        for ci in cs:
+            if pg.intersects(cands[ci][5]):
+                malos.add(ci)
+    puestas = 0
+    for ci, (p, tx, ty, ti, lado, seg) in enumerate(cands):
+        if ci in malos:
+            continue
+        r = roads[p[4]]; t = roads[ti]
+        if lado:
+            # el vertice en el tramo de la otra calle mas cercano al cruce
+            f = t[3]; bi, bd = 1, None
+            for k in range(1, len(f) // 2):
+                dd = LineString([(f[2 * k - 2], f[2 * k - 1]), (f[2 * k], f[2 * k + 1])]).distance(Point(tx, ty))
+                if bd is None or dd < bd:
+                    bi, bd = k, dd
+            if (tx, ty) not in ((f[2 * bi - 2], f[2 * bi - 1]), (f[2 * bi], f[2 * bi + 1])):
+                t[3] = f[:2 * bi] + [tx, ty] + f[2 * bi:]
+        roads.append([max(r[0], t[0]), r[1], 0, [p[0], p[1], tx, ty]])
+        puestas += 1
+    print("calles unidas", puestas, "de", len(cands), "candidatas (", len(malos), "pasaban por un edificio ); puntas sueltas", len(puntas))
+if os.environ.get("TJ_UNIR", "1") == "1":
+    unir_calles()
+
 # ---- regiones de edificios: cada edificio va en la region de su centro; el indice dice hasta donde
 # llega cada region (lo que se sale de su cuadro) para saber cuales hacen falta para pintar un trozo
 def caja(f):
