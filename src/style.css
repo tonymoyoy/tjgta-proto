@@ -148,38 +148,51 @@ body:not(.touch) #keystouch { display: none; }
 #bigmap .maphint { position: absolute; left: 0; right: 70px; bottom: 8px; margin: 0; color: #eee; font-size: 12px; text-align: center;
   text-shadow: 0 1px 2px #000; pointer-events: none; }
 
-#intro { position: fixed; inset: 0; z-index: 10; display: flex; align-items: safe center; justify-content: center; overflow-y: auto;
-  background: radial-gradient(circle at 50% 40%, rgba(40,30,10,.85), rgba(0,0,0,.95)), #121212; padding: 16px;
-  padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
-#intro .card { max-width: 560px; width: 100%; text-align: center; }
-#intro .logo { width: 96px; height: 96px; border-radius: 22px; box-shadow: 0 6px 18px rgba(0,0,0,.6); }
-#intro h1 { font-size: clamp(40px, 10vw, 72px); margin: 6px 0 0; color: var(--accent); letter-spacing: 4px;
+/* portada: la ilustracion del taxi de fondo; el menu va del lado oscuro (a la derecha acostado, abajo parado) */
+#intro { position: fixed; inset: 0; z-index: 10; display: flex; align-items: safe center; justify-content: flex-end; overflow-y: auto;
+  background: linear-gradient(90deg, rgba(0,0,0,0) 30%, rgba(8,6,12,.78) 58%, rgba(8,6,12,.92)),
+    url(img/portada.jpg) 30% center / cover no-repeat, #121212;
+  padding: 16px 5vw; padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(5vw, env(safe-area-inset-right));
+  animation: introEntra .6s ease-out; }
+@keyframes introEntra { from { opacity: 0; } to { opacity: 1; } }
+#intro .card { max-width: 460px; width: 100%; text-align: center; text-shadow: 0 1px 3px #000; }
+#intro h1 { font-size: clamp(40px, 8vw, 80px); margin: 0; color: var(--accent); letter-spacing: 4px; line-height: 1.1;
   text-shadow: 4px 4px 0 #b3261e, 8px 8px 0 #000; font-style: italic; }
-#intro h2 { margin: 4px 0 12px; font-size: 18px; letter-spacing: 6px; color: var(--text); }
-#resumen { color: var(--muted); font-size: 14px; margin-bottom: 14px; }
+#intro h2 { margin: 4px 0 12px; font-size: 16px; letter-spacing: 6px; color: var(--text); }
+#resumen { color: var(--text); font-size: 15px; margin-bottom: 14px; }
 #resumen b { color: var(--accent); }
 #intro .menu { display: flex; flex-direction: column; align-items: center; gap: 10px; }
-#intro table { margin: 6px auto 0; border-collapse: collapse; font-size: 14px; text-align: left; }
-#intro td { padding: 3px 10px; color: var(--muted); }
+#intro table { margin: 6px auto 0; border-collapse: collapse; font-size: 13px; text-align: left; }
+#intro td { padding: 2px 8px; color: var(--muted); }
 #intro td:first-child { color: var(--text); font-weight: bold; text-align: right; white-space: nowrap; }
-#intro .desc { color: var(--muted); font-size: 14px; margin: 4px 0 0; }
-#intro .go { font-size: 22px; padding: 12px 34px; border-radius: 10px; background: var(--accent); min-width: 240px;
-  color: #1a1a1a; font-weight: bold; border: 0; cursor: pointer; box-shadow: 0 4px 0 #b38f12; }
+#intro .desc { color: #d8d0c2; font-size: 13px; margin: 4px 0 0; }
+#intro .go { font-size: 22px; padding: 12px 34px; border-radius: 10px; background: var(--accent); min-width: 260px; text-shadow: none;
+  color: #1a1a1a; font-weight: bold; border: 0; cursor: pointer; box-shadow: 0 4px 0 #b38f12, 0 8px 22px rgba(255,180,40,.35); }
 #intro .go:active { transform: translateY(3px); box-shadow: 0 1px 0 #b38f12; }
-#intro .sec { background: rgba(255,255,255,.06); border: 1px solid var(--line); color: var(--text); border-radius: 8px;
-  padding: 9px 14px; font-size: 15px; cursor: pointer; min-width: 240px; }
+#intro .sec { background: rgba(10,10,14,.6); border: 1px solid rgba(255,255,255,.22); color: var(--text); border-radius: 8px;
+  padding: 9px 14px; font-size: 15px; cursor: pointer; min-width: 260px; backdrop-filter: blur(3px); }
 #intro .sec.confirm { color: var(--bad); border-color: var(--bad); }
 #introaviso { min-height: 1em; color: var(--accent); font-size: 13px; }
-#intro .note { color: var(--muted); font-size: 12px; }
+#intro .note { color: var(--muted); font-size: 11px; }
 @media (pointer: coarse) { #intro table { display: none; } }
-/* celular acostado: no cabe a lo alto, asi que va en dos columnas (logo y titulo | botones) */
+/* celular acostado: poco alto, se quita la descripcion para que quepa todo junto */
 @media (max-height: 500px) and (min-width: 560px) {
-  #intro .card { max-width: 820px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: center; }
-  #intro .logo { width: 72px; height: 72px; border-radius: 16px; }
-  #intro h1 { font-size: 50px; }
-  #intro h2 { font-size: 13px; margin-bottom: 8px; }
-  #intro .desc { font-size: 12px; }
-  #resumen { margin-bottom: 0; }
+  #intro { padding-top: 8px; padding-bottom: 8px; }
+  #intro .card { max-width: 380px; }
+  #intro h1 { font-size: 46px; }
+  #intro h2 { font-size: 12px; margin-bottom: 6px; }
+  #resumen { font-size: 13px; margin-bottom: 8px; }
+  #intro .menu { gap: 7px; }
+  #intro .go { font-size: 19px; padding: 9px 28px; }
+  #intro .sec { padding: 7px 14px; font-size: 14px; }
+  #intro .desc { display: none; }
+}
+/* parado (vertical): el taxi arriba y el menu abajo */
+@media (orientation: portrait) {
+  #intro { align-items: flex-end; justify-content: center; padding-right: max(16px, env(safe-area-inset-right));
+    padding-bottom: max(24px, env(safe-area-inset-bottom));
+    background: linear-gradient(180deg, rgba(0,0,0,.25), rgba(0,0,0,0) 22%, rgba(0,0,0,0) 32%, rgba(12,10,16,.8) 50%, #0c0a10 57.5%),
+      url(img/portada.jpg) 22% top / auto 58vh no-repeat, #0c0a10; }
 }
 
 /* pantalla de carga (los mismos colores que el arranque de Android) */
