@@ -2252,7 +2252,8 @@ function updateStats() {
     `☕ ${cafes.filter(c => c.drunk).length}/${cafes.length}`];
   if (EGGS.some(e => e.got)) cs.push(`🥚 ${EGGS.filter(e => e.got).length}/${EGGS.length}`);
   if ((state.paros || []).length) cs.push(`🤝 ${state.paros.length}/${PAROS.length}`);
-  hud.counts.replaceChildren(...cs.flatMap((t, i) => { const e = document.createElement('span'); e.textContent = t; return i ? [' · ', e] : [e]; }));
+  // (los separadores van en su span: en vertical se quitan y los contadores se acomodan junto al dinero)
+  hud.counts.replaceChildren(...cs.flatMap((t, i) => { const e = document.createElement('span'); e.textContent = t; if (!i) return [e]; const sp = document.createElement('span'); sp.className = 'sep'; sp.textContent = ' · '; return [sp, e]; }));
 }
 
 // ---------- texturas ----------
