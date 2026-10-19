@@ -187,12 +187,13 @@ body:not(.touch) #keystouch { display: none; }
   #intro .sec { padding: 7px 14px; font-size: 14px; }
   #intro .desc { display: none; }
 }
-/* parado (vertical): el taxi arriba y el menu abajo */
+/* parado (vertical): el taxi arriba (centrado y completo, ocupa el ancho) y el menu abajo.
+   --pw es el ancho de la imagen; el taxi va de 5% a 57% de ella y su centro esta en 31% */
 @media (orientation: portrait) {
-  #intro { align-items: flex-end; justify-content: center; padding-right: max(16px, env(safe-area-inset-right));
+  #intro { --pw: min(185vw, 105vh); align-items: flex-end; justify-content: center; padding-right: max(16px, env(safe-area-inset-right));
     padding-bottom: max(24px, env(safe-area-inset-bottom));
-    background: linear-gradient(180deg, rgba(0,0,0,.25), rgba(0,0,0,0) 22%, rgba(0,0,0,0) 32%, rgba(12,10,16,.8) 50%, #0c0a10 57.5%),
-      url(img/portada.jpg) 22% top / auto 58vh no-repeat, #0c0a10; }
+    background: linear-gradient(180deg, rgba(0,0,0,.2), rgba(0,0,0,0) 25%, rgba(0,0,0,0) 62%, #0c0a10) center top / 100% calc(var(--pw) * .5586 + 2px) no-repeat,
+      url(img/portada.jpg) calc(50vw - var(--pw) * .31) top / var(--pw) auto no-repeat, #0c0a10; }
 }
 
 /* pantalla de carga (los mismos colores que el arranque de Android) */
