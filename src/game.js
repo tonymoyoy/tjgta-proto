@@ -257,7 +257,66 @@ const gridAdd = (g, it, b, cell) => {
 };
 const regGrid = new Map();
 for (const r of regiones.values()) gridAdd(regGrid, r, r.bb, REG_PX);
-const chunkBlds = new Map(), bldGrid = new Map();
+const chunkBlds = new Map(), bldGrid = new Map(), chunkEst = new Map();
+// techos de las casitas de las colonias (concreto, impermeabilizante rojo o blanco, lamina) y de las plazas comerciales
+const TECHOS_CASITA = ['#a9a397', '#b8b2a6', '#9c5a46', '#a8664f', '#d3cdbf', '#8e9399', '#c4a484', '#7d8a8c', '#b9b0a0', '#a33f32'];
+const TECHOS_PLAZA = ['#c9c6bf', '#b5b8bb', '#d6d2c8', '#bdb6a8'];
+// Un estacionamiento (de tools/rellenar.py): rectangulo con el frente a la calle (p0 -> p1) y el fondo hacia p3.
+// Adentro van filas dobles de cajones con su pasillo en medio, y entre una fila doble y otra una
+// jardinera con postes de luz. cajones: donde se estacionan los carros (centro y angulo, de nariz al pasillo).
+const CAJON_W = 3.4 * M, CAJON_L = 7.6 * M, PASILLO = 8 * M, JARDINERA = 1.6 * M; // a la medida de los carros del juego (un sedan mide 6 m)
+function estacionamiento(p, id, reg) {
+  const ux = p[2] - p[0], uy = p[3] - p[1], lu = Math.hypot(ux, uy), vx = p[6] - p[0], vy = p[7] - p[1], lv = Math.hypot(vx, vy);
+  const U = [ux / lu, uy / lu], V = [vx / lv, vy / lv], P = (s, t) => [p[0] + U[0] * s + V[0] * t, p[1] + U[1] * s + V[1] * t];
+  const filas = [], jardineras = [], cajones = [], av = Math.atan2(V[1], V[0]);
+  const modulo = 2 * CAJON_L + PASILLO, n = Math.max(1, Math.floor((lv - 1.5 * M + JARDINERA) / (modulo + JARDINERA)));
+  let t = 1.5 * M; // el frente: banquetita de la calle
+  const nc = Math.floor((lu - 4 * M) / CAJON_W), s0 = (lu - nc * CAJON_W) / 2;
+  for (let m = 0; m < n; m++) {
+    filas.push([t, 1], [t + CAJON_L + PASILLO, -1]); // fila de cajones y hacia donde ve la nariz (1: al fondo)
+    for (const [t0, sent] of [[t, 1], [t + CAJON_L + PASILLO, -1]]) for (let i = 0; i < nc; i++) {
+      const [x, y] = P(s0 + (i + 0.5) * CAJON_W, t0 + CAJON_L / 2);
+      cajones.push({ x, y, a: sent > 0 ? av + Math.PI : av });
+    }
+    t += modulo;
+    if (m < n - 1) { jardineras.push(t); t += JARDINERA; }
+  }
+  return { id, reg, p, U, V, lu, lv, P, filas, jardineras, cajones, nc, s0, bb: bbox(p, 0),
+    cx: (p[0] + p[4]) / 2, cy: (p[1] + p[5]) / 2, r: Math.hypot(lu, lv) / 2 };
+}
+// ¿(x, y) cae en un estacionamiento (con margen m)? (ahi no van arboles)
+function enEstacionamiento(x, y, m) {
+  for (const e of chunkEst.get(GK(Math.floor(x / CHUNK), Math.floor(y / CHUNK))) || []) {
+    const dx = x - e.p[0], dy = y - e.p[1], s = dx * e.U[0] + dy * e.U[1], t = dx * e.V[0] + dy * e.V[1];
+    if (s > -m && s < e.lu + m && t > -m && t < e.lv + m) return true;
+  }
+  return false;
+}
+// el estacionamiento en el trozo: asfalto con orilla de concreto, rayas de los cajones, jardineras y postes de luz
+function pintarEstacionamiento(ctx, e) {
+  const { P, lu, nc, s0 } = e;
+  trace(ctx, e.p, true); ctx.fillStyle = areaFill(ctx, TEX_ASFALTO); ctx.fill();
+  ctx.fillStyle = 'rgba(255,250,235,0.07)'; ctx.fill();
+  ctx.lineWidth = 2.2; ctx.strokeStyle = COL.curb; ctx.stroke();
+  ctx.strokeStyle = 'rgba(236,234,222,0.7)'; ctx.lineWidth = 1.1; ctx.beginPath();
+  for (const [t0] of e.filas) {
+    for (let i = 0; i <= nc; i++) { const s = s0 + i * CAJON_W; ctx.moveTo(...P(s, t0)); ctx.lineTo(...P(s, t0 + CAJON_L)); }
+    ctx.moveTo(...P(s0, t0)); ctx.lineTo(...P(s0 + nc * CAJON_W, t0));
+  }
+  ctx.stroke();
+  for (const t0 of e.jardineras) {
+    ctx.beginPath(); for (const [s, t] of [[s0, t0], [s0 + nc * CAJON_W, t0], [s0 + nc * CAJON_W, t0 + JARDINERA], [s0, t0 + JARDINERA]]) ctx.lineTo(...P(s, t));
+    ctx.closePath(); ctx.fillStyle = areaFill(ctx, 0); ctx.fill(); ctx.lineWidth = 1.2; ctx.strokeStyle = COL.curb; ctx.stroke();
+  }
+  // postes: en las jardineras, o a la orilla del fondo si no hay
+  const postes = e.jardineras.length ? e.jardineras.map(t => t + JARDINERA / 2) : [e.lv - 1.2 * M];
+  for (const t of postes) for (let s = 6 * M; s < lu - 3 * M; s += 22 * M) {
+    const [x, y] = P(s, t);
+    ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.arc(x + 2, y + 2, 2.6, 0, 7); ctx.fill();
+    ctx.fillStyle = '#4a4d52'; ctx.beginPath(); ctx.arc(x, y, 2.6, 0, 7); ctx.fill();
+    ctx.fillStyle = '#e8e2c8'; ctx.beginPath(); ctx.arc(x - 0.6, y - 0.6, 1.1, 0, 7); ctx.fill();
+  }
+}
 const gridDel = (g, reg, b, cell) => {
   for (let cx = Math.floor(b[0] / cell); cx <= Math.floor(b[2] / cell); cx++) for (let cy = Math.floor(b[1] / cell); cy <= Math.floor(b[3] / cell); cy++) {
     const k = GK(cx, cy), a = g.get(k); if (!a) continue;
@@ -269,12 +328,17 @@ const alCargarRegion = []; // avisos: (region) => ...
 window.TJ_REG = (k, txt) => {
   const r = regiones.get(k); if (!r || r.estado === 2) return;
   const base = r.n * 100000;
-  r.b = JSON.parse(txt).map(([h, co], i) => {
-    const p = ptsD(co), sh = Math.min(h * 0.45, 22) * M / 5 * 1.6;
+  // ademas de los edificios: las casitas (tipo 1) y plazas (2) que puso tools/rellenar.py, y sus estacionamientos (h < 0)
+  r.b = []; r.est = [];
+  JSON.parse(txt).forEach(([h, co, tipo], i) => {
+    const p = ptsD(co);
+    if (h < 0) { r.est.push(estacionamiento(p, base + i, k)); return; }
+    const sh = Math.min(h * 0.45, 22) * M / 5 * 1.6, hc = hash(co[0] * 7 + co[1]), techos = tipo === 1 ? TECHOS_CASITA : tipo === 2 ? TECHOS_PLAZA : ROOFS;
     // id: el orden de dibujo dentro de un trozo no depende de que region cargo primero
-    return { id: base + i, reg: k, h, p, sh, bb: bbox(p, 0), sbb: bbox(p, Math.max(sh, EXTRA_UP) + 2), col: ROOFS[hash(co[0] * 7 + co[1]) % ROOFS.length] };
+    r.b.push({ id: base + i, reg: k, h, p, sh, bb: bbox(p, 0), sbb: bbox(p, Math.max(sh, EXTRA_UP) + 2), col: techos[hc % techos.length], casita: tipo === 1 });
   });
   for (const b of r.b) { gridAdd(chunkBlds, b, b.sbb, CHUNK); gridAdd(bldGrid, b, b.bb, BCELL); }
+  for (const e of r.est) gridAdd(chunkEst, e, e.bb, CHUNK);
   for (const a of chunkBlds.values()) if (a.length > 1 && a[a.length - 1].reg === k) a.sort((x, y) => x.id - y.id);
   r.estado = 2; r.uso = performance.now();
   for (const f of alCargarRegion) f(r);
@@ -291,7 +355,8 @@ function pedirRegion(r) {
 }
 function soltarRegion(r) {
   for (const b of r.b) { gridDel(chunkBlds, r.k, b.sbb, CHUNK); gridDel(bldGrid, r.k, b.bb, BCELL); }
-  r.b = null; r.estado = 0;
+  for (const e of r.est) gridDel(chunkEst, r.k, e.bb, CHUNK);
+  r.b = null; r.est = null; r.estado = 0;
 }
 // las regiones que tocan el rectangulo; las pide si faltan y dice si ya estan todas
 function regionesListas(x0, y0, x1, y1) {
@@ -844,6 +909,7 @@ function arbolVa(i) {
       const q = A.ORD[j], x = A.X[q], y = A.Y[q];
       let libre = true;
       for (let d = 0; d <= 48 && libre; d += 8) if (inBuilding(x, y + d) || inBuilding(x - 12, y + d) || inBuilding(x + 12, y + d)) libre = false;
+      if (libre && enEstacionamiento(x, y, 12)) libre = false;
       if (libre) { A.OK[g] = q; break; }
     }
   }
@@ -1239,7 +1305,7 @@ function* drawBuildings(ctx, bl, rs, cx, cy) {
       g.lineWidth = 1; g.strokeStyle = 'rgba(255,255,255,0.16)'; g.stroke(); // pretil
       // tinacos negros en las azoteas, de rigor
       const bw = b.bb[2] - b.bb[0], bh = b.bb[3] - b.bb[1], hh = hash(b.p.length * 31 + (b.bb[0] | 0));
-      if (bw > 22 && bh > 22 && hh % 5 < 2) {
+      if (bw > 22 && bh > 22 && hh % 5 < (b.casita ? 4 : 2)) {
         const tx = b.bb[0] + bw * (0.3 + (hh >> 4) % 40 / 100), ty = b.bb[1] + bh * (0.3 + (hh >> 10) % 40 / 100);
         g.fillStyle = 'rgba(0,0,0,0.35)'; g.beginPath(); g.arc(tx + 1.5, ty + 1.5, 3.4, 0, 7); g.fill();
         g.fillStyle = '#1c1c1c'; g.beginPath(); g.arc(tx, ty, 3.4, 0, 7); g.fill();
@@ -1389,6 +1455,7 @@ function* chunkSteps(cx, cy) {
   ctx.fillStyle = areaFill(ctx, TEX_TIERRA); ctx.fillRect(cx * CHUNK - 1, cy * CHUNK - 1, CHUNK + 2, CHUNK + 2);
   const k = GK(cx, cy);
   for (const i of chunkAreas.get(k) || []) { const a = areas[i]; ctx.fillStyle = areaFill(ctx, a.k); trace(ctx, a.p, true); ctx.fill(); }
+  for (const e of chunkEst.get(k) || []) pintarEstacionamiento(ctx, e);
   const rs = Array.from(chunkRoads.get(k) || [], i => roads[i]);
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   const asfalto = areaFill(ctx, TEX_ASFALTO);
@@ -4970,6 +5037,7 @@ class Main extends Phaser.Scene {
     this.updatePerros(dt);
     this.updateRatero(dt);
     this.updateEscenas(dt);
+    this.updateLotes(dt);
     this.pedChat(dt);
     this.updateBurning(dt);
     this.ocultarTapados(dt);
@@ -6012,6 +6080,42 @@ class Main extends Phaser.Scene {
   }
 
   // el globo es HTML: se coloca sobre la cabeza del peaton pasando de coordenadas del mundo a pixeles CSS
+  // ----- carros en los estacionamientos (ver estacionamiento) -----
+  // se llenan al acercarte (sin que se vea el lugar, salvo al arrancar) y se vacian al alejarte; los que te
+  // llevaste o moviste ya no son del estacionamiento
+  updateLotes(dt) {
+    if ((this.lotT = (this.lotT ?? 0) - dt) > 0) return;
+    const inicial = !this.lotes; this.lotT = 0.5; this.lotes = this.lotes || new Set();
+    const f = this.focus(), R = this.viewR(), v = this.cameras.main.worldView;
+    for (const L of this.lotes) {
+      if (dist(L.cx, L.cy, f.x, f.y) < R + 900 + L.r) continue;
+      for (const c of L.carros) {
+        const i = this.parked.indexOf(c);
+        if (i >= 0 && c !== this.inCar && dist(c.x, c.y, c.x0, c.y0) < 2) { c.sprite.destroy(); this.parked.splice(i, 1); }
+      }
+      L.carros = null; this.lotes.delete(L);
+    }
+    const A = R + 500, vistos = new Set();
+    for (let cx = Math.floor((f.x - A) / CHUNK); cx <= Math.floor((f.x + A) / CHUNK); cx++) for (let cy = Math.floor((f.y - A) / CHUNK); cy <= Math.floor((f.y + A) / CHUNK); cy++) {
+      for (const L of chunkEst.get(GK(cx, cy)) || []) {
+        if (vistos.has(L) || this.lotes.has(L)) continue;
+        vistos.add(L);
+        if (dist(L.cx, L.cy, f.x, f.y) > A + L.r) continue;
+        const seVe = L.bb[0] < v.right + 40 && L.bb[2] > v.x - 40 && L.bb[1] < v.bottom + 40 && L.bb[3] > v.y - 40;
+        if (seVe && !inicial) continue;
+        // unos mas llenos que otros (siempre los mismos cajones para el mismo estacionamiento y la misma vuelta)
+        const rnd = mulberry(L.id * 31 + ((Math.random() * 1e6) | 0)), lleno = 0.3 + rnd() * 0.5;
+        L.carros = [];
+        for (const q of L.cajones) {
+          if (rnd() > lleno) continue;
+          if (this.parked.some(c => Math.abs(c.x - q.x) < 14 && Math.abs(c.y - q.y) < 14) || (this.inCar && dist(this.inCar.x, this.inCar.y, q.x, q.y) < 20)) continue;
+          const car = this.makeCar(q.x, q.y, q.a + (rnd() - 0.5) * 0.08, this.carSpec({ ti: pick([0, 0, 1, 3, 3, 4, 4, 5, 6]) }));
+          car.x0 = car.x; car.y0 = car.y; this.parked.push(car); L.carros.push(car);
+        }
+        this.lotes.add(L);
+      }
+    }
+  }
   // ----- escenas de trafico (ver ESCENAS) -----
   // aparecen cuando te acercas sin que se vea el lugar (7 de cada 10 veces), y se quitan al alejarte
   updateEscenas(dt) {
