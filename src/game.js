@@ -4573,7 +4573,7 @@ const ESCENAS = [
     dato: 'Paseo de los Héroes y Cuauhtémoc: de los cruceros más chocados.', tipos: ['lado', 'lado', 'esquinazo', 'alcance', 'moto'] },
   { k: 'vrPoniente', lugar: 'la Vía Rápida Poniente', calle: 'Avenida Vía Rápida Poniente', clase: 1, cerca: [57604, 19790],
     dato: 'Aquí van rápido y nadie guarda su distancia.', tipos: ['alcance', 'alcance', 'carambola', 'carambola', 'lado'] },
-  { k: 'cincoYDiez', lugar: 'Las 5 y 10', calle: 'Boulevard Gustavo Díaz Ordaz', cerca: [82155, 36470], atras: 30,
+  { k: 'cincoYDiez', lugar: 'Las 5 y 10', calle: 'Boulevard Salvador Rosas Magallón', cerca: [82155, 36470], atras: 70,
     dato: 'Díaz Ordaz y Rosas Magallón: de los cruceros más chocados.' },
   { k: 'blvd2000', lugar: 'el Bulevar 2000', calle: 'Corredor 2000 Tijuana-Rosarito', clase: 1, cerca: [140359, 57925],
     dato: 'El bulevar con más choques de Tijuana: mucha velocidad y poca luz.', tipos: ['alcance', 'carambola', 'carambola', 'lado', 'moto'] },
