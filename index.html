@@ -143,6 +143,10 @@
   const S = [['src/phaser-3.90.0.min.js', 'Calentando el motor…'], ['data/centro.js', 'Cargando las calles de Tijuana…'],
     ['src/audio.js', 'Afinando el mariachi…'], ['src/game.js', 'Sacando los taxis…']];
   let i = 0;
+  // se bajan todos a la vez desde el principio (asi Phaser corre mientras llega el mapa); se ejecutan en orden abajo
+  for (const [src] of S) {
+    const l = document.createElement('link'); l.rel = 'preload'; l.as = 'script'; l.href = src; document.head.appendChild(l);
+  }
   // en la app la partida tambien vive en el almacen nativo (Preferences), que Android no borra al limpiar cache;
   // antes de arrancar el juego se usa la mas reciente de las dos
   const partidaNativa = async () => {

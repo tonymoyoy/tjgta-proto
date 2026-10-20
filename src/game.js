@@ -4522,7 +4522,7 @@ class Main extends Phaser.Scene {
     // marcadores de lugares y tacos
     this.marks = [];
     for (const l of landmarks) {
-      // (ya estan en la banqueta si quedaban dentro de un edificio: ver acomodarLugares)
+      // (se pasan a la banqueta si quedaban dentro de un edificio, cuando llegan los de alrededor: ver acomodarLugares)
       const ring = this.crearAro(0xffd23f, 3);
       // la insignia del lugar flota un poco (cada una a su ritmo)
       const star = this.add.image(l.x, l.y, l.icon).setDepth(20).setScale(0.62 / SPR);
@@ -6417,6 +6417,10 @@ class Main extends Phaser.Scene {
 
   updateMarkers(time, f) {
     for (const m of this.marks) {
+      if (m.label.x !== m.l.x || m.label.y !== m.l.y - 34) { // lo acababan de acomodar en su banqueta
+        this.tweens.killTweensOf(m.star); m.star.setPosition(m.l.x, m.l.y); m.label.setPosition(m.l.x, m.l.y - 34);
+        this.tweens.add({ targets: m.star, y: m.l.y - 3, duration: 1000, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+      }
       const near = dist(m.l.x, m.l.y, f.x, f.y) < 700;
       this.moverAro(m.ring, m.l.x, m.l.y, 165, time, !m.l.found && dist(m.l.x, m.l.y, f.x, f.y) < 1600);
       if (m.found !== m.l.found) { m.found = m.l.found; if (m.l.found) m.star.setTint(0x9a9a9a).setAlpha(0.85); else m.star.clearTint().setAlpha(1); }
@@ -6609,15 +6613,19 @@ function renderBig(detail) {
     c.save(); if (l.found) { c.globalAlpha = 0.6; c.filter = 'grayscale(1)'; }
     if (img) c.drawImage(img, X - lsz / 2, Y - lsz / 2, lsz, lsz); else { c.font = '18px sans-serif'; c.fillStyle = '#ffd23f'; c.fillText('★', X, Y); }
     c.restore();
-    if (s >= 0.12) { c.font = 'bold 12px sans-serif'; c.lineWidth = 3; c.strokeStyle = '#000'; c.strokeText(l.name, X, Y + lsz / 2 + 9); c.fillStyle = l.found ? '#bbb' : '#fff'; c.fillText(l.name, X, Y + lsz / 2 + 9); }
+    if (s >= 0.12) { c.font = 'italic bold 12px "Trebuchet MS", sans-serif'; c.lineWidth = 3; c.strokeStyle = '#000'; c.strokeText(l.name, X, Y + lsz / 2 + 9); c.fillStyle = l.found ? '#bbb' : '#ffe680'; c.fillText(l.name, X, Y + lsz / 2 + 9); }
   }
   // --- destino y tu posicion ---
   if (g) { const X = bmX(g.x), Y = bmY(g.y); c.fillStyle = '#57d16b'; c.strokeStyle = '#000'; c.lineWidth = 2; c.beginPath(); c.arc(X, Y, 8, 0, 7); c.fill(); c.stroke(); c.fillStyle = '#fff'; c.beginPath(); c.arc(X, Y, 3, 0, 7); c.fill(); }
   const PX = bmX(f.x), PY = bmY(f.y);
+  c.fillStyle = 'rgba(255,122,60,0.3)'; c.strokeStyle = 'rgba(255,122,60,0.9)'; c.lineWidth = 2; c.beginPath(); c.arc(PX, PY, 17, 0, 7); c.fill(); c.stroke();
   c.save(); c.translate(PX, PY); c.rotate(f.a); c.fillStyle = '#ffd23f'; c.strokeStyle = '#000'; c.lineWidth = 2;
   c.beginPath(); c.moveTo(13, 0); c.lineTo(-8, 8); c.lineTo(-3, 0); c.lineTo(-8, -8); c.closePath(); c.fill(); c.stroke(); c.restore();
   // leyenda con lo que llevas
-  $('mlegend').textContent = `📍 Tú · ★ ${landmarks.filter(l => l.found).length}/${landmarks.length} · 🌮 ${tacos.filter(t => t.eaten).length}/${tacos.length} · ☕ ${cafes.filter(k => k.drunk).length}/${cafes.length} · 🤝 paros · 🔧 yonke · 🏮 cuidado`;
+  const n = (a, k) => a.filter(o => o[k]).length;
+  const ley = `<span class="t">Mapa</span><span>★ <b>${n(landmarks, 'found')}</b>/${landmarks.length}</span><span>🌮 <b>${n(tacos, 'eaten')}</b>/${tacos.length}</span>` +
+    `<span>☕ <b>${n(cafes, 'drunk')}</b>/${cafes.length}</span><span class="clave">➤ tú · 🤝 paros · 🔧 yonke · 🏮 cuidado</span>`;
+  if (BM.ley !== ley) $('mlegend').innerHTML = BM.ley = ley;
 }
 function bmZoomAt(factor, sx, sy) {
   const wx = BM.cx + (sx - BM.W / 2) / BM.s, wy = BM.cy + (sy - BM.H / 2) / BM.s;
@@ -7003,18 +7011,30 @@ function elegirInicio() {
 }
 // si un lugar queda en medio de un edificio grande o del agua (Palacio Municipal, Hipodromo, Estadio), su marca
 // se pasa a la banqueta mas cercana; si no, habria que atinarle a un rincon para descubrirlo (se descubre a
-// menos de 110 px) o de plano no se podria. Hacen falta los edificios de alrededor de cada lugar, asi que el
-// resultado se guarda (con las posiciones originales como llave) y solo se calcula la primera vez.
-async function acomodarLugares() {
+// menos de 110 px) o de plano no se podria. Hacen falta los edificios de alrededor de cada lugar, asi que cada uno
+// se acomoda cuando llegan los de su region (al acercarte, o al verlo de cerca en el mapa grande), no todos al
+// arrancar: la primera vez eran unas 60 regiones (5 MB) de golpe. Lo ya calculado se guarda (con las posiciones
+// originales como llave).
+function acomodarLugares() {
   const LLAVE = 'tjrush-lugares', firma = landmarks.map(l => l.x.toFixed(1) + ',' + l.y.toFixed(1)).join(';') + '|' + hashTexto(JSON.stringify(D.regs));
+  let pos = null;
   try {
     const c = JSON.parse(localStorage.getItem(LLAVE) || 'null');
-    if (c && c.firma === firma) { landmarks.forEach((l, i) => { l.x = c.pos[i][0]; l.y = c.pos[i][1]; }); return; }
+    if (c && c.firma === firma && Array.isArray(c.pos) && c.pos.length === landmarks.length) pos = c.pos;
   } catch (e) { /* se calcula */ }
+  pos = pos || landmarks.map(() => null);
+  landmarks.forEach((l, i) => { if (pos[i]) { l.x = pos[i][0]; l.y = pos[i][1]; } });
   const R = 700;
-  await Promise.all(landmarks.map(l => esperarRegiones(l.x - R, l.y - R, l.x + R, l.y + R)));
-  for (const l of landmarks) if (!walkableTo(l.x, l.y, 40)) { const [sx, sy] = nearestSidewalk(l.x, l.y); l.x = sx; l.y = sy; }
-  try { localStorage.setItem(LLAVE, JSON.stringify({ firma, pos: landmarks.map(l => [l.x, l.y]) })); } catch (e) { /* sin almacenamiento */ }
+  const acomodar = async (l, i) => {
+    l.acomodando = true;
+    await esperarRegiones(l.x - R, l.y - R, l.x + R, l.y + R);
+    if (!walkableTo(l.x, l.y, 40)) [l.x, l.y] = nearestSidewalk(l.x, l.y);
+    pos[i] = [l.x, l.y];
+    try { localStorage.setItem(LLAVE, JSON.stringify({ firma, pos })); } catch (e) { /* sin almacenamiento */ }
+  };
+  alCargarRegion.push(r => landmarks.forEach((l, i) => {
+    if (!pos[i] && !l.acomodando && l.x + R > r.bb[0] && l.x - R < r.bb[2] && l.y + R > r.bb[1] && l.y - R < r.bb[3]) acomodar(l, i);
+  }));
 }
 let arrancando = false;
 async function start() {
@@ -7024,8 +7044,10 @@ async function start() {
   // antes de entrar: los lugares en su banqueta y los edificios de donde vas a aparecer
   $('go').textContent = 'Cargando el mapa…';
   INICIO = inicioGuardado() || elegirInicio();
-  const R = 3000, s = INICIO.side;
-  await Promise.all([acomodarLugares(), esperarRegiones(s.x - R, s.y - R, s.x + R, s.y + R)]);
+  // lo que se ve al aparecer (la camara ve unos 500 x 250 px); lo demas llega mientras juegas
+  const R = 1200, s = INICIO.side;
+  acomodarLugares();
+  await esperarRegiones(s.x - R, s.y - R, s.x + R, s.y + R);
   if (INICIO.guardado && !inicioLibre(INICIO)) {
     INICIO = elegirInicio(); const t = INICIO.side;
     await esperarRegiones(t.x - R, t.y - R, t.x + R, t.y + R);

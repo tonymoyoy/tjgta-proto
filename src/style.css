@@ -144,15 +144,34 @@ body:not(.touch) #keystouch { display: none; }
   border-left: 3px solid #ff9d4a; }
 #credit { bottom: 4px; right: 8px; font-size: 10px; color: var(--muted); opacity: .8; }
 
-/* mapa grande a pantalla completa: se arrastra y se acerca (ver renderBig en game.js) */
+/* mapa grande a pantalla completa: se arrastra y se acerca (ver renderBig en game.js). Mismo estilo que el HUD:
+   paneles de vidrio oscuro con linea naranja arriba y titulo amarillo con sombra roja; las orillas se oscurecen */
 #bigmap { position: fixed; inset: 0; z-index: 8; background: #4d493e; display: none; touch-action: none; }
 #bigmap canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab; touch-action: none; }
+#bigmap::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+  box-shadow: inset 0 0 90px rgba(8,6,12,.7), inset 0 3px 0 -1px #ff7a3c; }
+#bigmap .mapbtns, #mlegend, #bigmap .maphint { z-index: 1; }
 #bigmap .mapbtns { position: absolute; top: 12px; right: 12px; display: flex; flex-direction: column; gap: 8px; }
-#bigmap .mapbtns button { width: 44px; height: 44px; border-radius: 50%; border: 2px solid rgba(255,255,255,.35); background: rgba(0,0,0,.65);
-  color: #fff; font-size: 22px; line-height: 1; cursor: pointer; }
-#mzclose { background: rgba(160,30,30,.8) !important; }
-#mlegend { position: absolute; left: 12px; top: 12px; padding: 6px 10px; border-radius: 8px; background: var(--panel); border: 1px solid var(--line);
-  color: var(--text); font-size: 13px; pointer-events: none; }
+#bigmap .mapbtns button { width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(255,255,255,.22);
+  background: linear-gradient(160deg, rgba(58,26,52,.6), rgba(0,0,0,0) 60%), rgba(14,10,18,.84);
+  box-shadow: 0 3px 10px rgba(0,0,0,.45), inset 0 2px 0 -1px #ff7a3c;
+  color: var(--text); font-family: inherit; font-size: 22px; line-height: 1; cursor: pointer; }
+#bigmap .mapbtns button:hover, #bigmap .mapbtns button:active { border-color: var(--accent); color: var(--accent); }
+#mzclose { margin-top: 6px; border-color: rgba(255,92,92,.55) !important; color: #ff8a8a !important; }
+#mlegend { position: absolute; left: 12px; top: 12px; max-width: calc(100% - 90px); padding: 5px 12px 6px; border-radius: 10px;
+  background: linear-gradient(160deg, rgba(58,26,52,.5), rgba(0,0,0,0) 60%), rgba(14,10,18,.84);
+  border: 1px solid rgba(255,255,255,.12); box-shadow: 0 4px 14px rgba(0,0,0,.45), inset 0 2px 0 -1px #ff7a3c;
+  color: var(--text); font-size: 13px; line-height: 1.35; text-shadow: 0 1px 2px #000; pointer-events: none; }
+#mlegend .t { font-size: 18px; font-weight: bold; font-style: italic; letter-spacing: 2px; text-transform: uppercase; color: var(--accent);
+  text-shadow: 1px 1px 0 #b3261e, 2px 2px 0 #000; }
+#mlegend span { display: inline-block; margin-right: 10px; white-space: nowrap; }
+#mlegend span:nth-last-child(2) { margin-right: 0; }
+#mlegend span b { color: var(--accent); }
+#mlegend .clave { display: block; margin: 1px 0 0; font-size: 11.5px; color: var(--muted); }
+#bigmap .maphint { position: absolute; left: 50%; bottom: max(10px, env(safe-area-inset-bottom)); transform: translateX(-50%);
+  width: max-content; max-width: calc(100% - 24px); margin: 0; padding: 4px 12px; border-radius: 999px;
+  background: rgba(14,10,18,.74); border: 1px solid rgba(255,255,255,.12); color: var(--text); font-size: 12px; text-align: center;
+  text-shadow: 0 1px 2px #000; pointer-events: none; }
 /* Acta de Tijuanense (premio final) */
 #actabox { display: none; position: fixed; inset: 0; z-index: 9; background: rgba(0,0,0,.82); align-items: center; justify-content: center; padding: 10px; }
 #actabox .card { display: flex; flex-direction: column; align-items: center; gap: 8px; max-width: 100%; }
@@ -162,8 +181,6 @@ body:not(.touch) #keystouch { display: none; }
 #actabox button { padding: 8px 14px; border-radius: 8px; border: 0; font-weight: bold; font-size: 14px; cursor: pointer; }
 #actasave { background: var(--accent); color: #1a1a1a; }
 #actaclose { background: #333; color: var(--text); }
-#bigmap .maphint { position: absolute; left: 0; right: 70px; bottom: 8px; margin: 0; color: #eee; font-size: 12px; text-align: center;
-  text-shadow: 0 1px 2px #000; pointer-events: none; }
 
 /* portada y pantalla de carga: la ilustracion del taxi de fondo; el menu (o la barra de carga) va del lado oscuro
    (a la derecha acostado, abajo parado). Las dos se ven igual, asi que al terminar de cargar solo cambia la barra por los botones */
