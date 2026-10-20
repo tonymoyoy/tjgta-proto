@@ -1886,6 +1886,22 @@ const FRASES_CAMION = [
   '¡El de la ruta se cree en la Fórmula 1!', '¡Ese chofer va tarde a la vuelta!', '¡Órale, que no es tu carril!',
   '¡Pásele, pásele, atrás hay lugar!', '¡El camión no frena, nomás pita!', '¡Ese chofer trae prisa por llegar a la base!',
 ];
+// escenas de trafico (ver ESCENAS): lo que se dicen los del choque y el policia
+const FRASES_CHOQUE_A = [
+  '¡Usted se me cerró, señor!', '¡En la glorieta tiene preferencia el que va adentro!', '¡Traía la direccional desde la otra cuadra!',
+  '¡Ya le hablé a mi seguro, ahí viene el ajustador!', '¡Mire nomás cómo me dejó la puerta!', '¡Usted venía volando!',
+  '¡Yo aquí paso diario y nunca me había pasado!',
+];
+const FRASES_CHOQUE_B = [
+  '¡Usted ni puso la direccional!', '¡Yo ya venía entrando, compa!', '¡Esta glorieta nadie sabe cómo se usa!',
+  '¡Si el golpe está chiquito, no exagere!', '¡Mi carro estaba recién lavado!', '¡Usted frenó de la nada!',
+  '¡Yo tengo testigos, ese señor del elote lo vio todo!',
+];
+const FRASES_CHOQUE_POLI = [
+  'A ver, a ver, uno por uno, señores.', 'Ya viene el ajustador, no muevan los carros.', 'Tercer choque de la semana en esta glorieta...',
+  'Calmados, que así no nos vamos a entender.', 'Licencia y tarjeta de circulación, por favor.',
+];
+const FRASES_CHOQUE_MIRON = ['Joven, circule, aquí no hay nada que ver.', 'No se arrime, que esto va para largo.', 'Siga su camino, compa.'];
 const FRASES_RATERO = [
   '¡Bájate, compa, que ando con prisa!', '¡Ese carrito está bien bonito, me lo llevo!', '¡Ahorita te lo regreso... algún día!',
   '¡Gracias por calentármelo!', '¡Uy, con el motor prendido y todo!', '¡Hágase pa\'llá, que este ya es mío!',
@@ -2785,6 +2801,7 @@ function makeTextures(scene) {
   sheet(PLAYER_SHIRT, PLAYER_LOOK, drawPlayer);
   sheet('C', COYOTE_LOOK);
   sheet('R', RATERO_LOOK);
+  sheet('T', POLI_LOOK); // el de transito de las escenas de trafico
   makeAros(scene);
 }
 // aros de los lugares y de los destinos (ver crearAro): cuatro capas en blanco que se tiñen del color del aro,
@@ -2834,6 +2851,7 @@ const PLAYER_SHIRT = 'P'; // textura 'pedP' y animacion 'walkP'
 // el jugador: camisa amarilla, pantalon de mezclilla y gorra roja (como siempre)
 // el coyote: un señor flaco, todo de oscuro y con gorra negra; se pierde entre la gente (ver ofrecerCoyote)
 // el ratero: sudadera guinda con gorro de estambre negro; anda por las banquetas esperando que alguien se pare
+const POLI_LOOK = { female: false, age: 'adulto', build: 'normal', skin: '#a8714a', shirt: '#1b2a4a', pants: '#141d33', hair: 'corto', hairCol: '#111', hat: 'gorra', hatCol: '#0d1830', k: 1 };
 const RATERO_LOOK = { female: false, age: 'joven', build: 'delgado', skin: '#b07a50', shirt: '#6d1f2f', pants: '#2b2b2b', hair: 'corto', hairCol: '#111', hat: 'gorro', hatCol: '#1a1a1a', k: 1 };
 const COYOTE_LOOK = { female: false, age: 'adulto', build: 'delgado', skin: '#a8714a', shirt: '#2b2b2b', pants: '#1f2a38', hair: 'corto', hairCol: '#111', hat: 'gorra', hatCol: '#151515', k: 1 };
 const PLAYER_LOOK = { female: false, age: 'adulto', build: 'normal', skin: '#c68e5f', shirt: '#ffd23f', pants: '#1d3f8f', hair: 'corto', hairCol: '#111', hat: 'gorra', hatCol: '#c0392b', k: 1 };
@@ -4505,6 +4523,25 @@ function sidewalkSpot(x, y, extra = 17) {
 }
 
 // ---------- escena ----------
+// ---------- escenas de trafico ----------
+// Lugares donde siempre pasa algo: al acercarte aparece la escena y al alejarte se quita. Cada una se ubica por
+// el nombre de su glorieta (su centro y su radio salen de las calles del mapa); el primer carro va en angulo y
+// radio desde el centro (0 = al este, crece hacia el sur, como en la pantalla) y a: hacia donde mira, en grados.
+// Lo demas se acomoda alrededor de ese carro (ver armarEscena).
+const ESCENA_CARROS = [0, 1, 3, 4]; // sedan, vocho, camioneta y tsurito (los grandes no caben en el choque)
+const ESCENAS = [
+  { k: 'choqueSF', glorieta: 'Glorieta Santa Fe', titulo: '💥 Choque en la Glorieta Santa Fe', aviso: 'Otro más. Ya llegó la patrulla y nadie se pone de acuerdo.',
+    ang: 35, r: -8, a: -60 },
+].map(E => {
+  const n = D.names.indexOf(E.glorieta), P = [];
+  for (const r of roads) if (r.n === n) for (let i = 0; i < r.p.length; i += 2) P.push(r.p[i], r.p[i + 1]);
+  if (!P.length) return null;
+  let x = 0, y = 0; for (let i = 0; i < P.length; i += 2) { x += P[i]; y += P[i + 1]; }
+  x /= P.length / 2; y /= P.length / 2;
+  let R = 0; for (let i = 0; i < P.length; i += 2) R += Math.hypot(P[i] - x, P[i + 1] - y);
+  return { ...E, x, y, R: R / (P.length / 2), on: null };
+}).filter(Boolean);
+
 class Main extends Phaser.Scene {
   constructor() { super('main'); }
 
@@ -4846,7 +4883,7 @@ class Main extends Phaser.Scene {
     }
     const far = R + 520;
     this.perros = this.perros.filter(c => { if (dist(c.x, c.y, p.x, p.y) > far) { c.sprite.destroy(); return false; } return true; });
-    this.cars = this.cars.filter(c => { if (dist(c.x, c.y, p.x, p.y) > far) { c.sprite.destroy(); return false; } return true; });
+    this.cars = this.cars.filter(c => { if (!c.escena && dist(c.x, c.y, p.x, p.y) > far) { c.sprite.destroy(); return false; } return true; });
     this.peds = this.peds.filter(c => { if (dist(c.x, c.y, p.x, p.y) > far) { c.sprite.destroy(); return false; } return true; });
   }
   focus() { return this.inCar || this.player; }
@@ -4870,6 +4907,7 @@ class Main extends Phaser.Scene {
     this.updatePeds(dt);
     this.updatePerros(dt);
     this.updateRatero(dt);
+    this.updateEscenas(dt);
     this.pedChat(dt);
     this.updateBurning(dt);
     this.ocultarTapados(dt);
@@ -5362,6 +5400,7 @@ class Main extends Phaser.Scene {
     if (!best) return;
     if (best.hp <= 0) { toast('Ese auto ya no sirve', ''); return; }
     if (best.poli) { toast('🚓 ¿Robarle la patrulla a la poli?', 'Ni lo pienses, compa.', 2); return; }
+    if (best.escena) { toast('Ese carro está esperando al ajustador', 'Mejor busca otro, compa.', 2); return; }
     const recuperado = best.robado;
     if (this.cars.includes(best)) {
       this.cars.splice(this.cars.indexOf(best), 1);
@@ -5402,7 +5441,7 @@ class Main extends Phaser.Scene {
     for (const c of chinas) if (c.icon.texture.key !== neon + c.up) c.icon.setTexture(neon + c.up);
     const tmp = this.tmp;
     for (const c of this.cars) {
-      if (c.wrecked) continue; // los deshuesados se quedan donde quedaron
+      if (c.wrecked || c.quieto) continue; // los deshuesados (y los de las escenas) se quedan donde quedaron
       const hx = Math.cos(c.a), hy = Math.sin(c.a);
       if (c.loco && this.locoChoca(c, hx, hy, dt)) continue;
       // el transporte publico frena hasta el ultimo momento (se le pega al de adelante)
@@ -5413,7 +5452,7 @@ class Main extends Phaser.Scene {
       if (!stop && !c.loco) for (const o of this.cars) {
         if (o === c || axisDist(ax, ay, o) >= o.hw + gap) continue;
         // un deshuesado en el camino: se le da la vuelta por un lado
-        if (o.wrecked) { if (!c.desvioT) { const lado = ((o.x - c.x) * -hy + (o.y - c.y) * hx) > 0 ? -1 : 1; c.desvio = lado * (o.hw + c.hw + 6); c.desvioT = 3; } continue; }
+        if (o.wrecked || o.quieto) { if (!c.desvioT) { const lado = ((o.x - c.x) * -hy + (o.y - c.y) * hx) > 0 ? -1 : 1; c.desvio = lado * (o.hw + c.hw + 6); c.desvioT = 3; } continue; }
         stop = true; bloq = o; break;
       }
       if (!stop) for (const o of this.parked) { if (axisDist(ax, ay, o) < o.hw + gap) { stop = true; bloq = o; break; } }
@@ -5759,7 +5798,7 @@ class Main extends Phaser.Scene {
     if (b.ped) {
       b.t -= dt;
       this.placeBubble();
-      if (b.t <= 0 || b.ped.st === 'down' || dist(b.ped.x, b.ped.y, this.focus().x, this.focus().y) > (b.ped.robado ? 260 : 140)) { b.ped = null; b.el.classList.remove('on'); }
+      if (b.t <= 0 || b.ped.st === 'down' || dist(b.ped.x, b.ped.y, this.focus().x, this.focus().y) > (b.ped.robado || b.ped.escena ? 260 : 140)) { b.ped = null; b.el.classList.remove('on'); }
     }
     const cy = this.coy;
     if (cy) { cy.t -= dt; if (cy.t <= 0 || this.inCar || dist(cy.p.x, cy.p.y, this.player.x, this.player.y) > 70) { this.coy = null; this.setObjective(); } }
@@ -5911,6 +5950,107 @@ class Main extends Phaser.Scene {
   }
 
   // el globo es HTML: se coloca sobre la cabeza del peaton pasando de coordenadas del mundo a pixeles CSS
+  // ----- escenas de trafico (ver ESCENAS) -----
+  // aparecen cuando te acercas sin que se vea el lugar, y se quitan al alejarte
+  updateEscenas(dt) {
+    const f = this.focus(), R = this.viewR(), v = this.cameras.main.worldView;
+    for (const E of ESCENAS) {
+      const d = dist(E.x, E.y, f.x, f.y), M0 = E.R + 60;
+      const seVe = E.x > v.x - M0 && E.x < v.right + M0 && E.y > v.y - M0 && E.y < v.bottom + M0;
+      if (!E.on) { if (d < R + 350 && !seVe) this.armarEscena(E); continue; }
+      const S = E.on;
+      if (d > R + 600 || S.carros.some(c => !this.cars.includes(c))) { this.quitarEscena(E); continue; }
+      S.t += dt;
+      if (!S.avisado && d < R * 0.8) { S.avisado = true; toast(E.titulo, E.aviso, 3.5); }
+      // intermitentes de los chocados
+      const prende = (this.time.now / 450 | 0) % 2 === 0;
+      for (const l of S.luces) l.setVisible(prende && !l.carro.wrecked);
+      // la gente: si los atropellas caen un rato; si no, voltean a ver a quien le hablan y patalean al hablar
+      const car = this.inCar, csp = car ? Math.hypot(car.vx, car.vy) : 0;
+      for (const p of S.gente) {
+        if (p.down > 0) { if ((p.down -= dt) <= 0) p.sprite.setScale(1 / SPR).clearTint(); continue; }
+        if (car && csp > 50 && axisDist(p.x, p.y, car) < car.hw + 3) {
+          p.down = 2.5; p.sprite.setScale(1.2 / SPR, 0.6 / SPR).setTint(0xaaaaaa);
+          if (Math.random() < 0.7) toast(pick(FRASES_ATROPELLO), '', 1.8);
+          continue;
+        }
+        const habla = this.bubble.ped === p, mira = habla ? p.a : Math.atan2(p.mira.y - p.y, p.mira.x - p.x);
+        p.sprite.setRotation(mira + (habla ? Math.sin(S.t * 13) * 0.22 : Math.sin(S.t * 1.3 + p.ph) * 0.12));
+        p.sprite.setFrame(habla ? [0, 2, 0, 6][(S.t * 8 | 0) % 4] : 0);
+      }
+      // el pleito: hablan por turnos cuando estas cerca (si nadie mas te esta hablando)
+      if ((S.turnoT -= dt) <= 0 && d < 260 && (!this.bubble.ped || this.bubble.ped.escena)) {
+        const [A, B, T] = S.gente, aPie = !this.inCar && dist(T.x, T.y, f.x, f.y) < 70;
+        const toca = aPie && Math.random() < 0.5 ? 'miron' : ['A', 'B', 'A', 'B', 'poli'][S.turno++ % 5];
+        const p = toca === 'A' ? A : toca === 'B' ? B : T;
+        if (p.down <= 0) {
+          // el que habla voltea a ver al otro (el policia, a ti si te esta corriendo)
+          p.a = toca === 'miron' ? Math.atan2(f.y - p.y, f.x - p.x) : Math.atan2(p.mira.y - p.y, p.mira.x - p.x);
+          const fr = { A: FRASES_CHOQUE_A, B: FRASES_CHOQUE_B, poli: FRASES_CHOQUE_POLI, miron: FRASES_CHOQUE_MIRON }[toca];
+          this.globo(p, toca === 'A' || toca === 'B' ? 'pleito' : 'transito', pick(fr), 2.5);
+          if (window.SND) SND.play('chat');
+        }
+        S.turnoT = 2.9;
+      }
+    }
+  }
+  armarEscena(E) {
+    if (!this.textures.exists('vidrios')) {
+      // vidrios y pedacitos de calavera regados en el piso
+      const t = this.textures.createCanvas('vidrios', 40 * SPR, 28 * SPR), x = t.getContext(), r = mulberry(77);
+      x.scale(SPR, SPR);
+      for (let i = 0; i < 46; i++) {
+        const cx = 20 + (r() - 0.5) * 34, cy = 14 + (r() - 0.5) * 22, s = 0.5 + r() * 1.4;
+        x.fillStyle = i % 7 === 0 ? 'rgba(200,40,30,0.9)' : i % 5 === 0 ? 'rgba(240,160,40,0.9)' : 'rgba(215,235,245,' + (0.55 + r() * 0.4).toFixed(2) + ')';
+        x.beginPath(); x.moveTo(cx, cy - s); x.lineTo(cx + s, cy + s * 0.6); x.lineTo(cx - s * 0.8, cy + s * 0.4); x.closePath(); x.fill();
+      }
+      t.refresh();
+    }
+    const S = { carros: [], gente: [], luces: [], extra: [], t: 0, turno: 0, turnoT: 1 };
+    // un choque de lado: el primero (A) iba por la glorieta y el segundo (B) se le metio por la derecha, en la
+    // puerta de atras; la patrulla se paro atras de A con la torreta prendida. La gente, del lado izquierdo de A.
+    const t0 = E.ang * Math.PI / 180, a = E.a * Math.PI / 180, fx = Math.cos(a), fy = Math.sin(a), rx = -fy, ry = fx;
+    const ax = E.x + Math.cos(t0) * (E.R + E.r), ay = E.y + Math.sin(t0) * (E.R + E.r);
+    const sA = this.carSpec({ ti: pick(ESCENA_CARROS), d: 0 }), sB = this.carSpec({ ti: pick(ESCENA_CARROS), d: 1 + ((Math.random() * DIRTY_SEEDS) | 0) }), sP = this.carSpec({ poli: true });
+    const hlA = sA.T.L / 2, hwA = sA.T.W / 2, hlB = sB.T.L / 2, hlP = sP.T.L / 2;
+    const atras = hlA * 0.35, giro = a - Math.PI / 2 + 0.3; // B apunta hacia A, un poco chueco
+    const bx = ax + rx * (hwA + hlB + 1) - fx * atras, by = ay + ry * (hwA + hlB + 1) - fy * atras;
+    const carros = [[ax, ay, a, sA], [bx, by, giro, sB], [ax - fx * (hlA + hlP + 16) + rx * 5, ay - fy * (hlA + hlP + 16) + ry * 5, a + 0.12, sP]];
+    for (const [x, y, ang, spec] of carros) {
+      const car = this.makeCar(x, y, ang, spec);
+      Object.assign(car, { quieto: true, escena: true, speed: 0 });
+      this.cars.push(car); S.carros.push(car);
+      if (car.poli) continue;
+      // intermitentes en las cuatro esquinas
+      for (const [kx, ky] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+        const lx = x + Math.cos(ang) * car.hl * kx - Math.sin(ang) * car.hw * ky, ly = y + Math.sin(ang) * car.hl * kx + Math.cos(ang) * car.hw * ky;
+        const l = this.add.image(lx, ly, 'luz').setDepth(10.5).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffa000).setScale(10 / 128).setAlpha(0.9);
+        l.carro = car; S.luces.push(l);
+      }
+    }
+    // los vidrios donde se pegaron
+    S.extra.push(this.add.image(ax + rx * (hwA + 4) - fx * atras, ay + ry * (hwA + 4) - fy * atras, 'vidrios').setDepth(4.5).setScale(1 / SPR).setRotation(a));
+    // los conductores a la izquierda de A, frente a frente, y el de transito un poco mas atras
+    const izq = hwA + 11, lugares = [[-izq, hlA * 0.15, 'A'], [-izq - 3, -hlA * 0.75, 'B'], [-izq - 13, -hlA * 0.3, 'poli']];
+    for (const [l, f, quien] of lugares) {
+      const x = ax + rx * l + fx * f, y = ay + ry * l + fy * f;
+      const sprite = quien === 'poli' ? this.add.sprite(x, y, 'pedT', 0) : this.add.sprite(x, y, 'ped' + pedVariant(), 0);
+      sprite.setDepth(6).setScale(1 / SPR);
+      S.gente.push({ x, y, a: 0, sprite, quien, escena: true, down: 0, ph: Math.random() * 6, st: 'escena' });
+    }
+    // cada conductor mira al otro y el policia a los dos
+    const [A, B, T] = S.gente;
+    A.mira = B; B.mira = A; T.mira = { x: (A.x + B.x) / 2, y: (A.y + B.y) / 2 };
+    E.on = S;
+  }
+  quitarEscena(E) {
+    const S = E.on; E.on = null;
+    if (S.gente.includes(this.bubble.ped)) { this.bubble.t = 0; }
+    this.cars = this.cars.filter(c => !S.carros.includes(c));
+    for (const c of S.carros) { c.sprite.destroy(); if (c.scorch) c.scorch.destroy(); }
+    for (const o of [...S.gente.map(p => p.sprite), ...S.luces, ...S.extra]) o.destroy();
+  }
+
   placeBubble() {
     const b = this.bubble, cam = this.cameras.main, v = cam.worldView, k = cam.zoom / DPR;
     const hw = b.el.offsetWidth / 2 + 8; // que no se salga por los lados
@@ -7064,7 +7204,7 @@ async function start() {
     scene: [Main], fps: { target: 60, smoothStep: false },
   });
   window.addEventListener('resize', () => game.scale.resize(window.innerWidth * DPR, window.innerHeight * DPR));
-  window.TJGTA = game; game.dbg = { WORLD_W, WORLD_H, regiones, esperarRegiones, chunkBlds, miniCuadros, miniVista, borderY, INICIO, traffic, nextEdge, arboles, arbolVa, arbolEn, bajoTecho, chinas, VTYPES, vehicleTexture, state, drawChunk, chunkSteps, areaFill, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, walkableTo, waterAreas, roads, PED_VARIANTS };
+  window.TJGTA = game; game.dbg = { ESCENAS, WORLD_W, WORLD_H, regiones, esperarRegiones, chunkBlds, miniCuadros, miniVista, borderY, INICIO, traffic, nextEdge, arboles, arbolVa, arbolEn, bajoTecho, chinas, VTYPES, vehicleTexture, state, drawChunk, chunkSteps, areaFill, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, walkableTo, waterAreas, roads, PED_VARIANTS };
 }
 $('go').addEventListener('click', start);
 

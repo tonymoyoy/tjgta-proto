@@ -292,3 +292,6 @@ body:not(.touch) #keystouch { display: none; }
   #bT { bottom: 46px; }
 }
 .bubble.ratero { --bg: #2a1015; --bd: #e53935; --fg: #ffe3e3; font-weight: 700; }
+/* escenas de trafico: los del choque discutiendo y el de transito */
+.bubble.pleito { --bg: #fff4e5; --bd: #e65100; --fg: #3a1a00; font-weight: 700; }
+.bubble.transito { --bg: #e8eefc; --bd: #1b2a4a; --fg: #10182c; }
