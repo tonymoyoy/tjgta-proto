@@ -4,8 +4,11 @@
 En Overture/OpenStreetMap faltan muchas casas de las colonias de Tijuana, y el juego pintaba esos terrenos de
 tierra. Esto se corre despues de prep_data.py (lee data/centro.js y data/reg/) y agrega a las regiones:
   - casitas: [h, contorno, 1] pegadas a la calle (de una o dos plantas), con su lotecito entre una y otra
+  - patios: atras de cada casita, hasta donde haya lugar: su fondo (dm) va como cuarto numero de la casita
   - estacionamientos: [-1, contorno] junto a las avenidas (y en las zonas comerciales), a veces con su plaza
     atras: [7, contorno, 2]
+  - en lo que quede vacio adentro de las manzanas (cerca de casas): lotes baldios [-2, contorno] y canchas de
+    futbol de tierra [-3, contorno]
 Solo donde no hay nada: ni edificios, ni calles con su banqueta, ni parques, plazas, escuelas, industria o agua, ni
 cerca de los lugares, tacos, cafes, la comida china y el yonke. Siempre sale igual (el azar va sembrado por calle),
 y se puede volver a correr: primero quita lo que haya puesto antes. Tambien rehace las capas del minimapa.
@@ -70,7 +73,7 @@ for fn in os.listdir(REG_DIR):
     if fn.endswith(".js"):
         t = open(os.path.join(REG_DIR, fn), encoding="utf-8").read()
         m = re.match(r"TJ_REG\('([^']+)','(.*)'\);\s*$", t, re.S)
-        regs[m.group(1)] = [b for b in json.loads(m.group(2)) if len(b) == 2 and b[0] >= 0]
+        regs[m.group(1)] = [b for b in json.loads(m.group(2)) if len(b) == 2 and b[0] >= 0]  # sin lo puesto antes
 blds = [undelta(b[1]) for bs in regs.values() for b in bs]
 print("regiones", len(regs), "edificios", len(blds))
 
@@ -99,7 +102,7 @@ def border_y(x):
 nuevos = {}       # region -> lo que se le agrega
 puestos = []      # todo lo puesto (para que las regiones de junto no se encimen)
 g_puesto = {}
-n_casas = n_est = n_plaza = 0
+n_casas = n_est = n_plaza = n_patio = n_baldio = n_cancha = 0
 
 def rect(x, y, dx, dy, nx, ny, t0, t1, e0, e1):
     # rectangulo a lo largo de la calle: de t0 a t1 sobre el tramo y de e0 a e1 hacia afuera
@@ -113,6 +116,7 @@ for (RX, RY) in sorted({k for k in g_road}):
     ox, oy = RX * REG - PAD, RY * REG - PAD
     G = lambda f: [((f[i] - ox) / CEL, (f[i + 1] - oy) / CEL) for i in range(0, len(f), 2)]
     occ = Image.new("L", (N, N), 0); d = ImageDraw.Draw(occ)
+    cas = Image.new("L", (N, N), 0); dk = ImageDraw.Draw(cas)   # solo edificios y casas (para saber que es ciudad)
     com = Image.new("L", (N, N), 0); dc = ImageDraw.Draw(com)
     for i in g_area.get((RX, RY), []):
         k, f = areas[i]
@@ -124,7 +128,7 @@ for (RX, RY) in sorted({k for k in g_road}):
             d.polygon(G(f), fill=255)
     for i in g_bld.get((RX, RY), []):
         if len(blds[i]) >= 6:
-            d.polygon(G(blds[i]), fill=255)
+            d.polygon(G(blds[i]), fill=255); dk.polygon(G(blds[i]), fill=255)
     for i in g_road.get((RX, RY), []):
         c, n, f, p = roads[i]
         w = road_w(c, f) + 2 * SIDEWALK + 1 if c <= 6 else {7: 7.5, 8: 7, 9: 3, 10: 6, 11: 12}[c]
@@ -136,7 +140,7 @@ for (RX, RY) in sorted({k for k in g_road}):
             q = ((x - ox) / CEL, (y - oy) / CEL); rr = r / CEL
             d.ellipse([q[0] - rr, q[1] - rr, q[0] + rr, q[1] + rr], fill=255)
     for j in g_puesto.get((RX, RY), []):
-        d.polygon(G(puestos[j]), fill=255)
+        d.polygon(G(puestos[j]), fill=255); dk.polygon(G(puestos[j]), fill=255)
     O = np.array(occ.filter(ImageFilter.MaxFilter(3))) > 0
     # Estados Unidos y fuera del mapa
     for gx in range(N):
@@ -170,20 +174,31 @@ for (RX, RY) in sorted({k for k in g_road}):
         if c is not None:
             sub = O[c[0]]; sub[c[1]] = True
 
-    def poner(h, f, flag=None):
-        global n_casas, n_est, n_plaza
-        f = [round(v) for v in f]
+    aqui = []   # las casas puestas en esta region (para saber que es ciudad)
+
+    def ocupar(f):
         x0, y0, x1, y1 = caja(f)
-        k = "%d_%d" % ((x0 + x1) // 2 // REG, (y0 + y1) // 2 // REG)
-        nuevos.setdefault(k, []).append([h, delta(f)] + ([flag] if flag else []))
         puestos.append(f)
         for cx in range(int((x0 - PAD) // REG), int((x1 + PAD) // REG) + 1):
             for cy in range(int((y0 - PAD) // REG), int((y1 + PAD) // REG) + 1):
                 g_puesto.setdefault((cx, cy), []).append(len(puestos) - 1)
         marcar(f)
-        if h < 0: n_est += 1
+
+    def poner(h, f, flag=None):
+        global n_casas, n_est, n_plaza, n_baldio, n_cancha
+        f = [round(v) for v in f]
+        x0, y0, x1, y1 = caja(f)
+        k = "%d_%d" % ((x0 + x1) // 2 // REG, (y0 + y1) // 2 // REG)
+        e = [h, delta(f)] + ([flag] if flag else [])
+        nuevos.setdefault(k, []).append(e)
+        ocupar(f)
+        if h >= 0: aqui.append(f)
+        if h == -1: n_est += 1
+        elif h == -2: n_baldio += 1
+        elif h == -3: n_cancha += 1
         elif flag == 2: n_plaza += 1
         else: n_casas += 1
+        return e
 
     def centro_aqui(f):
         x0, y0, x1, y1 = caja(f)
@@ -242,17 +257,75 @@ for (RX, RY) in sorted({k for k in g_road}):
                             if centro_aqui(f) and libre(f):
                                 q = rnd.random()
                                 h = 3 if q < (0.45 if c <= 3 else 0.66) else 6   # de una o dos plantas (de tres no: seria otra pasada al pintar el trozo)
-                                poner(h, f, 1)
+                                e = poner(h, f, 1)
+                                # su patio: lo mas hondo que quepa (de 3 a 14 m), del ancho de la casa
+                                for pd in range(int(rnd.uniform(60, 140)), 25, -15):
+                                    fp = rect(x, y, dx, dy, nx, ny, t, t + ancho, e0 + fondo + 8, e0 + fondo + 8 + pd)
+                                    if libre(fp):
+                                        e.append(pd + 8); ocupar([round(v) for v in fp]); n_patio += 1
+                                        break
                                 t += ancho + rnd.uniform(12, 30)
                             else:
                                 t += 15
+    # ---- adentro de las manzanas: lo que quedo vacio cerca de las casas (a menos de ~30 m), alineado con la
+    # calle mas cercana: canchas de tierra y lotes baldios
+    for f in aqui:
+        dk.polygon(G(f), fill=255)
+    ch = cas.resize((N // 4, N // 4), Image.BOX).point(lambda v: 255 if v else 0).filter(ImageFilter.MaxFilter(15))
+    URB = np.array(ch) > 0
+    muestras = {}
+    for i in g_road.get((RX, RY), []):
+        c, n, fl, p = roads[i]
+        if c > 6:
+            continue
+        for s in range(0, len(p) - 2, 2):
+            x, y, x2, y2 = p[s], p[s + 1], p[s + 2], p[s + 3]
+            L = math.hypot(x2 - x, y2 - y)
+            if L < 1:
+                continue
+            a = math.atan2(y2 - y, x2 - x)
+            for k in range(0, int(L) + 1, 100):
+                px, py = x + (x2 - x) * k / L, y + (y2 - y) * k / L
+                muestras.setdefault((int(px // 400), int(py // 400)), []).append((px, py, a))
+
+    def rumbo(x, y):
+        best = None
+        for bx in range(int(x // 400) - 3, int(x // 400) + 4):
+            for by in range(int(y // 400) - 3, int(y // 400) + 4):
+                for px, py, a in muestras.get((bx, by), ()):
+                    dd = (px - x) ** 2 + (py - y) ** 2
+                    if best is None or dd < best[0]:
+                        best = (dd, a)
+        return None if best is None or best[0] > 1200 ** 2 else best[1]
+
+    rnd = random.Random(RX * 7919 + RY * 104729)
+    for gy in range(PAD // CEL, (PAD + REG) // CEL, 14):
+        for gx in range(PAD // CEL, (PAD + REG) // CEL, 14):
+            if O[gy, gx] or not URB[min(gy // 4, URB.shape[0] - 1), min(gx // 4, URB.shape[1] - 1)]:
+                continue
+            x, y = ox + gx * CEL, oy + gy * CEL
+            a = rumbo(x, y)
+            if a is None:
+                continue
+            q = rnd.random()
+            if q < 0.14:
+                tipo, w, h = -3, rnd.uniform(320, 380), rnd.uniform(200, 240)
+            elif q < 0.7:
+                tipo, w, h = -2, rnd.uniform(140, 300), rnd.uniform(120, 260)
+            else:
+                continue
+            ux, uy, vx, vy = math.cos(a), math.sin(a), -math.sin(a), math.cos(a)
+            f = [x - ux * w / 2 - vx * h / 2, y - uy * w / 2 - vy * h / 2, x + ux * w / 2 - vx * h / 2, y + uy * w / 2 - vy * h / 2,
+                 x + ux * w / 2 + vx * h / 2, y + uy * w / 2 + vy * h / 2, x - ux * w / 2 + vx * h / 2, y - uy * w / 2 + vy * h / 2]
+            if libre(f):
+                poner(tipo, f)
     if os.environ.get("TJ_DEBUG") == "%d_%d" % (RX, RY):
         Image.fromarray((O * 255).astype(np.uint8)).save(os.environ.get("TJ_DEBUG_PNG", "ocupado.png"))
         sys.exit(0)
     if (RX * 40 + RY) % 50 == 0:
-        print("region", RX, RY, "casas", n_casas, "estacionamientos", n_est, "plazas", n_plaza, flush=True)
+        print("region", RX, RY, "casas", n_casas, "patios", n_patio, "estacionamientos", n_est, "plazas", n_plaza, "baldios", n_baldio, "canchas", n_cancha, flush=True)
 
-print("casas", n_casas, "estacionamientos", n_est, "plazas", n_plaza)
+print("casas", n_casas, "patios", n_patio, "estacionamientos", n_est, "plazas", n_plaza, "baldios", n_baldio, "canchas", n_cancha)
 
 # ---- escribir las regiones (lo de antes y lo nuevo) y su caja en el indice
 for k, b in nuevos.items():

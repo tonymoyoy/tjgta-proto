@@ -257,7 +257,7 @@ const gridAdd = (g, it, b, cell) => {
 };
 const regGrid = new Map();
 for (const r of regiones.values()) gridAdd(regGrid, r, r.bb, REG_PX);
-const chunkBlds = new Map(), bldGrid = new Map(), chunkEst = new Map();
+const chunkBlds = new Map(), bldGrid = new Map(), chunkEst = new Map(), chunkSuelo = new Map();
 // techos de las casitas de las colonias (concreto, impermeabilizante rojo o blanco, lamina) y de las plazas comerciales
 const TECHOS_CASITA = ['#a9a397', '#b8b2a6', '#9c5a46', '#a8664f', '#d3cdbf', '#8e9399', '#c4a484', '#7d8a8c', '#b9b0a0', '#a33f32'];
 const TECHOS_PLAZA = ['#c9c6bf', '#b5b8bb', '#d6d2c8', '#bdb6a8'];
@@ -291,6 +291,83 @@ function enEstacionamiento(x, y, m) {
     if (s > -m && s < e.lu + m && t > -m && t < e.lv + m) return true;
   }
   return false;
+}
+// ¿(x, y) cae en una cancha (con margen m)? (ahi tampoco van arboles)
+function enCancha(x, y, m) {
+  for (const e of chunkSuelo.get(GK(Math.floor(x / CHUNK), Math.floor(y / CHUNK))) || []) {
+    if (e.tipo !== 'cancha') continue;
+    const dx = x - e.p[0], dy = y - e.p[1], s = dx * e.U[0] + dy * e.U[1], t = dx * e.V[0] + dy * e.V[1];
+    if (s > -m && s < e.lu + m && t > -m && t < e.lv + m) return true;
+  }
+  return false;
+}
+// Lo de adentro de las manzanas (de tools/rellenar.py): patios atras de las casitas, lotes baldios y canchas de
+// tierra. Son rectangulos (p0 -> p1 y p0 -> p3); se pintan en el piso del trozo y no estorban el paso.
+function suelo(tipo, p, id, reg) {
+  const ux = p[2] - p[0], uy = p[3] - p[1], lu = Math.hypot(ux, uy), vx = p[6] - p[0], vy = p[7] - p[1], lv = Math.hypot(vx, vy);
+  const U = [ux / lu, uy / lu], V = [vx / lv, vy / lv];
+  return { tipo, id, reg, p, U, V, lu, lv, P: (s, t) => [p[0] + U[0] * s + V[0] * t, p[1] + U[1] * s + V[1] * t], bb: bbox(p, 4) };
+}
+const PISO_PATIO = ['#b3ab9b', '#9c8f76', '#8f9064', '#b88f72', '#a7a49c'];   // concreto, tierra, pasto seco, loseta, cemento
+const ROPA = ['#d9443a', '#3b7fd1', '#f2f2f2', '#f0c23b', '#4fae5c', '#e27fb0', '#7a5bb5', '#2e2e2e'];
+function pintarSuelo(ctx, e) {
+  const { P, lu, lv } = e, r = mulberry(e.id * 2654435761);
+  const caja = (s0, t0, s1, t1) => { ctx.beginPath(); for (const [s, t] of [[s0, t0], [s1, t0], [s1, t1], [s0, t1]]) ctx.lineTo(...P(s, t)); ctx.closePath(); };
+  const bolita = (s, t, rad, col) => { const [x, y] = P(s, t); ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x, y, rad, 0, 7); ctx.fill(); };
+  const rot = Math.atan2(e.U[1], e.U[0]);
+  if (e.tipo === 'patio') {
+    // piso, barda alrededor (menos del lado de la casa) y las cosas del patio
+    caja(0, 0, lu, lv); ctx.fillStyle = PISO_PATIO[e.id % PISO_PATIO.length]; ctx.fill();
+    ctx.lineCap = 'butt';
+    const barda = (w, col, o) => { ctx.strokeStyle = col; ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(...P(o, 0)); ctx.lineTo(...P(o, lv - o)); ctx.lineTo(...P(lu - o, lv - o)); ctx.lineTo(...P(lu - o, 0)); ctx.stroke(); };
+    barda(3.4, 'rgba(0,0,0,0.25)', 0.2); barda(2.2, '#cfc6b3', 1.1);
+    const n = 2 + (r() * 3 | 0), puestos = [];
+    for (let k = 0; k < n; k++) {
+      const que = (r() * 8) | 0, s = 5 + r() * (lu - 10), t = 4 + r() * (lv - 8);
+      if (lu < 14 || lv < 12 || puestos.some(([a, b]) => Math.abs(a - s) < 9 && Math.abs(b - t) < 9)) continue;
+      puestos.push([s, t]);
+      if (que === 0 && lu > 26) { // tendedero con ropa
+        const t0 = Math.min(lv - 5, t), [x0, y0] = P(5, t0), [x1, y1] = P(lu - 5, t0);
+        ctx.strokeStyle = 'rgba(40,40,40,0.7)'; ctx.lineWidth = 0.6; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+        for (let q = 8; q < lu - 8; q += 4 + r() * 3) {
+          const [x, y] = P(q, t0); ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
+          ctx.fillStyle = ROPA[(r() * ROPA.length) | 0]; ctx.fillRect(-1.6, -0.3, 3.2, 2.2 + r() * 2); ctx.restore();
+        }
+      } else if (que === 1) { bolita(s + 0.6, t + 0.6, 2.4, 'rgba(0,0,0,0.3)'); bolita(s, t, 2.3, '#e9e6df'); bolita(s, t, 1, '#8b8f94'); } // tanque de gas
+      else if (que === 2) { for (let m = 0; m < 3; m++) { bolita(s + m * 3, t, 1.5, '#b4603e'); bolita(s + m * 3, t, 1, '#4f8a3a'); } } // macetas
+      else if (que === 3) { bolita(s, t, 2.6, '#222'); ctx.strokeStyle = '#777'; ctx.lineWidth = 0.4; for (let m = -1; m <= 1; m++) { ctx.beginPath(); ctx.moveTo(...P(s - 2, t + m)); ctx.lineTo(...P(s + 2, t + m)); ctx.stroke(); } } // asador
+      else if (que === 4) { caja(s - 3, t - 2.5, s + 3, t + 2.5); ctx.fillStyle = '#8a5a35'; ctx.fill(); caja(s - 3, t - 2.5, s + 3, t); ctx.fillStyle = '#6b4226'; ctx.fill(); bolita(s, t + 1.6, 1, '#2a1c12'); } // casita del perro
+      else if (que === 5) { caja(s - 2.5, t - 2, s + 2.5, t + 2); ctx.fillStyle = '#9fa3a6'; ctx.fill(); caja(s - 1.5, t - 1.2, s + 1.5, t + 1.2); ctx.fillStyle = '#6f8fa3'; ctx.fill(); } // lavadero
+      else if (que === 6) { for (let m = 0; m < 2; m++) { caja(s + m * 4 - 1.3, t - 1.3, s + m * 4 + 1.3, t + 1.3); ctx.fillStyle = '#f4f2ec'; ctx.fill(); } } // sillas de plastico
+      else { ctx.strokeStyle = '#1d1d1d'; ctx.lineWidth = 1.2; const [x, y] = P(s, t); ctx.beginPath(); ctx.arc(x, y, 2.2, 0, 7); ctx.stroke(); } // llanta
+    }
+  } else if (e.tipo === 'baldio') {
+    // yerbas secas, llantas, basurita y a veces una malla ciclonica
+    caja(0, 0, lu, lv); ctx.fillStyle = 'rgba(110,98,60,0.06)'; ctx.fill();
+    const n = Math.round(lu * lv / 90);
+    for (let k = 0; k < n; k++) {
+      const [x, y] = P(r() * lu, r() * lv), c = r() < 0.6 ? '#7d7a45' : r() < 0.5 ? '#94864f' : '#5f6b3a';
+      ctx.strokeStyle = c; ctx.lineWidth = 0.8; ctx.beginPath();
+      for (let m = 0; m < 4; m++) { const a = r() * 6.3, l = 1.5 + r() * 2.5; ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); }
+      ctx.stroke();
+    }
+    for (let k = 0; k < 1 + r() * 3; k++) { const [x, y] = P(r() * lu, r() * lv); ctx.strokeStyle = '#1b1b1b'; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.arc(x, y, 2.2, 0, 7); ctx.stroke(); }
+    for (let k = 0; k < lu * lv / 400; k++) { const [x, y] = P(r() * lu, r() * lv); ctx.fillStyle = ROPA[(r() * ROPA.length) | 0]; ctx.fillRect(x, y, 1.2, 0.8); }
+    if (r() < 0.5) { ctx.setLineDash([1.5, 1.5]); ctx.strokeStyle = 'rgba(150,155,160,0.8)'; ctx.lineWidth = 0.8; caja(1, 1, lu - 1, lv - 1); ctx.stroke(); ctx.setLineDash([]); }
+  } else {
+    // cancha de tierra: rayas de cal medio borradas y porterias
+    caja(0, 0, lu, lv); ctx.fillStyle = '#b4a17c'; ctx.fill();
+    for (let k = 0; k < 14; k++) { const [x, y] = P(r() * lu, r() * lv); ctx.fillStyle = 'rgba(120,100,70,0.18)'; ctx.beginPath(); ctx.arc(x, y, 4 + r() * 8, 0, 7); ctx.fill(); }
+    const m = 5, cal = 'rgba(245,242,230,0.6)';
+    ctx.strokeStyle = cal; ctx.lineWidth = 1.2; caja(m, m, lu - m, lv - m); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(...P(lu / 2, m)); ctx.lineTo(...P(lu / 2, lv - m)); ctx.stroke();
+    const [cx, cy] = P(lu / 2, lv / 2); ctx.beginPath(); ctx.arc(cx, cy, Math.min(lv / 6, 18), 0, 7); ctx.stroke();
+    for (const [s0, s1] of [[m, m + 18], [lu - m, lu - m - 18]]) { caja(s0, lv / 2 - 22, s1, lv / 2 + 22); ctx.stroke(); }
+    ctx.strokeStyle = '#fafafa'; ctx.lineWidth = 1.6;
+    for (const [s0, s1] of [[m, m - 4], [lu - m, lu - m + 4]]) {
+      ctx.beginPath(); ctx.moveTo(...P(s0, lv / 2 - 9)); ctx.lineTo(...P(s1, lv / 2 - 9)); ctx.lineTo(...P(s1, lv / 2 + 9)); ctx.lineTo(...P(s0, lv / 2 + 9)); ctx.stroke();
+    }
+  }
 }
 // el estacionamiento en el trozo: asfalto con orilla de concreto, rayas de los cajones, jardineras y postes de luz
 function pintarEstacionamiento(ctx, e) {
@@ -328,17 +405,26 @@ const alCargarRegion = []; // avisos: (region) => ...
 window.TJ_REG = (k, txt) => {
   const r = regiones.get(k); if (!r || r.estado === 2) return;
   const base = r.n * 100000;
-  // ademas de los edificios: las casitas (tipo 1) y plazas (2) que puso tools/rellenar.py, y sus estacionamientos (h < 0)
-  r.b = []; r.est = [];
-  JSON.parse(txt).forEach(([h, co, tipo], i) => {
+  // ademas de los edificios: lo que puso tools/rellenar.py: casitas (tipo 1, con el fondo de su patio en dm) y
+  // plazas (2), estacionamientos (h = -1), lotes baldios (-2) y canchas de tierra (-3)
+  r.b = []; r.est = []; r.suelo = [];
+  JSON.parse(txt).forEach(([h, co, tipo, patio], i) => {
     const p = ptsD(co);
-    if (h < 0) { r.est.push(estacionamiento(p, base + i, k)); return; }
+    if (h === -1) { r.est.push(estacionamiento(p, base + i, k)); return; }
+    if (h < 0) { r.suelo.push(suelo(h === -2 ? 'baldio' : 'cancha', p, base + i, k)); return; }
+    if (patio) {
+      // el patio va atras de la casa (p0 -> p1 es el frente, hacia la calle) y del mismo ancho
+      const vx = p[6] - p[0], vy = p[7] - p[1], lv = Math.hypot(vx, vy), d = patio * S;
+      const ax = vx / lv * d, ay = vy / lv * d;
+      r.suelo.push(suelo('patio', [p[6], p[7], p[4], p[5], p[4] + ax, p[5] + ay, p[6] + ax, p[7] + ay], base + i, k));
+    }
     const sh = Math.min(h * 0.45, 22) * M / 5 * 1.6, hc = hash(co[0] * 7 + co[1]), techos = tipo === 1 ? TECHOS_CASITA : tipo === 2 ? TECHOS_PLAZA : ROOFS;
     // id: el orden de dibujo dentro de un trozo no depende de que region cargo primero
     r.b.push({ id: base + i, reg: k, h, p, sh, bb: bbox(p, 0), sbb: bbox(p, Math.max(sh, EXTRA_UP) + 2), col: techos[hc % techos.length], casita: tipo === 1 });
   });
   for (const b of r.b) { gridAdd(chunkBlds, b, b.sbb, CHUNK); gridAdd(bldGrid, b, b.bb, BCELL); }
   for (const e of r.est) gridAdd(chunkEst, e, e.bb, CHUNK);
+  for (const e of r.suelo) gridAdd(chunkSuelo, e, e.bb, CHUNK);
   for (const a of chunkBlds.values()) if (a.length > 1 && a[a.length - 1].reg === k) a.sort((x, y) => x.id - y.id);
   r.estado = 2; r.uso = performance.now();
   for (const f of alCargarRegion) f(r);
@@ -356,7 +442,8 @@ function pedirRegion(r) {
 function soltarRegion(r) {
   for (const b of r.b) { gridDel(chunkBlds, r.k, b.sbb, CHUNK); gridDel(bldGrid, r.k, b.bb, BCELL); }
   for (const e of r.est) gridDel(chunkEst, r.k, e.bb, CHUNK);
-  r.b = null; r.est = null; r.estado = 0;
+  for (const e of r.suelo) gridDel(chunkSuelo, r.k, e.bb, CHUNK);
+  r.b = null; r.est = null; r.suelo = null; r.estado = 0;
 }
 // las regiones que tocan el rectangulo; las pide si faltan y dice si ya estan todas
 function regionesListas(x0, y0, x1, y1) {
@@ -909,7 +996,7 @@ function arbolVa(i) {
       const q = A.ORD[j], x = A.X[q], y = A.Y[q];
       let libre = true;
       for (let d = 0; d <= 48 && libre; d += 8) if (inBuilding(x, y + d) || inBuilding(x - 12, y + d) || inBuilding(x + 12, y + d)) libre = false;
-      if (libre && enEstacionamiento(x, y, 12)) libre = false;
+      if (libre && (enEstacionamiento(x, y, 12) || enCancha(x, y, 10))) libre = false;
       if (libre) { A.OK[g] = q; break; }
     }
   }
@@ -1456,6 +1543,9 @@ function* chunkSteps(cx, cy) {
   const k = GK(cx, cy);
   for (const i of chunkAreas.get(k) || []) { const a = areas[i]; ctx.fillStyle = areaFill(ctx, a.k); trace(ctx, a.p, true); ctx.fill(); }
   for (const e of chunkEst.get(k) || []) pintarEstacionamiento(ctx, e);
+  const sl = chunkSuelo.get(k) || [];
+  for (const e of sl) pintarSuelo(ctx, e);
+  if (sl.length) yield; // los patios y lotes cuestan unos milisegundos: el resto del trozo en otro cuadro
   const rs = Array.from(chunkRoads.get(k) || [], i => roads[i]);
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   const asfalto = areaFill(ctx, TEX_ASFALTO);
