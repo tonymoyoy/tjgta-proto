@@ -1886,22 +1886,51 @@ const FRASES_CAMION = [
   '¡El de la ruta se cree en la Fórmula 1!', '¡Ese chofer va tarde a la vuelta!', '¡Órale, que no es tu carril!',
   '¡Pásele, pásele, atrás hay lugar!', '¡El camión no frena, nomás pita!', '¡Ese chofer trae prisa por llegar a la base!',
 ];
-// escenas de trafico (ver ESCENAS): lo que se dicen los del choque y el policia
-const FRASES_CHOQUE_A = [
-  '¡Usted se me cerró, señor!', '¡En la glorieta tiene preferencia el que va adentro!', '¡Traía la direccional desde la otra cuadra!',
-  '¡Ya le hablé a mi seguro, ahí viene el ajustador!', '¡Mire nomás cómo me dejó la puerta!', '¡Usted venía volando!',
-  '¡Yo aquí paso diario y nunca me había pasado!',
-];
-const FRASES_CHOQUE_B = [
-  '¡Usted ni puso la direccional!', '¡Yo ya venía entrando, compa!', '¡Esta glorieta nadie sabe cómo se usa!',
-  '¡Si el golpe está chiquito, no exagere!', '¡Mi carro estaba recién lavado!', '¡Usted frenó de la nada!',
-  '¡Yo tengo testigos, ese señor del elote lo vio todo!',
-];
-const FRASES_CHOQUE_POLI = [
-  'A ver, a ver, uno por uno, señores.', 'Ya viene el ajustador, no muevan los carros.', 'Tercer choque de la semana en esta glorieta...',
-  'Calmados, que así no nos vamos a entender.', 'Licencia y tarjeta de circulación, por favor.',
-];
-const FRASES_CHOQUE_MIRON = ['Joven, circule, aquí no hay nada que ver.', 'No se arrime, que esto va para largo.', 'Siga su camino, compa.'];
+// escenas de trafico (ver ESCENAS): lo que se dicen los del choque y el policia. A es al que le pegaron, B el que pego
+// (en la carambola, B quedo en medio y C es el de atras); cada tipo de choque tiene sus frases y se revuelven con las de
+// cualquier choque
+const FRASES_CHOQUE = {
+  A: ['¡Ya le hablé a mi seguro, ahí viene el ajustador!', '¡Usted venía volando!', '¡Yo aquí paso diario y nunca me había pasado!',
+    '¡No mueva su carro hasta que llegue el ajustador!'],
+  B: ['¡Si el golpe está chiquito, no exagere!', '¡Mi carro estaba recién lavado!', '¡Yo tengo testigos, ese señor del elote lo vio todo!',
+    '¡Nos arreglamos con el seguro, no se ponga así!'],
+  lado: {
+    A: ['¡Usted se me cerró, señor!', '¡Traía la direccional desde la otra cuadra!', '¡Mire nomás cómo me dejó la puerta!'],
+    B: ['¡Usted ni puso la direccional!', '¡Yo ya venía entrando, compa!', '¡Usted frenó de la nada!'],
+  },
+  glorieta: {
+    A: ['¡En la glorieta tiene preferencia el que va adentro!', '¡Yo ya iba dando la vuelta!'],
+    B: ['¡Esta glorieta nadie sabe cómo se usa!', '¡Aquí entra el que se avienta primero!'],
+    poli: ['Tercer choque de la semana en esta glorieta...'],
+  },
+  alcance: {
+    A: ['¡Usted me pegó por atrás, la culpa es suya!', '¡Guarde su distancia, señor!', '¡Frené porque se puso en amarillo!', '¡Me torció la defensa!'],
+    B: ['¡Usted frenó de golpe!', '¡Ni se le prendieron las calaveras!', '¡Se me fueron los frenos, se lo juro!', '¡Yo venía viendo el semáforo, no a usted!'],
+    poli: ['El de atrás siempre tiene la culpa, joven.'],
+  },
+  carambola: {
+    A: ['¡Usted me pegó por atrás, la culpa es suya!', '¡Guarde su distancia, señor!', '¡Ya me tocó otra vez la defensa nueva!'],
+    B: ['¡Yo quedé en medio, a mí que me paguen los dos!', '¡A mí me empujaron, yo venía frenando!', '¡Me pegaron de los dos lados!'],
+    C: ['¡Yo nomás le di un toquecito!', '¡Es que el sol me dio en la cara!', '¡Esto lo arregla el seguro, no se pongan así!', '¡A mí ni me vean!'],
+    poli: ['Tres carros y nadie tuvo la culpa. Qué raro.', 'El de hasta atrás, venga para acá.'],
+  },
+  esquinazo: {
+    A: ['¡Usted se pasó el alto!', '¡Yo tenía el verde!', '¡Mire nomás cómo me dejó la salpicadera!'],
+    B: ['¡Estaba en amarillo, todavía alcanzaba!', '¡Usted salió de la nada!', '¡Yo ya iba a medio crucero!'],
+    poli: ['A ver, ¿quién tenía el verde? Los dos, ¿verdad?'],
+  },
+  moto: {
+    A: ['¡No me vio, yo iba en mi carril!', '¡Se me regó todo el pedido!', '¡Ya me va a pagar los tacos que se me tiraron!', '¡Usted ni volteó al espejo!'],
+    B: ['¡Usted venía entre los carros!', '¡Se me apareció de la nada!', '¡Ni luces traía la moto!'],
+    poli: ['¿Está bien, joven? Qué bueno que traía casco.'],
+  },
+  poli: ['A ver, a ver, uno por uno, señores.', 'Ya viene el ajustador, no muevan los carros.', 'Tercer choque de la semana en este crucero...',
+    'Calmados, que así no nos vamos a entender.', 'Licencia y tarjeta de circulación, por favor.'],
+  // sin patrulla: la estan esperando
+  sinPoli: ['¿Y la patrulla? Ya van veinte minutos...', '¡Ahorita que llegue el de tránsito vemos quién tiene la razón!'],
+  miron: ['Joven, circule, aquí no hay nada que ver.', 'No se arrime, que esto va para largo.', 'Siga su camino, compa.'],
+  testigo: ['¡Joven! Usted lo vio, ¿verdad que él tuvo la culpa?', '¿Me hace un paro? Háblele a la patrulla, que a mí no me contestan.'],
+};
 const FRASES_RATERO = [
   '¡Bájate, compa, que ando con prisa!', '¡Ese carrito está bien bonito, me lo llevo!', '¡Ahorita te lo regreso... algún día!',
   '¡Gracias por calentármelo!', '¡Uy, con el motor prendido y todo!', '¡Hágase pa\'llá, que este ya es mío!',
@@ -4524,23 +4553,56 @@ function sidewalkSpot(x, y, extra = 17) {
 
 // ---------- escena ----------
 // ---------- escenas de trafico ----------
-// Lugares donde siempre pasa algo: al acercarte aparece la escena y al alejarte se quita. Cada una se ubica por
-// el nombre de su glorieta (su centro y su radio salen de las calles del mapa); el primer carro va en angulo y
-// radio desde el centro (0 = al este, crece hacia el sur, como en la pantalla) y a: hacia donde mira, en grados.
-// Lo demas se acomoda alrededor de ese carro (ver armarEscena).
+// Los cruceros donde mas se choca en Tijuana (estudio Mision Cero 2015-2023, SSPCM y Bomberos 2025-2026): al acercarte
+// a veces hay un choque (7 de cada 10 veces, ver BOLSA_ESCENAS) y al alejarte se quita. Cada una va en su calle (calle,
+// y si hace falta clase), en el punto mas cercano a cerca (px del mapa), en el carril derecho y en el sentido de la
+// calle; atras la recorre hacia atras (para que no quede a media interseccion). tipos: los choques que pueden tocar
+// ahi (ver armarEscena); repetir uno lo hace mas comun.
 const ESCENA_CARROS = [0, 1, 3, 4]; // sedan, vocho, camioneta y tsurito (los grandes no caben en el choque)
+const ESCENA_TIPOS = ['lado', 'alcance', 'esquinazo', 'carambola', 'moto'];
 const ESCENAS = [
-  { k: 'choqueSF', glorieta: 'Glorieta Santa Fe', titulo: '💥 Choque en la Glorieta Santa Fe', aviso: 'Otro más. Ya llegó la patrulla y nadie se pone de acuerdo.',
-    ang: 35, r: -8, a: -60 },
+  { k: 'santaFe', lugar: 'la Glorieta Santa Fe', calle: 'Glorieta Santa Fe', cerca: [49820, 67439], glorieta: true,
+    dato: 'Aquí es común que choquen: nadie sabe quién tiene la preferencia.', tipos: ['lado', 'lado', 'esquinazo', 'alcance', 'moto'] },
+  { k: 'aldrete', lugar: 'Aldrete y Negrete', calle: 'Avenida Aldrete', cerca: [50434, 14726], atras: 30,
+    dato: 'El crucero con más choques de Tijuana.' },
+  { k: 'pedregal', lugar: 'Parque Baja California y Pedregal', calle: 'Avenida Paseo del Pedregal', cerca: [13904, 27987], atras: 30,
+    dato: 'El segundo crucero con más choques de la ciudad.' },
+  { k: 'lazaroVR', lugar: 'Lázaro Cárdenas y la Vía Rápida', calle: 'Boulevard Lázaro Cárdenas', cerca: [84115, 27278],
+    dato: 'El tercer crucero con más choques de la ciudad.' },
+  { k: 'cuauhtemoc', lugar: 'la Glorieta Cuauhtémoc', calle: 'Calle Paseo de los Héroes', cerca: [58326, 22103], glorieta: true,
+    dato: 'Paseo de los Héroes y Cuauhtémoc: de los cruceros más chocados.', tipos: ['lado', 'lado', 'esquinazo', 'alcance', 'moto'] },
+  { k: 'vrPoniente', lugar: 'la Vía Rápida Poniente', calle: 'Avenida Vía Rápida Poniente', clase: 1, cerca: [57604, 19790],
+    dato: 'Aquí van rápido y nadie guarda su distancia.', tipos: ['alcance', 'alcance', 'carambola', 'carambola', 'lado'] },
+  { k: 'cincoYDiez', lugar: 'Las 5 y 10', calle: 'Boulevard Gustavo Díaz Ordaz', cerca: [82155, 36470], atras: 30,
+    dato: 'Díaz Ordaz y Rosas Magallón: de los cruceros más chocados.' },
+  { k: 'blvd2000', lugar: 'el Bulevar 2000', calle: 'Corredor 2000 Tijuana-Rosarito', clase: 1, cerca: [140359, 57925],
+    dato: 'El bulevar con más choques de Tijuana: mucha velocidad y poca luz.', tipos: ['alcance', 'carambola', 'carambola', 'lado', 'moto'] },
 ].map(E => {
-  const n = D.names.indexOf(E.glorieta), P = [];
-  for (const r of roads) if (r.n === n) for (let i = 0; i < r.p.length; i += 2) P.push(r.p[i], r.p[i + 1]);
-  if (!P.length) return null;
-  let x = 0, y = 0; for (let i = 0; i < P.length; i += 2) { x += P[i]; y += P[i + 1]; }
-  x /= P.length / 2; y /= P.length / 2;
-  let R = 0; for (let i = 0; i < P.length; i += 2) R += Math.hypot(P[i] - x, P[i + 1] - y);
-  return { ...E, x, y, R: R / (P.length / 2), on: null };
+  const n = D.names.indexOf(E.calle), [cx, cy] = E.cerca;
+  let b = null;
+  for (const r of roads) {
+    if (r.n !== n || (r.f & 1) || (E.clase != null && r.c !== E.clase)) continue; // en puentes no
+    for (let i = 0; i < r.p.length - 2; i += 2) {
+      const x1 = r.p[i], y1 = r.p[i + 1], dx = r.p[i + 2] - x1, dy = r.p[i + 3] - y1, l = dx * dx + dy * dy || 1;
+      const t = Math.max(0, Math.min(1, ((cx - x1) * dx + (cy - y1) * dy) / l)), x = x1 + t * dx, y = y1 + t * dy, d = Math.hypot(cx - x, cy - y);
+      if (!b || d < b.d) b = { d, x, y, a: Math.atan2(dy, dx), w: r.w * M };
+    }
+  }
+  if (!b || b.d > 200) return null;
+  // al carril de la derecha (a un cuarto del ancho desde el centro de la calle)
+  const fx = Math.cos(b.a), fy = Math.sin(b.a), at = E.atras || 0, lado = b.w * 0.25;
+  return { ...E, x: b.x - fx * at - fy * lado, y: b.y - fy * at + fx * lado, a: b.a, R: 140, tipos: E.tipos || ESCENA_TIPOS, on: null, nada: false };
 }).filter(Boolean);
+// de cada 10 veces que llegas a uno de esos lugares, en 7 hay choque: se sacan de una bolsa con 7 si y 3 no
+// (revuelta), y al vaciarse se vuelve a llenar
+const BOLSA_ESCENAS = [];
+const tocaChoque = () => {
+  if (!BOLSA_ESCENAS.length) {
+    BOLSA_ESCENAS.push(...Array(7).fill(true), ...Array(3).fill(false));
+    for (let i = BOLSA_ESCENAS.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [BOLSA_ESCENAS[i], BOLSA_ESCENAS[j]] = [BOLSA_ESCENAS[j], BOLSA_ESCENAS[i]]; }
+  }
+  return BOLSA_ESCENAS.pop();
+};
 
 class Main extends Phaser.Scene {
   constructor() { super('main'); }
@@ -5951,20 +6013,32 @@ class Main extends Phaser.Scene {
 
   // el globo es HTML: se coloca sobre la cabeza del peaton pasando de coordenadas del mundo a pixeles CSS
   // ----- escenas de trafico (ver ESCENAS) -----
-  // aparecen cuando te acercas sin que se vea el lugar, y se quitan al alejarte
+  // aparecen cuando te acercas sin que se vea el lugar (7 de cada 10 veces), y se quitan al alejarte
   updateEscenas(dt) {
     const f = this.focus(), R = this.viewR(), v = this.cameras.main.worldView;
     for (const E of ESCENAS) {
       const d = dist(E.x, E.y, f.x, f.y), M0 = E.R + 60;
       const seVe = E.x > v.x - M0 && E.x < v.right + M0 && E.y > v.y - M0 && E.y < v.bottom + M0;
-      if (!E.on) { if (d < R + 350 && !seVe) this.armarEscena(E); continue; }
+      if (!E.on) {
+        // esta vez no hubo choque: hasta que te alejes y vuelvas
+        if (E.nada) { if (d > R + 600) E.nada = false; continue; }
+        if (d < R + 350 && !seVe) { if (tocaChoque()) this.armarEscena(E); else E.nada = true; }
+        continue;
+      }
       const S = E.on;
       if (d > R + 600 || S.carros.some(c => !this.cars.includes(c))) { this.quitarEscena(E); continue; }
       S.t += dt;
-      if (!S.avisado && d < R * 0.8) { S.avisado = true; toast(E.titulo, E.aviso, 3.5); }
-      // intermitentes de los chocados
+      if (!S.avisado && d < R * 0.8) {
+        S.avisado = true;
+        toast(S.titulo, E.dato + ' ' + (S.poli ? 'Ya llegó la patrulla y nadie se pone de acuerdo.' : 'Todavía no llega la patrulla.'), 4);
+      }
+      // intermitentes de los chocados y humito del que se dio de frente
       const prende = (this.time.now / 450 | 0) % 2 === 0;
       for (const l of S.luces) l.setVisible(prende && !l.carro.wrecked);
+      if (S.humo && d < R + 100 && (S.humoT -= dt) <= 0) {
+        const c = S.humo; S.humoT = 0.35;
+        this.puff(c.x + Math.cos(c.a) * (c.hl - 2), c.y + Math.sin(c.a) * (c.hl - 2));
+      }
       // la gente: si los atropellas caen un rato; si no, voltean a ver a quien le hablan y patalean al hablar
       const car = this.inCar, csp = car ? Math.hypot(car.vx, car.vy) : 0;
       for (const p of S.gente) {
@@ -5978,22 +6052,31 @@ class Main extends Phaser.Scene {
         p.sprite.setRotation(mira + (habla ? Math.sin(S.t * 13) * 0.22 : Math.sin(S.t * 1.3 + p.ph) * 0.12));
         p.sprite.setFrame(habla ? [0, 2, 0, 6][(S.t * 8 | 0) % 4] : 0);
       }
-      // el pleito: hablan por turnos cuando estas cerca (si nadie mas te esta hablando)
+      // el pleito: hablan por turnos cuando estas cerca (si nadie mas te esta hablando). Si te arrimas a pie, el de
+      // transito te corre; sin patrulla, el chocado te pide que seas su testigo
       if ((S.turnoT -= dt) <= 0 && d < 260 && (!this.bubble.ped || this.bubble.ped.escena)) {
-        const [A, B, T] = S.gente, aPie = !this.inCar && dist(T.x, T.y, f.x, f.y) < 70;
-        const toca = aPie && Math.random() < 0.5 ? 'miron' : ['A', 'B', 'A', 'B', 'poli'][S.turno++ % 5];
-        const p = toca === 'A' ? A : toca === 'B' ? B : T;
+        const G = S.gente, T = G.find(p => p.quien === 'poli') || G[0], aPie = !this.inCar && dist(T.x, T.y, f.x, f.y) < 70;
+        const toca = aPie && Math.random() < 0.5 ? 'miron' : S.orden[S.turno++ % S.orden.length];
+        const p = toca === 'miron' ? T : G.find(q => q.quien === toca);
         if (p.down <= 0) {
           // el que habla voltea a ver al otro (el policia, a ti si te esta corriendo)
           p.a = toca === 'miron' ? Math.atan2(f.y - p.y, f.x - p.x) : Math.atan2(p.mira.y - p.y, p.mira.x - p.x);
-          const fr = { A: FRASES_CHOQUE_A, B: FRASES_CHOQUE_B, poli: FRASES_CHOQUE_POLI, miron: FRASES_CHOQUE_MIRON }[toca];
-          this.globo(p, toca === 'A' || toca === 'B' ? 'pleito' : 'transito', pick(fr), 2.5);
+          const F = FRASES_CHOQUE, ti = F[S.tipo], gl = E.glorieta && S.tipo !== 'carambola' ? F.glorieta : {};
+          const fr = toca === 'miron' ? (S.poli ? F.miron : F.testigo)
+            : toca === 'poli' ? [...F.poli, ...(ti.poli || []), ...(gl.poli || [])]
+            : toca === 'C' ? ti.C
+            : [...F[toca], ...ti[toca], ...(gl[toca] || []), ...(S.poli ? [] : F.sinPoli)];
+          this.globo(p, p.quien === 'poli' ? 'transito' : 'pleito', pick(fr), 2.5);
           if (window.SND) SND.play('chat');
         }
         S.turnoT = 2.9;
       }
     }
   }
+  // Los choques (E.tipos): lado (B se le metio a A por la derecha, en la puerta de atras), alcance (B le pego a A por
+  // atras), carambola (C le pego a B y B a A), esquinazo (B se paso el alto y le pego a A en la esquina de enfrente,
+  // los dos quedaron chuecos) y moto (A iba en moto y quedo tirada enfrente del carro de B). Casi siempre ya llego
+  // la patrulla, atras de todos con la torreta prendida. La gente se para al lado de A, del lado donde no estorba.
   armarEscena(E) {
     if (!this.textures.exists('vidrios')) {
       // vidrios y pedacitos de calavera regados en el piso
@@ -6006,41 +6089,77 @@ class Main extends Phaser.Scene {
       }
       t.refresh();
     }
-    const S = { carros: [], gente: [], luces: [], extra: [], t: 0, turno: 0, turnoT: 1 };
-    // un choque de lado: el primero (A) iba por la glorieta y el segundo (B) se le metio por la derecha, en la
-    // puerta de atras; la patrulla se paro atras de A con la torreta prendida. La gente, del lado izquierdo de A.
-    const t0 = E.ang * Math.PI / 180, a = E.a * Math.PI / 180, fx = Math.cos(a), fy = Math.sin(a), rx = -fy, ry = fx;
-    const ax = E.x + Math.cos(t0) * (E.R + E.r), ay = E.y + Math.sin(t0) * (E.R + E.r);
-    const sA = this.carSpec({ ti: pick(ESCENA_CARROS), d: 0 }), sB = this.carSpec({ ti: pick(ESCENA_CARROS), d: 1 + ((Math.random() * DIRTY_SEEDS) | 0) }), sP = this.carSpec({ poli: true });
-    const hlA = sA.T.L / 2, hwA = sA.T.W / 2, hlB = sB.T.L / 2, hlP = sP.T.L / 2;
-    const atras = hlA * 0.35, giro = a - Math.PI / 2 + 0.3; // B apunta hacia A, un poco chueco
-    const bx = ax + rx * (hwA + hlB + 1) - fx * atras, by = ay + ry * (hwA + hlB + 1) - fy * atras;
-    const carros = [[ax, ay, a, sA], [bx, by, giro, sB], [ax - fx * (hlA + hlP + 16) + rx * 5, ay - fy * (hlA + hlP + 16) + ry * 5, a + 0.12, sP]];
-    for (const [x, y, ang, spec] of carros) {
-      const car = this.makeCar(x, y, ang, spec);
+    const tipo = pick(E.tipos), poli = Math.random() < 0.8;
+    const titulo = { lado: '💥 Choque en ', alcance: '💥 Alcance en ', esquinazo: '💥 Choque en ', carambola: '💥 Carambola en ', moto: '🛵 Moto tirada en ' }[tipo] + E.lugar;
+    const S = { tipo, poli, titulo, carros: [], gente: [], luces: [], extra: [], humo: null, humoT: 0, t: 0, turno: 0, turnoT: 1 };
+    // todo se mide desde A: l hacia su derecha y f hacia adelante
+    const a = E.a, fx = Math.cos(a), fy = Math.sin(a), rx = -fy, ry = fx;
+    const P = (l, f) => [E.x + rx * l + fx * f, E.y + ry * l + fy * f];
+    const madreado = () => 1 + ((Math.random() * DIRTY_SEEDS) | 0);
+    const sA = tipo === 'moto' ? this.carSpec({ moto: true }) : this.carSpec({ ti: pick(ESCENA_CARROS), d: tipo === 'lado' || Math.random() < 0.5 ? 0 : madreado() });
+    const sB = this.carSpec({ ti: pick(ESCENA_CARROS), d: madreado() }), sP = this.carSpec({ poli: true });
+    const hlA = sA.T.L / 2, hwA = sA.T.W / 2, hlB = sB.T.L / 2, hwB = sB.T.W / 2, hlP = sP.T.L / 2;
+    const carros = [], vidrios = [];
+    let lado = -1, fin = -hlA; // de que lado de A se para la gente y donde acaba el choque por atras (para la patrulla)
+    if (tipo === 'lado') {
+      const atras = hlA * 0.35;
+      carros.push([0, 0, a, sA], [hwA + hlB + 1, -atras, a - Math.PI / 2 + 0.3, sB]);
+      vidrios.push([hwA + 4, -atras]);
+    } else if (tipo === 'alcance' || tipo === 'carambola') {
+      carros.push([0, 0, a + 0.05, sA], [1.5, -(hlA + hlB + 1), a - 0.08, sB]);
+      vidrios.push([0, -hlA - 1]);
+      fin = -(hlA + 2 * hlB + 1);
+      if (tipo === 'carambola') {
+        const sC = this.carSpec({ ti: pick(ESCENA_CARROS), d: madreado() }), hlC = sC.T.L / 2;
+        carros.push([-1, fin - hlC - 1, a + 0.07, sC]);
+        vidrios.push([0.5, fin - 1]);
+        fin -= 2 * hlC + 1;
+      }
+    } else if (tipo === 'esquinazo') {
+      // B venia de la izquierda, hacia la derecha de A y un poco hacia atras; su defensa quedo en la esquina de A
+      const g = Math.PI / 2 + 0.5; // hacia donde iba B, medido desde el frente de A
+      carros.push([0, 0, a + 0.25, sA], [-hwA - Math.sin(g) * (hlB + 1) + 2, hlA - Math.cos(g) * (hlB + 1) - 2, a + g, sB]);
+      vidrios.push([-hwA + 2, hlA + 2]);
+      lado = 1;
+    } else {
+      // la moto quedo tirada de lado enfrente de B, que la alcanzo por atras
+      carros.push([0, hlA + 6, a + Math.PI / 2 + 0.35, sA], [1, -hlB + 2, a - 0.06, sB]);
+      vidrios.push([0, 4]);
+      fin = -2 * hlB + 2;
+    }
+    if (poli) carros.push([5, fin - hlP - 16, a + 0.12, sP]);
+    for (const [l, f, ang, spec] of carros) {
+      const [x, y] = P(l, f), car = this.makeCar(x, y, ang, spec);
       Object.assign(car, { quieto: true, escena: true, speed: 0 });
       this.cars.push(car); S.carros.push(car);
-      if (car.poli) continue;
+      if (car.poli || car.moto) continue;
       // intermitentes en las cuatro esquinas
       for (const [kx, ky] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
         const lx = x + Math.cos(ang) * car.hl * kx - Math.sin(ang) * car.hw * ky, ly = y + Math.sin(ang) * car.hl * kx + Math.cos(ang) * car.hw * ky;
-        const l = this.add.image(lx, ly, 'luz').setDepth(10.5).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffa000).setScale(10 / 128).setAlpha(0.9);
-        l.carro = car; S.luces.push(l);
+        const lz = this.add.image(lx, ly, 'luz').setDepth(10.5).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffa000).setScale(10 / 128).setAlpha(0.9);
+        lz.carro = car; S.luces.push(lz);
       }
     }
+    // al que se dio de frente le sale humito del cofre (en la carambola, al de hasta atras)
+    if (tipo !== 'lado' && tipo !== 'moto') S.humo = S.carros[tipo === 'carambola' ? 2 : 1];
     // los vidrios donde se pegaron
-    S.extra.push(this.add.image(ax + rx * (hwA + 4) - fx * atras, ay + ry * (hwA + 4) - fy * atras, 'vidrios').setDepth(4.5).setScale(1 / SPR).setRotation(a));
-    // los conductores a la izquierda de A, frente a frente, y el de transito un poco mas atras
-    const izq = hwA + 11, lugares = [[-izq, hlA * 0.15, 'A'], [-izq - 3, -hlA * 0.75, 'B'], [-izq - 13, -hlA * 0.3, 'poli']];
+    for (const [l, f] of vidrios) S.extra.push(this.add.image(...P(l, f), 'vidrios').setDepth(4.5).setScale(1 / SPR).setRotation(a + Math.random() * 0.6 - 0.3));
+    // los conductores al lado de A, frente a frente, y el de transito un poco mas atras
+    const iz = (tipo === 'moto' ? hwB : hwA) + 11, m = tipo === 'moto' ? 0 : hlA;
+    const lugares = [[iz, m * 0.15, 'A'], [iz + 3, -m * 0.75 - (tipo === 'moto' ? hlB : 0), 'B']];
+    if (tipo === 'carambola') lugares.push([iz + 2, fin * 0.7, 'C']);
+    if (poli) lugares.push([iz + 13, tipo === 'carambola' ? fin * 0.35 : -m * 0.3 - (tipo === 'moto' ? hlB * 0.5 : 0), 'poli']);
     for (const [l, f, quien] of lugares) {
-      const x = ax + rx * l + fx * f, y = ay + ry * l + fy * f;
-      const sprite = quien === 'poli' ? this.add.sprite(x, y, 'pedT', 0) : this.add.sprite(x, y, 'ped' + pedVariant(), 0);
-      sprite.setDepth(6).setScale(1 / SPR);
+      const [x, y] = P(lado * l, f);
+      const sprite = this.add.sprite(x, y, quien === 'poli' ? 'pedT' : 'ped' + pedVariant(), 0).setDepth(6).setScale(1 / SPR);
       S.gente.push({ x, y, a: 0, sprite, quien, escena: true, down: 0, ph: Math.random() * 6, st: 'escena' });
     }
-    // cada conductor mira al otro y el policia a los dos
-    const [A, B, T] = S.gente;
-    A.mira = B; B.mira = A; T.mira = { x: (A.x + B.x) / 2, y: (A.y + B.y) / 2 };
+    // cada conductor mira al otro (el de atras de la carambola, a los dos de enfrente) y el policia a todos
+    const G = S.gente, [A, B] = G, C = G.find(p => p.quien === 'C'), T = G.find(p => p.quien === 'poli');
+    A.mira = B; B.mira = C && Math.random() < 0.5 ? C : A;
+    if (C) C.mira = { x: (A.x + B.x) / 2, y: (A.y + B.y) / 2 };
+    if (T) { const ch = G.filter(p => p !== T); T.mira = { x: ch.reduce((s, p) => s + p.x, 0) / ch.length, y: ch.reduce((s, p) => s + p.y, 0) / ch.length }; }
+    S.orden = [...(C ? ['A', 'B', 'C', 'A', 'B', 'C'] : ['A', 'B', 'A', 'B']), ...(poli ? ['poli'] : [])];
     E.on = S;
   }
   quitarEscena(E) {
@@ -7204,7 +7323,7 @@ async function start() {
     scene: [Main], fps: { target: 60, smoothStep: false },
   });
   window.addEventListener('resize', () => game.scale.resize(window.innerWidth * DPR, window.innerHeight * DPR));
-  window.TJGTA = game; game.dbg = { ESCENAS, WORLD_W, WORLD_H, regiones, esperarRegiones, chunkBlds, miniCuadros, miniVista, borderY, INICIO, traffic, nextEdge, arboles, arbolVa, arbolEn, bajoTecho, chinas, VTYPES, vehicleTexture, state, drawChunk, chunkSteps, areaFill, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, walkableTo, waterAreas, roads, PED_VARIANTS };
+  window.TJGTA = game; game.dbg = { ESCENAS, tocaChoque, WORLD_W, WORLD_H, regiones, esperarRegiones, chunkBlds, miniCuadros, miniVista, borderY, INICIO, traffic, nextEdge, arboles, arbolVa, arbolEn, bajoTecho, chinas, VTYPES, vehicleTexture, state, drawChunk, chunkSteps, areaFill, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, walkableTo, waterAreas, roads, PED_VARIANTS };
 }
 $('go').addEventListener('click', start);
 
