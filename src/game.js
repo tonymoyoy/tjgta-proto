@@ -216,11 +216,11 @@ function rejillaDensa(enumera) {
     get(k) { const cx = Math.round(k / 1048576), c = celda(cx, k - cx * 1048576); return c < 0 || O[c] === O[c + 1] ? undefined : V.subarray(O[c], O[c + 1]); },
   };
 }
-function gridIndex(items, cell, bbKey) {
+function gridIndex(items, cell, bbKey, pad) {
   return rejillaDensa((emit) => items.forEach((it, i) => {
-    const b = it[bbKey];
-    for (let cx = Math.floor(b[0] / cell); cx <= Math.floor(b[2] / cell); cx++)
-      for (let cy = Math.floor(b[1] / cell); cy <= Math.floor(b[3] / cell); cy++) emit(cx, cy, i);
+    const b = it[bbKey], d = pad ? pad(it) : 0;
+    for (let cx = Math.floor((b[0] - d) / cell); cx <= Math.floor((b[2] + d) / cell); cx++)
+      for (let cy = Math.floor((b[1] - d) / cell); cy <= Math.floor((b[3] + d) / cell); cy++) emit(cx, cy, i);
   }));
 }
 // las lineas (calles) van solo en las celdas por donde pasan, con su margen: con su rectangulo completo, una
@@ -237,7 +237,8 @@ function gridLineas(items, cell, pad) {
 }
 const roadPad = (r) => (r.w / 2 + 3) * M; // el mismo margen que su caja (r.bb)
 const chunkRoads = gridLineas(roads, CHUNK, roadPad);
-const chunkAreas = gridIndex(areas, CHUNK, 'bb');
+// el pasto con margen: su orilla (ver orillaPasto) se sale unos pixeles del poligono
+const chunkAreas = gridIndex(areas, CHUNK, 'bb', a => (a.k === 0 || a.k === 1 ? 10 : 0));
 const BCELL = 64;
 
 // ---------- edificios por regiones ----------
@@ -1787,6 +1788,54 @@ function pintarArroyo(ctx, r) {
   tr(w * 0.3, areaFill(ctx, AREA_AGUA)); tr(w * 0.3, AGUA_CANAL);
   ctx.restore();
 }
+// orilla del pasto: que no acabe en una raya derecha. Por fuera, un halo de tierra pisada y pasto seco; por
+// dentro, el borde un poco mas seco; y sobre la raya, matitas del mismo pasto que se salen y unas hojitas
+// sueltas hacia afuera. Todo sale del numero del lado del poligono, asi que los trozos vecinos casan
+const ORILLA_PASTO = 9;
+function ladosPasto(a, idx, X0, Y0, X1, Y1, fn) {
+  const p = a.p, n = p.length / 2, m = ORILLA_PASTO;
+  for (let i = 0; i < n; i++) {
+    const ax = p[i * 2], ay = p[i * 2 + 1], j = (i + 1) % n, bx = p[j * 2], by = p[j * 2 + 1];
+    if (Math.max(ax, bx) < X0 - m || Math.min(ax, bx) > X1 + m || Math.max(ay, by) < Y0 - m || Math.min(ay, by) > Y1 + m) continue;
+    const len = Math.hypot(bx - ax, by - ay); if (len < 0.5) continue;
+    fn(ax, ay, (bx - ax) / len, (by - ay) / len, len, mulberry(idx * 7919 + i * 31 + 5));
+  }
+}
+function haloPasto(ctx, a) {
+  ctx.lineJoin = 'round';
+  trace(ctx, a.p, true);
+  ctx.lineWidth = 9; ctx.strokeStyle = 'rgba(120,112,72,0.22)'; ctx.stroke();
+  ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(105,110,60,0.28)'; ctx.stroke();
+}
+function orillaPasto(ctx, a, idx, X0, Y0, X1, Y1) {
+  if (a.giro === undefined) { let s = 0; const p = a.p; for (let i = 0, n = p.length; i < n; i += 2) { const j = (i + 2) % n; s += p[i] * p[j + 1] - p[j] * p[i + 1]; } a.giro = s > 0 ? 1 : -1; }
+  const g = a.giro; // la normal hacia afuera de un lado (ux,uy) es (uy,-ux)*g en coordenadas de pantalla
+  // por dentro: el borde mas seco y un poco mas oscuro justo en la raya
+  ctx.save(); trace(ctx, a.p, true); ctx.clip(); ctx.lineJoin = 'round';
+  ctx.lineWidth = 7; ctx.strokeStyle = 'rgba(160,150,80,0.16)'; ctx.stroke();
+  ctx.lineWidth = 2.4; ctx.strokeStyle = 'rgba(30,45,15,0.18)'; ctx.stroke();
+  ctx.restore();
+  // matitas: circulitos del pasto encima de la raya, unos salidos y otros mordidos hacia adentro
+  ctx.beginPath();
+  const hojasO = new Path2D(), hojasC = new Path2D();
+  ladosPasto(a, idx, X0, Y0, X1, Y1, (ax, ay, ux, uy, len, rnd) => {
+    const nx = uy * g, ny = -ux * g;
+    for (let t = rnd() * 2.5; t < len; t += 1.6 + rnd() * 2.2) {
+      const o = (rnd() - 0.35) * 2.6, r = 0.9 + rnd() * 1.7, x = ax + ux * t + nx * o, y = ay + uy * t + ny * o;
+      ctx.moveTo(x + r, y); ctx.arc(x, y, r, 0, 7);
+      // hojitas que se asoman: casi derecho hacia afuera, ladeadas al azar
+      if (rnd() < 0.8) {
+        const l = 1.4 + rnd() * 2.4, d = (rnd() - 0.5) * 1.4, c = Math.cos(d), s = Math.sin(d);
+        const hx = nx * c - ny * s, hy = nx * s + ny * c, bx = ax + ux * (t + rnd() * 1.5) + nx * (o + r * 0.5), by = ay + uy * (t + rnd()) + ny * (o + r * 0.5);
+        const h = rnd() < 0.55 ? hojasO : hojasC; h.moveTo(bx, by); h.lineTo(bx + hx * l, by + hy * l);
+      }
+    }
+  });
+  ctx.fillStyle = areaFill(ctx, a.k); ctx.fill();
+  ctx.lineCap = 'round'; ctx.lineWidth = 0.6;
+  ctx.strokeStyle = 'rgba(35,65,20,0.55)'; ctx.stroke(hojasO);
+  ctx.strokeStyle = 'rgba(150,180,85,0.5)'; ctx.stroke(hojasC);
+}
 function* chunkSteps(cx, cy) {
   const cv = document.createElement('canvas'); cv.width = cv.height = (CHUNK + 2) * RES;
   const ctx = cv.getContext('2d', CTX2D);
@@ -1795,8 +1844,14 @@ function* chunkSteps(cx, cy) {
   const k = GK(cx, cy);
   // el agua va encima de las demas areas (en el mapa a veces se enciman con el canal); los arroyos al ultimo,
   // menos dentro de los canales (ahi ya esta el agua)
-  const ar = Array.from(chunkAreas.get(k) || [], i => areas[i]), canales = ar.filter(a => a.canal);
+  const ia = Array.from(chunkAreas.get(k) || []), ar = ia.map(i => areas[i]), canales = ar.filter(a => a.canal);
+  const X0 = cx * CHUNK, Y0 = cy * CHUNK, X1 = X0 + CHUNK, Y1 = Y0 + CHUNK, pasto = a => a.k === 0 || a.k === 1;
+  // los halos del pasto antes que todas las areas: solo se ven sobre la tierra pelona
+  for (const a of ar) if (pasto(a)) haloPasto(ctx, a);
   for (const a of ar) if (a.k !== AREA_AGUA) { ctx.fillStyle = areaFill(ctx, a.k); trace(ctx, a.p, true); ctx.fill(); }
+  let hay = false;
+  ar.forEach((a, n) => { if (pasto(a)) { orillaPasto(ctx, a, ia[n], X0, Y0, X1, Y1); hay = true; } });
+  if (hay) yield; // las orillas del pasto cuestan un par de milisegundos en el celular: lo demas en otro cuadro
   for (const a of ar) if (a.k === AREA_AGUA && !a.canal) { ctx.fillStyle = areaFill(ctx, a.k); trace(ctx, a.p, true); ctx.fill(); }
   for (const a of canales) pintarCanal(ctx, a);
   const arroyos = Array.from(chunkRoads.get(k) || [], i => roads[i]).filter(r => r.c === 11);
@@ -8366,7 +8421,7 @@ async function start() {
     scene: [Main], fps: { target: 60, smoothStep: false },
   });
   window.addEventListener('resize', () => game.scale.resize(window.innerWidth * DPR, window.innerHeight * DPR));
-  window.TJGTA = game; game.dbg = { VENDEDORES, GARITAS, filaSlots, chunkFila, enComida, comidaGrid, walkG, edgePos, pasoBanqueta, SOBRERUEDAS, tianguis, puestos, chunkPuestos, pintarPuesto, walkTianguis, enSobreruedas, findRoute, ESCENAS, tocaChoque, WORLD_W, WORLD_H, regiones, esperarRegiones, chunkBlds, miniCuadros, miniVista, borderY, INICIO, traffic, nextEdge, arboles, arbolVa, arbolEn, bajoTecho, chinas, VTYPES, vehicleTexture, state, drawChunk, chunkSteps, areaFill, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, walkableTo, waterAreas, roads, PED_VARIANTS };
+  window.TJGTA = game; game.dbg = { VENDEDORES, GARITAS, filaSlots, chunkFila, enComida, comidaGrid, walkG, edgePos, pasoBanqueta, SOBRERUEDAS, tianguis, puestos, chunkPuestos, pintarPuesto, walkTianguis, enSobreruedas, findRoute, ESCENAS, tocaChoque, WORLD_W, WORLD_H, regiones, esperarRegiones, chunkBlds, miniCuadros, miniVista, borderY, INICIO, traffic, nextEdge, arboles, arbolVa, arbolEn, bajoTecho, chinas, VTYPES, vehicleTexture, state, drawChunk, chunkSteps, areaFill, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, walkableTo, waterAreas, roads, areas, PED_VARIANTS };
 }
 $('go').addEventListener('click', start);
 
