@@ -3913,6 +3913,27 @@ function enComida(x, y, pad = 0) {
   }
   return false;
 }
+// el siguiente paso de alguien que camina por la banqueta (gente y perros: o.e, o.s, o.dir, o.side) queda en tmp.
+// Si ahi hay un puesto de tacos o un cafe, lo rodea corriendose de lado (o.desv) y al pasarlo regresa poco a poco a
+// su carril. Devuelve false si no hay por donde (o algo mas lo tapa): entonces se da la vuelta
+const pasoQ = {};
+function pasoBanqueta(o, tmp) {
+  const d0 = o.desv || 0;
+  // libre a ese lado: donde va a pisar, un poco adelante (para hacerse a un lado a tiempo) y un poco atras (donde
+  // todavia va su cuerpo, que sigue al punto con retraso: no corta la esquina)
+  const libre = (lat) => {
+    for (const ds of [0, 10, -10]) { edgePos(o.e, Math.max(0, Math.min(o.e.len, o.s + ds)), o.dir, lat, pasoQ); if (enComida(pasoQ.x, pasoQ.y, 2) || (!ds && blocked(pasoQ.x, pasoQ.y))) return false; }
+    return true;
+  };
+  const ir = (lat) => { o.desv = lat - o.side; edgePos(o.e, o.s, o.dir, lat, tmp); return true; };
+  edgePos(o.e, o.s, o.dir, o.side + d0, tmp);
+  if (blocked(o.x, o.y) || enComida(o.x, o.y, 0)) return true; // ya estaba atorado o encima de un puesto: que se salga
+  if (d0) { const nd = Math.abs(d0) <= 1 ? 0 : d0 - Math.sign(d0); if (libre(o.side + nd)) return ir(o.side + nd); } // de regreso a su carril
+  if (libre(o.side + d0)) return true;
+  if (blocked(tmp.x, tmp.y) && !enComida(tmp.x, tmp.y, 2)) return false; // lo tapa otra cosa (como antes)
+  for (const k of [5, -5, 10, -10, 15, -15, 20, -20, 26, -26, 32, -32, 40, -40]) if (libre(o.side + d0 + k)) return ir(o.side + d0 + k);
+  return false;
+}
 // pines de las taquerias y cafes que te faltan: gota de color con borde blanco, brillo y el emoji adentro
 // ('pinTaco', 'pinCafe'; PIN_W x PIN_H px del mundo, la punta abajo al centro)
 const PIN_W = 20, PIN_H = 27;
@@ -5388,7 +5409,7 @@ class Main extends Phaser.Scene {
       const side = e.c >= 8 ? rnd(-3, 3) : (Math.random() < 0.5 ? 1 : -1) * (e.w / 2 + rnd(0.6, 2.2) * M);
       const ped = { e, dir: Math.random() < 0.5 ? 1 : -1, s: rnd(0, e.len), side, speed: rnd(14, 26), st: 'walk', t: 0, x: 0, y: 0, a: 0 };
       edgePos(e, ped.s, ped.dir, ped.side, ped);
-      if (blocked(ped.x, ped.y) || !regionesListas(ped.x, ped.y, ped.x, ped.y) || (!initial && inView(ped.x, ped.y))) continue;
+      if (blocked(ped.x, ped.y) || enComida(ped.x, ped.y, 2) || !regionesListas(ped.x, ped.y, ped.x, ped.y) || (!initial && inView(ped.x, ped.y))) continue;
       ped.sprite = this.walker(ped.x, ped.y, ped.speed / 20);
       ped.speed *= ped.sprite.pace; ped.tipo = ped.sprite.tipo;
       this.peds.push(ped);
@@ -5429,7 +5450,7 @@ class Main extends Phaser.Scene {
       const side = e.c >= 8 ? rnd(-3, 3) : (Math.random() < 0.5 ? 1 : -1) * (e.w / 2 + rnd(0.6, 2.2) * M);
       const d = { e, dir: Math.random() < 0.5 ? 1 : -1, s: rnd(0, e.len), side, speed: rnd(20, 34), st: 'walk', t: rnd(3, 8), x: 0, y: 0, a: 0 };
       edgePos(e, d.s, d.dir, d.side, d);
-      if (blocked(d.x, d.y) || !regionesListas(d.x, d.y, d.x, d.y) || (!initial && inView(d.x, d.y))) continue;
+      if (blocked(d.x, d.y) || enComida(d.x, d.y, 2) || !regionesListas(d.x, d.y, d.x, d.y) || (!initial && inView(d.x, d.y))) continue;
       this.perros.push(this.perroSprite(d));
     }
     // gatos en las azoteas de las casas (hasta dos a la vez y no siempre: mas raros que los perros)
@@ -6117,7 +6138,7 @@ class Main extends Phaser.Scene {
         const v = pegado ? 0 : (d.st === 'jauria' ? d.speed : 150) * dt;
         for (const da of [0, 0.6, -0.6, 1.3, -1.3, 2.2, -2.2]) {
           const nx = d.x + Math.cos(a + da) * v, ny = d.y + Math.sin(a + da) * v;
-          if (!blocked(nx, ny)) { d.x = nx; d.y = ny; a += da; break; }
+          if (!blocked(nx, ny) && !(enComida(nx, ny, 1) && !enComida(d.x, d.y, 1))) { d.x = nx; d.y = ny; a += da; break; }
         }
         d.a = a; d.sprite.setPosition(d.x, d.y).setRotation(a);
         if (d.st === 'jauria') {
@@ -6142,8 +6163,7 @@ class Main extends Phaser.Scene {
         if (nx) { d.s -= d.e.len; d.e = nx.e; d.dir = nx.dir; d.side = pedSide(d.e, d.s, d.dir, d.x, d.y, 0.12); }
         else { d.s = 0; d.dir = -d.dir; d.side = -d.side; }
       }
-      edgePos(d.e, d.s, d.dir, d.side, tmp);
-      if (!blocked(tmp.x, tmp.y) || blocked(d.x, d.y)) { d.x += (tmp.x - d.x) * Math.min(1, dt * 10); d.y += (tmp.y - d.y) * Math.min(1, dt * 10); }
+      if (pasoBanqueta(d, tmp)) { d.x += (tmp.x - d.x) * Math.min(1, dt * 10); d.y += (tmp.y - d.y) * Math.min(1, dt * 10); }
       else { d.dir = -d.dir; d.s = d.e.len - d.s; }
       d.a = tmp.a;
       d.sprite.setPosition(d.x, d.y).setRotation(d.a);
@@ -6452,8 +6472,7 @@ class Main extends Phaser.Scene {
         if (nx && (!p.tianguis || nx.e.tianguis)) { p.s -= p.e.len; p.e = nx.e; p.dir = nx.dir; p.side = p.tianguis ? latTianguis(p.e) : pedSide(p.e, p.s, p.dir, p.x, p.y, 0.12); }
         else { p.s = 0; p.dir = -p.dir; p.side = -p.side; }
       }
-      edgePos(p.e, p.s, p.dir, p.side, tmp);
-      if (!blocked(tmp.x, tmp.y) || blocked(p.x, p.y)) { p.x += (tmp.x - p.x) * Math.min(1, dt * 10); p.y += (tmp.y - p.y) * Math.min(1, dt * 10); }
+      if (pasoBanqueta(p, tmp)) { p.x += (tmp.x - p.x) * Math.min(1, dt * 10); p.y += (tmp.y - p.y) * Math.min(1, dt * 10); }
       else { p.dir = -p.dir; p.s = p.e.len - p.s; }
       p.a = tmp.a;
       p.sprite.setPosition(p.x, p.y).setRotation(p.a);
@@ -7998,7 +8017,7 @@ async function start() {
     scene: [Main], fps: { target: 60, smoothStep: false },
   });
   window.addEventListener('resize', () => game.scale.resize(window.innerWidth * DPR, window.innerHeight * DPR));
-  window.TJGTA = game; game.dbg = { enComida, comidaGrid, SOBRERUEDAS, tianguis, puestos, chunkPuestos, pintarPuesto, walkTianguis, enSobreruedas, findRoute, ESCENAS, tocaChoque, WORLD_W, WORLD_H, regiones, esperarRegiones, chunkBlds, miniCuadros, miniVista, borderY, INICIO, traffic, nextEdge, arboles, arbolVa, arbolEn, bajoTecho, chinas, VTYPES, vehicleTexture, state, drawChunk, chunkSteps, areaFill, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, walkableTo, waterAreas, roads, PED_VARIANTS };
+  window.TJGTA = game; game.dbg = { enComida, comidaGrid, walkG, edgePos, pasoBanqueta, SOBRERUEDAS, tianguis, puestos, chunkPuestos, pintarPuesto, walkTianguis, enSobreruedas, findRoute, ESCENAS, tocaChoque, WORLD_W, WORLD_H, regiones, esperarRegiones, chunkBlds, miniCuadros, miniVista, borderY, INICIO, traffic, nextEdge, arboles, arbolVa, arbolEn, bajoTecho, chinas, VTYPES, vehicleTexture, state, drawChunk, chunkSteps, areaFill, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, walkableTo, waterAreas, roads, PED_VARIANTS };
 }
 $('go').addEventListener('click', start);
 
