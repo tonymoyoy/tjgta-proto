@@ -56,7 +56,7 @@ const COL = {
 // 6 vivienda, 7 agua, 8 arena (las trampas del golf)
 const AREA_COL = ['#5f8a3f', '#6a9a48', '#c9bc9f', '#a39a82', '#9b927d', '#a08c66', '#958e7a', '#2f5f7f', '#dcc89a'];
 const AREA_PLAZA = 2, AREA_AGUA = 7, AREA_ARENA = 8;
-const TEX_SENDERO = 'sendero', TEX_BANQUETA = 'banqueta', TEX_ASFALTO = 'asfalto', TEX_TIERRA = 'tierra', TEX_TECHO = 'techo'; // los andadores (clase 9) no son area, pero usan su propia textura
+const TEX_CANAL = 'canal', TEX_SENDERO = 'sendero', TEX_BANQUETA = 'banqueta', TEX_ASFALTO = 'asfalto', TEX_TIERRA = 'tierra', TEX_TECHO = 'techo'; // los andadores (clase 9) no son area, pero usan su propia textura
 const ROOFS = ['#b9a98c', '#c9b89c', '#a39483', '#8f8a84', '#c3a27b', '#d2c5ae', '#9d7c64', '#7f8a90',
   '#b07d62', '#a8a8a0', '#c7b18a', '#8d9a86', '#bfa99a', '#d6cfc0'];
 
@@ -521,6 +521,17 @@ function onAsfalto(x, y, pad) {
 // agua (el canal del rio Tijuana y demas): las areas de agua y la linea del rio. Como con los edificios,
 // la franja de una calle encima (los puentes) si se puede pasar
 const waterAreas = areas.filter(a => a.k === AREA_AGUA);
+// los canales (el del rio Tijuana, el Alamar y los arroyos entubados): las aguas largas, angostas y mas o menos
+// derechas (no el mar, la presa ni los estanques). Se pintan como canalizacion de concreto (ver pintarCanal):
+// la barda, el talud (b px) y el piso (f px), y el agua nomas en medio
+for (const a of waterAreas) {
+  const p = a.p, n = p.length;
+  let A = 0, P = 0;
+  for (let i = 0; i < n; i += 2) { const j = (i + 2) % n; A += p[i] * p[j + 1] - p[j] * p[i + 1]; P += Math.hypot(p[j] - p[i], p[j + 1] - p[i + 1]); }
+  A = Math.abs(A) / 2;
+  const W = 2 * A / P, largo = P * P / (4 * Math.PI * A), derecho = Math.hypot(a.bb[2] - a.bb[0], a.bb[3] - a.bb[1]) / (P / 2);
+  if (largo >= 5 && W < 700 && derecho >= 0.6) a.canal = { b: Math.max(5, Math.min(45, W * 0.16)), f: Math.max(3, Math.min(80, W * 0.18)) };
+}
 const WCELL = 256; // celdas grandes: los poligonos de agua son pocos pero enormes
 const waterGrid = gridIndex(waterAreas, WCELL, 'bb');
 // los rios y arroyos (lineas de clase 11): sus tramos en un arreglo (x0 y0 x1 y1) y en una rejilla densa, como las calles
@@ -1317,6 +1328,24 @@ function banquetaTile(base) {
     }
   });
 }
+// concreto del canal: manchas de humedad y de lama, puntitos y una que otra grieta
+function canalTile(base) {
+  return texTile(base, (x, rnd, wrap, mancha) => {
+    mancha(16, 10, 34, ['rgba(70,75,60,0.16)', 'rgba(250,248,240,0.16)', 'rgba(90,110,70,0.10)']);
+    for (let i = 0; i < 1400; i++) {
+      const px = rnd() * TEX, py = rnd() * TEX;
+      x.fillStyle = rnd() < 0.5 ? 'rgba(70,68,60,0.30)' : 'rgba(250,248,240,0.30)';
+      wrap(px, py, 1, (X, Y) => x.fillRect(X, Y, 0.45, 0.45));
+    }
+    x.lineCap = 'round';
+    for (let i = 0; i < 5; i++) {
+      let px = rnd() * TEX, py = rnd() * TEX; const a0 = rnd() * 7, seg = [];
+      for (let k = 0; k <= 5; k++) { seg.push([px, py]); const a = a0 + (rnd() - 0.5) * 1.2; px += Math.cos(a) * 3; py += Math.sin(a) * 3; }
+      wrap(seg[0][0], seg[0][1], 20, (X, Y) => { x.strokeStyle = 'rgba(55,52,45,0.4)'; x.lineWidth = 0.4; x.beginPath();
+        for (const [qx, qy] of seg) x.lineTo(X + qx - seg[0][0], Y + qy - seg[0][1]); x.stroke(); });
+    }
+  });
+}
 // asfalto: piedrita fina clara y oscura y tonos que van y vienen (las manchas, grietas y baches van aparte)
 function asfaltoTile(base) {
   return texTile(base, (x, rnd, wrap, mancha) => {
@@ -1377,13 +1406,13 @@ function techoTile() {
 let TEXTURAS = null; const PATRONES = {};
 // relleno para un tipo de area (o null si va de color parejo); el patron se escala para medir TEX px del mundo
 const SIN_TEXTURAS = (() => { try { return localStorage.getItem('tjrush-texturas') === 'no'; } catch (e) { return false; } })();
-const PLANO = { [TEX_SENDERO]: COL.footway, [TEX_BANQUETA]: COL.sidewalk, [TEX_ASFALTO]: COL.asphalt, [TEX_TIERRA]: COL.ground };
+const PLANO = { [TEX_CANAL]: '#b2ab9e', [TEX_SENDERO]: COL.footway, [TEX_BANQUETA]: COL.sidewalk, [TEX_ASFALTO]: COL.asphalt, [TEX_TIERRA]: COL.ground };
 function areaFill(ctx, k) {
   if (SIN_TEXTURAS) return PLANO[k] || AREA_COL[k];
   if (!TEXTURAS) TEXTURAS = { 0: grassTile(AREA_COL[0]), 1: grassTile(AREA_COL[1]), [AREA_AGUA]: waterTile(COL.water), [AREA_ARENA]: sandTile(AREA_COL[AREA_ARENA]),
     [AREA_PLAZA]: plazaTile(AREA_COL[AREA_PLAZA]), [TEX_SENDERO]: senderoTile(COL.footway),
     [TEX_BANQUETA]: banquetaTile(COL.sidewalk), [TEX_ASFALTO]: asfaltoTile(COL.asphalt),
-    [TEX_TIERRA]: tierraTile(COL.ground), [TEX_TECHO]: techoTile(), 3: tierraTile(AREA_COL[3]), 4: tierraTile(AREA_COL[4]), 5: tierraTile(AREA_COL[5]), 6: tierraTile(AREA_COL[6]) };
+    [TEX_TIERRA]: tierraTile(COL.ground), [TEX_CANAL]: canalTile('#b2ab9e'), [TEX_TECHO]: techoTile(), 3: tierraTile(AREA_COL[3]), 4: tierraTile(AREA_COL[4]), 5: tierraTile(AREA_COL[5]), 6: tierraTile(AREA_COL[6]) };
   const t = TEXTURAS[k]; if (!t) return AREA_COL[k];
   // un patron por textura, hecho una sola vez y compartido por todos los trozos (un patron sirve en cualquier lienzo)
   let p = PATRONES[k];
@@ -1700,13 +1729,67 @@ function pintarPuesto(ctx, p) {
   ctx.strokeRect(-L, lv0, p.l, lv1 - lv0);
   ctx.restore();
 }
+// un canal (ver waterAreas): desde la orilla hacia adentro, la barda, el talud de concreto (claro arriba, oscuro
+// abajo, con la sombra de la barda del lado de arriba a la izquierda, como la de los edificios), el piso de
+// concreto con su humedad y en medio el hilo de agua verdosa. Todo es la misma figura con trazos cada vez mas
+// delgados recortados al poligono: el grueso de un trazo pinta hasta su mitad hacia adentro
+const AGUA_CANAL = 'rgba(70,115,85,0.32)', ORILLA = 'rgba(45,38,30,0.6)', BARDA = '#d8d2c6';
+function pintarCanal(ctx, a) {
+  const { b, f } = a.canal, conc = areaFill(ctx, TEX_CANAL);
+  ctx.save(); ctx.lineJoin = 'round';
+  trace(ctx, a.p, true); ctx.clip();
+  ctx.fillStyle = areaFill(ctx, AREA_AGUA); ctx.fill(); ctx.fillStyle = AGUA_CANAL; ctx.fill();
+  const tr = (w, col) => { ctx.lineWidth = w; ctx.strokeStyle = col; ctx.stroke(); };
+  tr(2 * (b + f) + 3, 'rgba(225,235,225,0.35)'); // la orilla del agua, bajita
+  tr(2 * (b + f) + 1.5, 'rgba(40,50,40,0.5)');
+  tr(2 * (b + f), conc); tr(2 * (b + f), 'rgba(55,65,50,0.24)'); // el piso, humedo
+  tr(2 * b + 2, 'rgba(0,0,0,0.28)'); // el pie del talud
+  tr(2 * b, conc);
+  for (const [k, al] of [[0.75, 0.09], [0.5, 0.09], [0.25, 0.1]]) tr(2 * b * k, 'rgba(255,253,245,' + al + ')'); // el talud aclara hacia arriba
+  // la sombra de la barda: lo que queda dentro del canal pero fuera del canal corrido hacia abajo a la derecha
+  const sx = Math.min(6, b * 0.5 + 2), sy = sx * 1.2;
+  ctx.beginPath(); ctx.rect(a.bb[0] - 10, a.bb[1] - 10, a.bb[2] - a.bb[0] + 20, a.bb[3] - a.bb[1] + 20);
+  ctx.moveTo(a.p[0] + sx, a.p[1] + sy); for (let i = 2; i < a.p.length; i += 2) ctx.lineTo(a.p[i] + sx, a.p[i + 1] + sy); ctx.closePath();
+  ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fill('evenodd');
+  trace(ctx, a.p, true); tr(7, 'rgba(40,35,30,0.25)'); tr(5, BARDA);
+  ctx.restore();
+  trace(ctx, a.p, true); ctx.lineWidth = 1; ctx.strokeStyle = ORILLA; ctx.stroke();
+}
+// los arroyos (lineas de clase 11) tambien van entubados: la barda, el talud, el piso y el hilo de agua
+function pintarArroyo(ctx, r) {
+  const w = r.w * M;
+  ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  trace(ctx, r.p);
+  const tr = (k, col) => { ctx.lineWidth = k; ctx.strokeStyle = col; ctx.stroke(); };
+  tr(w + 1.5, ORILLA); tr(w, BARDA); tr(w - 3, areaFill(ctx, TEX_CANAL));
+  tr(w * 0.82, 'rgba(255,253,245,0.07)'); tr(w * 0.62 + 1.5, 'rgba(0,0,0,0.22)'); tr(w * 0.62, 'rgba(60,70,55,0.18)');
+  tr(w * 0.3 + 2, 'rgba(225,235,225,0.3)'); tr(w * 0.3 + 0.8, 'rgba(40,50,40,0.5)');
+  tr(w * 0.3, areaFill(ctx, AREA_AGUA)); tr(w * 0.3, AGUA_CANAL);
+  ctx.restore();
+}
 function* chunkSteps(cx, cy) {
   const cv = document.createElement('canvas'); cv.width = cv.height = (CHUNK + 2) * RES;
   const ctx = cv.getContext('2d', CTX2D);
   ctx.scale(RES, RES); ctx.translate(1 - cx * CHUNK, 1 - cy * CHUNK);
   ctx.fillStyle = areaFill(ctx, TEX_TIERRA); ctx.fillRect(cx * CHUNK - 1, cy * CHUNK - 1, CHUNK + 2, CHUNK + 2);
   const k = GK(cx, cy);
-  for (const i of chunkAreas.get(k) || []) { const a = areas[i]; ctx.fillStyle = areaFill(ctx, a.k); trace(ctx, a.p, true); ctx.fill(); }
+  // el agua va encima de las demas areas (en el mapa a veces se enciman con el canal); los arroyos al ultimo,
+  // menos dentro de los canales (ahi ya esta el agua)
+  const ar = Array.from(chunkAreas.get(k) || [], i => areas[i]), canales = ar.filter(a => a.canal);
+  for (const a of ar) if (a.k !== AREA_AGUA) { ctx.fillStyle = areaFill(ctx, a.k); trace(ctx, a.p, true); ctx.fill(); }
+  for (const a of ar) if (a.k === AREA_AGUA && !a.canal) { ctx.fillStyle = areaFill(ctx, a.k); trace(ctx, a.p, true); ctx.fill(); }
+  for (const a of canales) pintarCanal(ctx, a);
+  const arroyos = Array.from(chunkRoads.get(k) || [], i => roads[i]).filter(r => r.c === 11);
+  if (arroyos.length) {
+    ctx.save();
+    if (canales.length) {
+      ctx.beginPath(); ctx.rect(cx * CHUNK - 2, cy * CHUNK - 2, CHUNK + 4, CHUNK + 4);
+      for (const a of canales) { ctx.moveTo(a.p[0], a.p[1]); for (let i = 2; i < a.p.length; i += 2) ctx.lineTo(a.p[i], a.p[i + 1]); ctx.closePath(); }
+      ctx.clip('evenodd');
+    }
+    for (const r of arroyos) pintarArroyo(ctx, r);
+    ctx.restore();
+  }
   for (const e of chunkEst.get(k) || []) pintarEstacionamiento(ctx, e);
   const sl = chunkSuelo.get(k) || [];
   for (const e of sl) pintarSuelo(ctx, e);
@@ -1724,7 +1807,6 @@ function* chunkSteps(cx, cy) {
   const ground = rs;
   // debajo de los edificios: agua, andadores y vias del tren
   const under = (list) => {
-    pass(list, r => r.w * M, areaFill(ctx, AREA_AGUA), r => r.c === 11);
     pass(list, r => r.w * M, r => areaFill(ctx, r.c === 8 ? AREA_PLAZA : TEX_SENDERO), r => r.c === 8 || r.c === 9);
     pass(list, () => 3 * M, COL.rail, r => r.c === 10);
     ctx.setLineDash([2, 6]); pass(list, () => 3 * M, '#3a2d22', r => r.c === 10);
