@@ -665,6 +665,95 @@ function buildGraph(filter, oneways) {
 }
 const inMx = (r) => { const p = r.p; for (let i = 0; i < p.length; i += 2) if (p[i + 1] < borderY(p[i]) + 30) return false; return true; };
 const traffic = buildGraph(r => r.c <= 6 && !(r.f & 4) && inMx(r), true);
+// ---------- sobreruedas ----------
+// Los mercados sobre ruedas de Tijuana en la calle donde se ponen (SanDiegoRed, Noro, ZETA). En la realidad cada uno
+// es un dia o dos a la semana; aqui estan siempre. La calle queda cerrada a los carros (fuera del trafico y de las
+// rutas, con vallas donde cruza otra calle) pero se camina: puestos con lona a los lados y la gente comprando en medio.
+// cerca: un punto junto a la calle (px); largo: cuanto ocupa (m), centrado ahi
+const SOBRERUEDAS = [
+  { k: 'zonaNorte', nombre: 'Sobreruedas de la Zona Norte', calle: 'Avenida Miguel F. Martínez', cerca: [46800, 14300], largo: 400,
+    dato: 'En la vida real, sábados y domingos, de la calle Primera rumbo a la línea.' },
+  { k: 'villa', nombre: 'Sobreruedas de la Villa', calle: 'Avenida Antonio Villareal', cerca: [39600, 30700], largo: 500,
+    dato: 'En la colonia Francisco Villa. En la vida real, los domingos (llega temprano).' },
+  { k: 'playas', nombre: 'Sobreruedas de Playas', calle: 'Calle Paseo del Pedregal', cerca: [9530, 30500], largo: 300,
+    dato: 'En la vida real, los lunes en Playas de Tijuana.' },
+  { k: 'bellasArtes', nombre: 'Sobreruedas de Otay Bellas Artes', calle: 'Boulevard de las Bellas Artes', cerca: [97300, 11720], largo: 500,
+    dato: 'De los más grandes: va de la garita de Otay rumbo al bulevar Internacional. En la vida real, los domingos.' },
+  { k: 'modulos', nombre: 'Sobreruedas de Otay Módulos', calle: 'Avenida Sor Juana Inés de la Cruz', cerca: [101700, 8700], largo: 400,
+    dato: 'En la vida real, los domingos desde las 6 de la mañana.' },
+  { k: 'florido', nombre: 'Sobreruedas de El Florido', calle: 'Calle del Saucillo', cerca: [143000, 49300], largo: 450,
+    dato: 'En la vida real, lunes, jueves y fines de semana (el fin es cuando más se llena).' },
+  { k: 'curva', nombre: 'Sobreruedas de La Curva', calle: 'Calle Ruta Mariano Matamoros', cerca: [126000, 48000], largo: 600,
+    dato: 'Por la Curva del Mariano Matamoros, rumbo al Pípila y Villa Fontana. En la vida real, los domingos.' },
+  { k: 'taboada', nombre: 'Sobreruedas de la Sánchez Taboada', calle: 'Calle Cruz del Sur', cerca: [78200, 52800], largo: 400,
+    dato: 'En la colonia Sánchez Taboada, sobre la Cruz del Sur.' },
+];
+const PUESTO_D = 2.6 * M;     // fondo de un puesto (lo ancho es lo que mide a lo largo de la calle)
+const tianguis = [];          // tramos cerrados (de traffic): { e, t0, t1, sr } (t0..t1: lo que va de esquina a esquina)
+const puestos = [];           // puestos y vallas: { x, y, a, l, d, cara, seed, valla, bb }
+{
+  const porNodo = new Map(), add = (n, e) => { let a = porNodo.get(n); if (!a) porNodo.set(n, a = []); a.push(e); };
+  for (const e of traffic.edges) { add(e.a, e); add(e.b, e); }
+  const tmp = {};
+  for (const sr of SOBRERUEDAS) {
+    const R = sr.largo / 2 * M, mios = traffic.edges.filter(e => D.names[e.n] === sr.calle);
+    // el punto de la calle mas cercano a 'cerca'
+    let bd = 1e9;
+    for (const e of mios) for (let q = 0; q < e.p.length; q += 2) { const d = Math.hypot(e.p[q] - sr.cerca[0], e.p[q + 1] - sr.cerca[1]); if (d < bd) { bd = d; sr.x = e.p[q]; sr.y = e.p[q + 1]; } }
+    sr.R = R; sr.tramos = [];
+    if (bd > 300) { console.warn('sobreruedas sin calle', sr.k); continue; }
+    for (const e of mios) { edgePos(e, e.len / 2, 1, 0, tmp); if (Math.hypot(tmp.x - sr.x, tmp.y - sr.y) < R && !e.cerrada) { e.cerrada = sr; sr.tramos.push(e); } }
+  }
+  // donde da a una calle abierta se corta (el cruce queda libre) y se pone una valla
+  const corte = (n) => { let w = 0; for (const o of porNodo.get(n)) if (!o.cerrada) w = Math.max(w, o.w); return w ? w / 2 + 3 * M : 0; };
+  for (const e of traffic.edges) {
+    if (!e.cerrada) continue;
+    const t0 = corte(e.a), t1 = e.len - corte(e.b);
+    if (t1 - t0 < 6 * M) continue;
+    const T = { e, t0, t1, sr: e.cerrada }, rnd0 = mulberry(e.id * 7919 + 13);
+    tianguis.push(T);
+    // las vallas: de banqueta a banqueta
+    for (const [t, lado] of [[t0, 1], [t1, -1]]) {
+      if (t <= 0 || t >= e.len) continue;
+      edgePos(e, t + lado * M, 1, 0, tmp);
+      const h = e.w / 2 + SIDEWALK * M;
+      puestos.push({ x: tmp.x, y: tmp.y, a: tmp.a, l: h * 2, valla: true, seed: (rnd0() * 1e9) | 0, bb: [tmp.x - h, tmp.y - h, tmp.x + h, tmp.y + h] });
+    }
+    // filas de puestos en las orillas del asfalto viendo hacia en medio; en las avenidas anchas, otra doble en medio
+    const lats = [e.w / 2 - PUESTO_D / 2 - 0.3 * M, -(e.w / 2 - PUESTO_D / 2 - 0.3 * M)];
+    if (e.w >= 15 * M) lats.push(PUESTO_D / 2 + 0.2 * M, -(PUESTO_D / 2 + 0.2 * M));
+    for (const lat of lats) {
+      let t = t0 + 1.5 * M;
+      for (;;) {
+        const l = (3 + rnd0() * 1.6) * M;
+        if (t + l > t1 - 1.5 * M) break;
+        if (rnd0() < 0.08) { t += 3 * M; continue; } // un hueco: por ahi se pasa a la banqueta
+        edgePos(e, t + l / 2, 1, lat, tmp);
+        const c = Math.abs(lat) < e.w / 4 ? Math.sign(lat) : -Math.sign(lat); // hacia donde ve: al pasillo
+        puestos.push({ x: tmp.x, y: tmp.y, a: tmp.a, l, d: PUESTO_D, cara: c, seed: (rnd0() * 1e9) | 0, bb: [tmp.x - 12, tmp.y - 12, tmp.x + 12, tmp.y + 12] });
+        t += l + rnd0() * 0.6 * M;
+      }
+    }
+  }
+  for (const A of traffic.adj) for (let i = A.length - 1; i >= 0; i--) if (A[i].e.cerrada) A.splice(i, 1);
+}
+const chunkPuestos = new Map();
+for (const p of puestos) gridAdd(chunkPuestos, p, p.bb, CHUNK);
+// lo cerrado a los carros: el asfalto y las banquetas de los tramos, de valla a valla (tramitos de x0 y0 x1 y1 media-franja)
+const TCERR = 128, cerrGrid = new Map();
+for (const T of tianguis) {
+  const e = T.e, h = e.w / 2 + SIDEWALK * M, a = {}, b = {}, n = Math.max(1, Math.ceil((T.t1 - T.t0) / 10));
+  for (let i = 0; i < n; i++) {
+    edgePos(e, T.t0 + (T.t1 - T.t0) * i / n, 1, 0, a); edgePos(e, T.t0 + (T.t1 - T.t0) * (i + 1) / n, 1, 0, b);
+    const sg = [a.x, a.y, b.x, b.y, h];
+    gridAdd(cerrGrid, sg, [Math.min(a.x, b.x) - h, Math.min(a.y, b.y) - h, Math.max(a.x, b.x) + h, Math.max(a.y, b.y) + h], TCERR);
+  }
+}
+function enSobreruedas(x, y) {
+  const a = cerrGrid.get(GK(Math.floor(x / TCERR), Math.floor(y / TCERR))); if (!a) return false;
+  for (const g of a) if (segDist(x, y, g[0], g[1], g[2], g[3]) < g[4]) return true;
+  return false;
+}
 // calles de las que el trafico ya no podria salir (un sentido que acaba en nada, cachitos sueltos): se buscan las
 // componentes fuertemente conexas (Tarjan sin recursion) y los tramos fuera de las grandes quedan como trampa.
 // Ahi no aparecen carros ni se meten (el jugador si puede entrar)
@@ -688,11 +777,27 @@ const traffic = buildGraph(r => r.c <= 6 && !(r.f & 4) && inMx(r), true);
     }
   }
   g.trampas = 0;
-  for (const e of g.edges) if ((e.trampa = comp[e.a] !== comp[e.b] || size[comp[e.a]] < 40)) g.trampas++;
+  for (const e of g.edges) if ((e.trampa = comp[e.a] !== comp[e.b] || size[comp[e.a]] < 40 || !!e.cerrada)) g.trampas++;
 })(traffic);
 // andadores (clases 8 y 9) que quedan dentro de una calle ya ensanchada se ignoran: si no, la gente camina sobre el asfalto
 const footwayOnRoad = (r) => { let n = 0; for (let i = 0; i < r.p.length; i += 2) if (onRoad(r.p[i], r.p[i + 1])) n++; return n * 2 > r.p.length / 3; };
 const walkG = buildGraph(r => r.c >= 2 && r.c <= 9 && r.c !== 7 && inMx(r) && !(r.c >= 8 && footwayOnRoad(r)), false);
+// los tramos para caminar que van por un sobreruedas (ahi aparece la gente que va de compras)
+const walkTianguis = [];
+{
+  const t = {};
+  for (const e of walkG.edges) {
+    if (e.c > 6) continue;
+    edgePos(e, e.len / 2, 1, 0, t);
+    if (enSobreruedas(t.x, t.y)) { e.tianguis = true; walkTianguis.push(e); }
+  }
+}
+// por donde camina la gente en un sobreruedas: en los pasillos, entre las filas de puestos
+function latTianguis(e) {
+  const fuera = e.w / 2 - PUESTO_D - 0.8 * M;
+  if (e.w >= 15 * M) { const dentro = PUESTO_D + 0.8 * M; return (Math.random() < 0.5 ? 1 : -1) * rnd(dentro, Math.max(dentro, fuera)); }
+  return rnd(-fuera, fuera);
+}
 // desplazamiento lateral de un peaton: en la banqueta del lado mas cercano a (x, y);
 // con probabilidad `cross` elige la banqueta de enfrente (cruza la calle)
 function pedSide(e, s, dir, x, y, cross) {
@@ -783,7 +888,7 @@ for (const e of traffic.edges) {
 // ---------- ruta al destino (la linea tenue de puntos de las entregas, el taxi y el destino marcado) ----------
 // se usa la red del trafico pero en los dos sentidos: en moto o a pie nadie respeta los sentidos
 const routeAdj = Array.from({ length: traffic.nN }, () => []);
-for (const e of traffic.edges) { routeAdj[e.a].push({ e, to: e.b, dir: 1 }); routeAdj[e.b].push({ e, to: e.a, dir: -1 }); }
+for (const e of traffic.edges) if (!e.cerrada) { routeAdj[e.a].push({ e, to: e.b, dir: 1 }); routeAdj[e.b].push({ e, to: e.a, dir: -1 }); }
 // el punto de la red mas cercano a (x, y): solo se buscan las celdas de alrededor
 function nearEdge(g, x, y) {
   const cx = Math.floor(x / g.GC), cy = Math.floor(y / g.GC);
@@ -1541,6 +1646,60 @@ function esquinaPath(ctx, e, k) {
 }
 // Un trozo se pinta por pasos (generador): asi se reparte en varios cuadros y no da tirones.
 // Las capas de los edificios (bRoof...) se comparten, asi que solo puede haber un trozo a medias a la vez.
+// un puesto del sobreruedas visto desde arriba: la mesa con la mercancia hacia el pasillo y la lona encima del resto;
+// una valla: vallas metalicas de banqueta a banqueta con un cono en cada orilla
+const LONAS_PUESTO = ['#1f6fd1', '#1f6fd1', '#2b88d8', '#d23b3b', '#f0b429', '#2e9e5b', '#ef7d22', '#e64a8a', '#7b4fc0'];
+const MERCANCIA = [
+  ['#d9443a', '#3b7fd1', '#f2f2f2', '#f0c23b', '#4fae5c', '#e27fb0', '#2e2e2e'],   // ropa de paca
+  ['#f28c28', '#e53935', '#7cb342', '#fdd835', '#8e24aa'],                        // fruta y verdura
+  ['#ff5252', '#40c4ff', '#ffeb3b', '#69f0ae', '#e040fb'],                        // juguetes
+  ['#8d9399', '#6b7177', '#a8aeb4', '#c9a227', '#5d4037'],                        // herramienta y fierro viejo
+  ['#f5f5f5', '#212121', '#e53935', '#1e88e5', '#ffb300'],                        // tenis
+  ['#3e7d32', '#558b2f', '#7cb342', '#c0602b', '#e57373'],                        // plantas en maceta
+  ['#c58c4f', '#e8c07a', '#a0522d', '#f3d9a4', '#7a4a2b'],                        // pan, churros y dulces
+  ['#9e9e9e', '#795548', '#607d8b', '#ffc107', '#4caf50', '#e91e63'],             // chacharas
+];
+function pintarPuesto(ctx, p) {
+  const r = mulberry(p.seed);
+  ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.a);
+  if (p.valla) {
+    const h = p.l / 2;
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(-1, -h + 1.5, 3.5, p.l - 3);
+    for (let v = -h + 2, i = 0; v < h - 2; v += 9, i++) {
+      const w = Math.min(8, h - 2 - v);
+      ctx.fillStyle = '#9aa0a6'; ctx.fillRect(-0.8, v, 1.6, w);
+      ctx.strokeStyle = '#c9ced3'; ctx.lineWidth = 0.4; for (let k = v + 1.5; k < v + w; k += 1.5) { ctx.beginPath(); ctx.moveTo(-0.8, k); ctx.lineTo(0.8, k); ctx.stroke(); }
+      ctx.fillStyle = '#5f656b'; ctx.fillRect(-2.2, v, 4.4, 0.9); // las patas
+    }
+    for (const v of [-h + 1.5, h - 1.5]) { ctx.fillStyle = '#ff6d00'; ctx.beginPath(); ctx.arc(-4, v, 1.8, 0, 7); ctx.fill(); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(-4, v, 0.8, 0, 7); ctx.fill(); }
+    ctx.restore(); return;
+  }
+  const L = p.l / 2, Dd = p.d / 2, c = p.cara, mesa = 1.1 * M; // c: de que lado (v) esta el pasillo
+  // sombra
+  ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fillRect(-L + 1.5, -Dd + 1.5, p.l, p.d);
+  // la mesa hacia el pasillo, con la mercancia regada
+  const v0 = c > 0 ? Dd - mesa : -Dd;
+  ctx.fillStyle = '#8a6a48'; ctx.fillRect(-L + 0.6, v0, p.l - 1.2, mesa);
+  const merc = MERCANCIA[(r() * MERCANCIA.length) | 0], tipo = MERCANCIA.indexOf(merc);
+  for (let k = 0, n = Math.round(p.l * 1.2); k < n; k++) {
+    const u = -L + 1.2 + r() * (p.l - 2.4), v = v0 + 0.8 + r() * (mesa - 1.6);
+    ctx.fillStyle = merc[(r() * merc.length) | 0];
+    if (tipo === 1 || tipo === 5 || tipo === 6) { ctx.beginPath(); ctx.arc(u, v, 0.6 + r() * 0.5, 0, 7); ctx.fill(); }
+    else ctx.fillRect(u - 0.8, v - 0.6, 1.2 + r() * 0.8, 0.9 + r() * 0.6);
+  }
+  // cajas y costales atras, debajo de la lona (se asoman por la orilla)
+  ctx.fillStyle = '#b08a5a'; ctx.fillRect(-L + 1 + r() * (p.l - 5), c > 0 ? -Dd - 0.6 : Dd - 2.4, 3, 3);
+  // la lona: del fondo hasta la mitad de la mesa, con su caida y la costura de en medio
+  const col = LONAS_PUESTO[(r() * LONAS_PUESTO.length) | 0], lv0 = c > 0 ? -Dd - 0.5 : -Dd + mesa / 2, lv1 = c > 0 ? Dd - mesa / 2 : Dd + 0.5;
+  ctx.fillStyle = col; ctx.fillRect(-L, lv0, p.l, lv1 - lv0);
+  const g = ctx.createLinearGradient(0, lv0, 0, lv1);
+  g.addColorStop(0, c > 0 ? 'rgba(0,0,0,0.18)' : 'rgba(255,255,255,0.16)'); g.addColorStop(1, c > 0 ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.18)');
+  ctx.fillStyle = g; ctx.fillRect(-L, lv0, p.l, lv1 - lv0);
+  if (r() < 0.35) { ctx.fillStyle = 'rgba(255,255,255,0.75)'; for (let u = -L + 1; u < L; u += 3) ctx.fillRect(u, lv0, 1.5, lv1 - lv0); } // lona rayada
+  ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 0.5; ctx.beginPath(); ctx.moveTo(0, lv0); ctx.lineTo(0, lv1); ctx.stroke();
+  ctx.strokeRect(-L, lv0, p.l, lv1 - lv0);
+  ctx.restore();
+}
 function* chunkSteps(cx, cy) {
   const cv = document.createElement('canvas'); cv.width = cv.height = (CHUNK + 2) * RES;
   const ctx = cv.getContext('2d', CTX2D);
@@ -1605,6 +1764,7 @@ function* chunkSteps(cx, cy) {
   over(ground);
   grime(ctx, ground, cx, cy);
   roadMarks(ctx, k);
+  for (const p of chunkPuestos.get(k) || []) pintarPuesto(ctx, p);
 
   yield;
   yield* drawBuildings(ctx, bl, rs, cx, cy);
@@ -1828,6 +1988,19 @@ const FRASES_CAFE = ['Un americano para el camino.', 'Café de olla bien cargado
   'Un espresso doble, pa\' despertar hasta al compa.', 'Un capuchino con canela y un ratito de wifi.', 'Un matcha bien verde, pa\' sentirte fresa de la Zona Río.',
   'Un frappé de cajeta, ni modo, se antojó.', 'Un mocha con concha de chocolate.', 'Café con leche como el de la abuela.',
   'Un dirty chai: especias, espresso y cero arrepentimientos.', 'Un pour over y un barista explicándote el grano.', 'Un descafeinado... ¿y para qué viniste?'];
+// la gente del sobreruedas (marchantes y clientes)
+const FRASES_SOBRERUEDAS = ['¡Pásele, pásele! ¿Qué le damos?', '¡A diez, a diez, todo a diez pesos!',
+  'Vine por unos tenis y ya llevo una licuadora, dos plantas y un perico de cerámica.', '¿En cuánto me lo deja? ¿Y si me llevo dos?',
+  'Ropa de paca: la misma que en la tienda, pero con historia.', 'Aquí hay de todo: desde un tornillo hasta el control de la tele que perdiste hace años.',
+  'Si no está en el sobreruedas, no existe.', 'Ya me tomé un champurrado, unos churros y un elote. Ahora sí, a comprar.',
+  'Mi señora dijo "nomás vamos a ver". Llevamos tres horas.', '¡Llévele, llévele, que se acaba!',
+  'En la vida real esto se pone un día a la semana. Aquí, diario. Qué suerte tienes.', 'Compré un cargador en veinte pesos. Si dura una semana, ya ganó.',
+  'El de los churros es el mejor de Tijuana. No acepto discusiones.', '¿Se lo preparo con chile y limón?', '¡Las plantitas a tres por cien, aproveche!',
+  'Ese juguete era de mi infancia. Ahora lo venden como antigüedad. Me siento viejo.', 'Aquí no pasan carros, joven. Hoy la calle es de nosotros.',
+  'Fierro viejo, herramienta, discos, lo que busque: aquí está.', 'Le hago su rebaja porque es el primero del día. Siempre es el primero del día.',
+  'Vine por fruta y me llevo una chamarra. Así pasa siempre.', 'Si regateas bonito, hasta la bolsa te regalan.',
+  'Agárrese la cartera y el elote, que aquí se arremolina la gente.', 'Los domingos aquí viene media Tijuana y todas sus tías.',
+  '¡Pruébelo sin compromiso, güero!', '¿Me cambia uno de quinientos? ¿No? Bueno, ahí le debo.'];
 // los gatos de las azoteas: te critican a ti y al juego ($$ es tu dinero)
 const FRASES_GATO = {
   siempre: ['Miau. Traducción: ese carro no combina con tus tenis.', '¿Otra vez tú? Hay toda una ciudad y vienes a mi azotea.',
@@ -5183,6 +5356,21 @@ class Main extends Phaser.Scene {
       ped.speed *= ped.sprite.pace; ped.tipo = ped.sprite.tipo;
       this.peds.push(ped);
     }
+    // en un sobreruedas cercano, gente de compras en los pasillos (aparte de la de la calle)
+    if (walkTianguis.length && SOBRERUEDAS.some(sr => dist(sr.x, sr.y, p.x, p.y) < sr.R + R + 400)) {
+      // (aqui si aparecen a la vista, pero lejos de ti y desvaneciendose: ver ocultarTapados)
+      const cerca = walkTianguis.filter(e => Math.abs(e.p[0] - p.x) < R + 300 && Math.abs(e.p[1] - p.y) < R + 300);
+      n = 0;
+      while (cerca.length && this.peds.filter(q => q.tianguis).length < Q.gente && n++ < 4) {
+        const e = pick(cerca);
+        const ped = { e, dir: Math.random() < 0.5 ? 1 : -1, s: rnd(0, e.len), side: latTianguis(e), speed: rnd(10, 18), st: 'walk', t: rnd(1, 6), x: 0, y: 0, a: 0, tianguis: true, ph: rnd(0, 6) };
+        edgePos(e, ped.s, ped.dir, ped.side, ped);
+        if (!regionesListas(ped.x, ped.y, ped.x, ped.y) || dist(ped.x, ped.y, p.x, p.y) < 60) continue;
+        ped.sprite = this.walker(ped.x, ped.y, ped.speed / 20).setAlpha(0);
+        ped.speed *= ped.sprite.pace; ped.tipo = ped.sprite.tipo;
+        this.peds.push(ped);
+      }
+    }
     // coyotes: raros, solo a menos de 250 m de la linea y nunca mas de dos
     if (Math.random() < 0.006 && p.y - borderY(p.x) < 400 * M && this.peds.filter(q => q.coyote).length < 2) {
       const e = randomEdgeNear(walkG, p.x, p.y, initial ? 60 : R + 20, R + 250);
@@ -5245,6 +5433,7 @@ class Main extends Phaser.Scene {
     this.updateRatero(dt);
     this.updateEscenas(dt);
     this.updateLotes(dt);
+    this.updateSobreruedas();
     this.pedChat(dt);
     this.updateBurning(dt);
     this.ocultarTapados(dt);
@@ -5357,9 +5546,14 @@ class Main extends Phaser.Scene {
     const hit = (x, y) => this.carBlocked(x, y, car.a, car);
     // si ya quedo encajado, se vale moverse mientras no se encaje mas (asi siempre puede salir)
     const stuck = hit(car.x, car.y) ? this.carBlocked(car.x, car.y, car.a, car, true) : 0;
+    this.choqueSobre = false;
     if (!hit(nx, ny) || (stuck && this.carBlocked(nx, ny, car.a, car, true) <= stuck)) { car.x = nx; car.y = ny; }
     else {
       const speed = Math.hypot(car.vx, car.vy), hitObj = this.lastHit;
+      if (this.choqueSobre && car === this.inCar && this.time.now > (this.sobreAvisoT || 0)) {
+        this.sobreAvisoT = this.time.now + 9000;
+        toast('🚧 Calle cerrada: hay sobreruedas', 'Aquí no pasan carros. Bájate con E y date una vuelta a pie.', 3.5);
+      }
       if (!hit(nx, car.y)) { car.x = nx; car.vy *= -0.2; car.vx *= 0.8; }
       else if (!hit(car.x, ny)) { car.y = ny; car.vx *= -0.2; car.vy *= 0.8; }
       else { car.vx *= -0.3; car.vy *= -0.3; }
@@ -5699,7 +5893,10 @@ class Main extends Phaser.Scene {
     const c = Math.cos(a), s = Math.sin(a);
     const hl = self ? self.hl : 14, hw = self ? self.hw : 6;
     let n = 0;
-    for (const [u, v] of [[hl, hw], [hl, -hw], [-hl, hw], [-hl, -hw], [hl + 2, 0], [0, hw], [0, -hw]]) if (blocked(x + c * u - s * v, y + s * u + c * v)) { if (!count) return true; n++; }
+    for (const [u, v] of [[hl, hw], [hl, -hw], [-hl, hw], [-hl, -hw], [hl + 2, 0], [0, hw], [0, -hw]]) {
+      const px = x + c * u - s * v, py = y + s * u + c * v;
+      if (blocked(px, py) || (enSobreruedas(px, py) && (this.choqueSobre = true))) { if (!count) return true; n++; }
+    }
     const arb = arbolEnCaja(x, y, c, s, hl, hw);
     if (arb) { if (!count) return true; n += arb; }
     // los demas vehiculos son capsulas a lo largo de su eje
@@ -5914,6 +6111,19 @@ class Main extends Phaser.Scene {
       d.sprite.setPosition(d.x, d.y).setRotation(d.a);
     }
     if (this.perros.some(d => d.dead)) this.perros = this.perros.filter(d => !d.dead);
+  }
+  // ----- sobreruedas: un aviso al llegar (otra vez si te alejas y vuelves) -----
+  updateSobreruedas() {
+    const f = this.focus();
+    for (const sr of SOBRERUEDAS) {
+      if (!sr.tramos || !sr.tramos.length) continue;
+      const d = dist(sr.x, sr.y, f.x, f.y);
+      if (d > sr.R + 1500) sr.avisado = false;
+      else if (!sr.avisado && d < sr.R + 120) {
+        sr.avisado = true;
+        toast('🛍️ ' + sr.nombre, sr.dato + ' Aquí se pone todos los días; la calle está cerrada a los carros.', 5);
+      }
+    }
   }
   // ----- gatos de azotea -----
   // una casa (de una o dos plantas, no una bodega) a una distancia entre r0 y r1, y un lugar en su azotea
@@ -6177,6 +6387,16 @@ class Main extends Phaser.Scene {
         }
         if (!p.sprite.anims.isPlaying) p.sprite.play({ key: 'walkC', startFrame: 1 });
       }
+      if (p.tianguis && p.st === 'walk') {
+        // en el sobreruedas: camina un rato y se para a ver un puesto
+        if ((p.t -= dt) <= 0) { p.idle = !p.idle; p.t = p.idle ? rnd(2, 6) : rnd(3, 9); }
+        if (p.idle) {
+          if (p.sprite.anims.isPlaying) p.sprite.anims.pause();
+          p.sprite.setRotation(p.a + Math.sign(p.side || 1) * 1.3 + Math.sin(this.time.now / 900 + p.ph) * 0.4);
+          continue;
+        }
+        if (p.sprite.anims.isPaused) p.sprite.anims.resume();
+      }
       const sp = p.st === 'flee' ? 70 : p.speed;
       // si tiene un carro enfrente se espera; si no se quita en un rato, se da la vuelta
       const ax = p.x + Math.cos(p.a) * 5, ay = p.y + Math.sin(p.a) * 5;
@@ -6190,7 +6410,8 @@ class Main extends Phaser.Scene {
       p.s += sp * dt;
       if (p.s > p.e.len) {
         const nx = nextEdge(walkG, p.e, p.dir);
-        if (nx) { p.s -= p.e.len; p.e = nx.e; p.dir = nx.dir; p.side = pedSide(p.e, p.s, p.dir, p.x, p.y, 0.12); }
+        // los del sobreruedas no se salen: al llegar a la orilla se dan la vuelta
+        if (nx && (!p.tianguis || nx.e.tianguis)) { p.s -= p.e.len; p.e = nx.e; p.dir = nx.dir; p.side = p.tianguis ? latTianguis(p.e) : pedSide(p.e, p.s, p.dir, p.x, p.y, 0.12); }
         else { p.s = 0; p.dir = -p.dir; p.side = -p.side; }
       }
       edgePos(p.e, p.s, p.dir, p.side, tmp);
@@ -6221,7 +6442,8 @@ class Main extends Phaser.Scene {
       if (!this.chatDeck.length) this.chatDeck = Phaser.Utils.Array.Shuffle(FRASES_PEATON.slice());
       p.talked = true; b.ped = p; b.t = 4.5; this.chatCool = 2.5;
       // los personajes casi siempre hablan de lo suyo
-      const fr = p.tipo && Math.random() < 0.8 ? { k: 'colonia', t: pick(FRASES_TIPO[p.tipo]) } : this.chatDeck.pop();
+      const fr = p.tianguis && Math.random() < 0.75 ? { k: 'tianguis', t: pick(FRASES_SOBRERUEDAS) }
+        : p.tipo && Math.random() < 0.8 ? { k: 'colonia', t: pick(FRASES_TIPO[p.tipo]) } : this.chatDeck.pop();
       b.el.className = 'hud bubble ' + fr.k;
       b.el.textContent = fr.t;
       // cada globo sale un poco chueco, como de historieta
@@ -7708,7 +7930,7 @@ async function start() {
     scene: [Main], fps: { target: 60, smoothStep: false },
   });
   window.addEventListener('resize', () => game.scale.resize(window.innerWidth * DPR, window.innerHeight * DPR));
-  window.TJGTA = game; game.dbg = { ESCENAS, tocaChoque, WORLD_W, WORLD_H, regiones, esperarRegiones, chunkBlds, miniCuadros, miniVista, borderY, INICIO, traffic, nextEdge, arboles, arbolVa, arbolEn, bajoTecho, chinas, VTYPES, vehicleTexture, state, drawChunk, chunkSteps, areaFill, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, walkableTo, waterAreas, roads, PED_VARIANTS };
+  window.TJGTA = game; game.dbg = { SOBRERUEDAS, tianguis, puestos, chunkPuestos, pintarPuesto, walkTianguis, enSobreruedas, findRoute, ESCENAS, tocaChoque, WORLD_W, WORLD_H, regiones, esperarRegiones, chunkBlds, miniCuadros, miniVista, borderY, INICIO, traffic, nextEdge, arboles, arbolVa, arbolEn, bajoTecho, chinas, VTYPES, vehicleTexture, state, drawChunk, chunkSteps, areaFill, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, walkableTo, waterAreas, roads, PED_VARIANTS };
 }
 $('go').addEventListener('click', start);
 
