@@ -1729,6 +1729,26 @@ function pintarPuesto(ctx, p) {
   ctx.strokeRect(-L, lv0, p.l, lv1 - lv0);
   ctx.restore();
 }
+// lo que carga cada vendedor de la fila (ver VENDEDORES): dibujado viendo a la derecha (+x), en las manos
+function makeMercancia(scene) {
+  const S = 16, dibujos = {
+    churros: (x) => { x.fillStyle = '#f3efe6'; x.fillRect(2, 4, 9, 8); x.strokeStyle = '#b08a52'; x.lineWidth = 0.6; x.strokeRect(2, 4, 9, 8);
+      x.lineCap = 'round'; x.strokeStyle = '#c47f2c'; x.lineWidth = 1.4; for (let i = 0; i < 4; i++) { x.beginPath(); x.moveTo(3.5 + i * 2, 5); x.lineTo(5 + i * 2, 11); x.stroke(); } },
+    agua: (x) => { x.fillStyle = '#7a5a3a'; x.fillRect(2, 3, 10, 10); for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) {
+      x.fillStyle = ['#5fb4e8', '#e05a3a', '#f2c230'][(i + j) % 3]; x.beginPath(); x.arc(4 + i * 3, 5 + j * 3, 1.2, 0, 7); x.fill(); } },
+    cobija: (x) => { for (let i = 0; i < 6; i++) { x.fillStyle = ['#c0392b', '#f1c40f', '#27ae60', '#2e86c1', '#8e44ad', '#e67e22'][i]; x.fillRect(1, 2 + i * 2, 11, 2); }
+      x.strokeStyle = 'rgba(0,0,0,0.35)'; x.lineWidth = 0.5; x.strokeRect(1, 2, 11, 12); },
+    yeso: (x) => { x.fillStyle = '#efe8da'; x.beginPath(); x.ellipse(6, 8, 4, 5, 0, 0, 7); x.fill(); x.fillStyle = '#4f8fd1'; x.beginPath(); x.ellipse(6, 9, 3, 3.2, 0, 0, 7); x.fill();
+      x.fillStyle = '#f0c8a0'; x.beginPath(); x.arc(8.5, 6.5, 1.5, 0, 7); x.fill(); x.fillStyle = '#e8a0b0'; x.beginPath(); x.arc(4, 12, 1.4, 0, 7); x.fill(); },
+    dulces: (x) => { x.fillStyle = '#b8864b'; x.beginPath(); x.ellipse(7, 8, 5.5, 5, 0, 0, 7); x.fill(); x.strokeStyle = '#8a5e2e'; x.lineWidth = 0.7; x.stroke();
+      for (let i = 0; i < 8; i++) { x.fillStyle = ['#e74c3c', '#f1c40f', '#2ecc71', '#ecf0f1', '#9b59b6'][i % 5]; x.fillRect(3.5 + (i % 4) * 2, 6 + ((i / 4) | 0) * 2.6, 1.6, 1.6); } },
+  };
+  for (const k in dibujos) {
+    const t = scene.textures.createCanvas('vende_' + k, S * SPR, S * SPR), x = t.getContext();
+    x.scale(SPR, SPR); x.shadowColor = 'rgba(0,0,0,0.35)'; x.shadowBlur = 1.2; x.shadowOffsetX = 0.6; x.shadowOffsetY = 0.8;
+    dibujos[k](x); t.refresh();
+  }
+}
 // un canal (ver waterAreas): desde la orilla hacia adentro, la barda, el talud de concreto (claro arriba, oscuro
 // abajo, con la sombra de la barda del lado de arriba a la izquierda, como la de los edificios), el piso de
 // concreto con su humedad y en medio el hilo de agua verdosa. Todo es la misma figura con trazos cada vez mas
@@ -5219,6 +5239,15 @@ const FRASES_FILA_ROBO = [
   'Además no lo podrías mover: está encajonado entre los de la fila.',
   'El señor lleva dos horas ahí. No le hagas eso.',
 ];
+// los vendedores que caminan entre los carros de la fila (ver updateVendedores): lo que venden y lo que gritan
+const VENDEDORES = {
+  churros: ['¡Churros, churros calientitos!', '¡Lleve sus churros, tres por veinte!', 'Joven, ¿un churrito para la espera?', '¡Con cajeta o con chocolate, usted diga!'],
+  agua: ['¡Agua, agua fría!', '¡Aguas, refrescos, jugos!', 'Con este calor y esta fila, el agua no es gasto, es inversión.', '¡Bien heladita, compa, para aguantar la fila!'],
+  cobija: ['¡Cobijas, cobijas! Para la casa o para la fila.', 'Esta es de tigre, mire, bien suavecita.', '¡Llévese la cobija, que en la madrugada hace frío en la fila!', 'Matrimonial o individual, igual no avanza la fila.'],
+  yeso: ['¡Figuras de yeso, alcancías, virgencitas!', 'Llévele una virgencita a su mamá, compa.', 'Esta alcancía de cochinito aguanta hasta lo que ahorra en la garita.', '¡El burrito de yeso pintado a mano, recuerdo de Tijuana!'],
+  dulces: ['¡Chicles, cacahuates, dulces de tamarindo!', '¡Semillas, papitas, pistaches!', 'Llévese su chicle para la espera, de a cinco pesos.', '¡Obleas, palanquetas, jamoncillos!'],
+};
+const FRASES_VENDEDOR = ['Aquí trabajo diario: la fila es mi oficina.', '¿Va para el otro lado? Llévese algo de recuerdo.', 'Usted no compra, pero la de atrás sí. Ahí voy.', 'Si la fila avanzara rápido, yo me quedaba sin chamba.'];
 const filaSlots = [], chunkFila = new Map(), NADA = [];
 {
   const tmp = {}, entra = new Map(); // nodo -> tramos de un sentido que llegan ahi
@@ -5243,7 +5272,7 @@ const filaSlots = [], chunkFila = new Map(), NADA = [];
       cola.push(e); fila.set(e, 0);
       if (llega) { sx += bx; sy += by; n0++; }
     }
-    G.x = n0 ? sx / n0 : gx; G.y = n0 ? sy / n0 : gy; G.n = 0;
+    G.x = n0 ? sx / n0 : gx; G.y = n0 ? sy / n0 : gy; G.n = 0; G.tramos = [];
     if (!n0) { console.warn('garita sin carriles', G.k); continue; }
     for (let i = 0; i < cola.length; i++) {
       const e = cola[i], d1 = fila.get(e) + e.len;
@@ -5264,7 +5293,7 @@ const filaSlots = [], chunkFila = new Map(), NADA = [];
       return false;
     };
     for (const [e, d0] of fila) {
-      const rr = mulberry(e.id * 131 + 7), ta = libreEn(e.a), tb = libreEn(e.b);
+      const rr = mulberry(e.id * 131 + 7), ta = libreEn(e.a), tb = libreEn(e.b), tramo = { e, t0: Infinity, t1: -Infinity, G };
       for (const k of e.c <= MAJOR ? [0, 1, 2] : [0]) {
         let t = e.len - tb - (d0 || tb ? rr() * 6 : 4 * M + rr() * 10); // la cabeza de la fila, un poco antes de la caseta
         for (;;) {
@@ -5274,13 +5303,14 @@ const filaSlots = [], chunkFila = new Map(), NADA = [];
           edgePos(e, t, 1, laneLat(e, k) + (rr() - 0.5) * 2.5, tmp);
           if (!blocked(tmp.x, tmp.y) && libre(tmp.x, tmp.y) && !cruce(tmp.x, tmp.y, tmp.a, e)) {
             const s = { x: tmp.x, y: tmp.y, a: tmp.a + (rr() - 0.5) * 0.07, ti, ci: (rr() * T.cols.length) | 0, d: rr() < 0.4 ? 1 + ((rr() * DIRTY_SEEDS) | 0) : 0, G, car: null };
-            filaSlots.push(s); G.n++;
+            filaSlots.push(s); G.n++; tramo.t0 = Math.min(tramo.t0, t); tramo.t1 = Math.max(tramo.t1, t);
             const key = GK(Math.floor(s.x / FC), Math.floor(s.y / FC)); if (!puestos.has(key)) puestos.set(key, []); puestos.get(key).push(s);
             gridAdd(chunkFila, s, [s.x, s.y, s.x, s.y], CHUNK);
           }
           t -= T.L / 2 + 3 + rr() * 5; // defensa con defensa (algunos dejan su espacito)
         }
       }
+      if (tramo.t1 - tramo.t0 > 40) G.tramos.push(tramo);
     }
   }
 }
@@ -5293,6 +5323,7 @@ class Main extends Phaser.Scene {
     this.chunks = new Map();
     this.cars = []; this.peds = []; this.parked = [];
     this.fila = []; this.filaGrid = new Map(); // los de la fila de la garita (ver updateFila)
+    this.vendedores = []; // y los que venden entre los carros (ver updateVendedores)
     this.tmp = {};
     this.cameras.main.setBounds(-NIEBLA_FUERA, 0, WORLD_W + 2 * NIEBLA_FUERA, WORLD_H + NIEBLA_FUERA);
     this.makeNiebla();
@@ -5680,6 +5711,7 @@ class Main extends Phaser.Scene {
     this.updateEscenas(dt);
     this.updateLotes(dt);
     this.updateFila(dt);
+    this.updateVendedores(dt);
     this.updateSobreruedas();
     this.pedChat(dt);
     this.updateBurning(dt);
@@ -6685,7 +6717,7 @@ class Main extends Phaser.Scene {
     if (b.ped) {
       b.t -= dt;
       this.placeBubble();
-      if (b.t <= 0 || b.ped.st === 'down' || dist(b.ped.x, b.ped.y, this.focus().x, this.focus().y) > (b.ped.robado || b.ped.escena || b.ped.fila ? 260 : 140)) { b.ped = null; b.el.classList.remove('on'); }
+      if (b.t <= 0 || b.ped.st === 'down' || dist(b.ped.x, b.ped.y, this.focus().x, this.focus().y) > (b.ped.robado || b.ped.escena || b.ped.fila || b.ped.vende ? 260 : 140)) { b.ped = null; b.el.classList.remove('on'); }
     }
     const cy = this.coy;
     if (cy) { cy.t -= dt; if (cy.t <= 0 || this.inCar || dist(cy.p.x, cy.p.y, this.player.x, this.player.y) > 70) { this.coy = null; this.setObjective(); } }
@@ -6904,6 +6936,7 @@ class Main extends Phaser.Scene {
     }
     const bb = this.filaBB;
     for (const c of this.fila) { bb[0] = Math.min(bb[0], c.x - 130); bb[1] = Math.min(bb[1], c.y - 130); bb[2] = Math.max(bb[2], c.x + 130); bb[3] = Math.max(bb[3], c.y + 130); }
+    this.ponerVendedores(f, A, v, inicial);
     // los de la fila que se ven cerca: el aviso al llegar y el ambiente
     const cerca = [];
     for (const s of this.filaOn) if (s.car && !s.car.wrecked && dist(s.x, s.y, f.x, f.y) < R * 0.8) cerca.push(s.car);
@@ -6921,6 +6954,76 @@ class Main extends Phaser.Scene {
     if (window.SND && Math.random() < 0.6) SND.play('pito', 0.3 + 0.7 * Math.max(0, 1 - dist(c.x, c.y, f.x, f.y) / R));
     const junto = cerca.filter(o => dist(o.x, o.y, f.x, f.y) < 220);
     if (!this.bubble.ped && junto.length && Math.random() < 0.7) this.globo(pick(junto), 'fila', pick(FRASES_FILA), 4);
+  }
+  // ----- vendedores entre los carros de la fila (ver VENDEDORES) -----
+  // hasta seis donde hay carros de la fila cerca; aparecen fuera de la vista y se van al alejarte. Caminan por el
+  // hueco entre dos carriles (o junto al carril, si es uno solo) y se paran en las ventanillas a ofrecer
+  ponerVendedores(f, A, v, inicial) {
+    this.vendedores = this.vendedores.filter(o => {
+      if (dist(o.x, o.y, f.x, f.y) < A + 200 && this.fila.length) return true;
+      o.sprite.destroy(); o.carga.destroy(); if (this.bubble.ped === o) this.bubble.t = 0; return false;
+    });
+    if (this.fila.length < 20 || this.vendedores.length >= 6) return;
+    if (!this.textures.exists('vende_churros')) makeMercancia(this);
+    const trs = []; for (const G of GARITAS) for (const T of G.tramos || []) { const p = T.e.p, m = p.length >> 2 << 1; if (dist(p[m], p[m + 1], f.x, f.y) < A + T.e.len / 2) trs.push(T); }
+    for (let n = 0; n < 3 && trs.length && this.vendedores.length < 6; n++) {
+      const T = pick(trs), e = T.e, lat = pick(e.c <= MAJOR ? [-e.w / 6, e.w / 6] : [-11, 11]), sv = rnd(T.t0, T.t1), q = edgePos(e, sv, 1, lat, {});
+      const d = dist(q.x, q.y, f.x, f.y);
+      if (d > A || d < 60 || !this.filaEn(q.x, q.y).length || this.vendedores.some(o => dist(o.x, o.y, q.x, q.y) < 120)) continue;
+      if (!inicial && q.x > v.x - 40 && q.x < v.right + 40 && q.y > v.y - 40 && q.y < v.bottom + 40) continue;
+      const k = pick(Object.keys(VENDEDORES)), speed = rnd(12, 17);
+      const sprite = this.walker(q.x, q.y, speed / 20).setDepth(10.2);
+      const carga = this.add.image(q.x, q.y, 'vende_' + k).setDepth(10.3).setScale(1 / SPR);
+      this.vendedores.push({ T, lat, s: sv, dir: Math.random() < 0.5 ? 1 : -1, speed: speed * sprite.pace, st: 'walk', t: rnd(2, 6), lado: 1, x: q.x, y: q.y, a: q.a, k, sprite, carga, vende: true, hablaT: 0, ph: rnd(0, 6) });
+    }
+  }
+  updateVendedores(dt) {
+    if (!this.vendedores.length) return;
+    const car = this.inCar, csp = car ? Math.hypot(car.vx, car.vy) : 0, f = this.focus(), tmp = this.tmp, now = this.time.now;
+    for (const o of this.vendedores) {
+      // atropellado: al piso un rato (la mercancia tambien)
+      if (o.st === 'down') {
+        if ((o.t -= dt) <= 0) { o.st = 'walk'; o.t = rnd(2, 5); o.sprite.setScale(1 / SPR).clearTint(); o.sprite.anims.resume(); o.carga.setVisible(true); }
+        continue;
+      }
+      if (car && csp > 50 && axisDist(o.x, o.y, car) < car.hw + 3) {
+        o.st = 'down'; o.t = 2.5; o.sprite.setScale(1.2 / SPR, 0.6 / SPR).setTint(0xaaaaaa); o.sprite.anims.pause(); o.carga.setVisible(false);
+        if (Math.random() < 0.7) toast(pick(FRASES_ATROPELLO), '', 1.8);
+        continue;
+      }
+      // camina un rato y se para en una ventanilla a ofrecer; a veces se regresa
+      if ((o.t -= dt) <= 0) {
+        if (o.st === 'walk') { o.st = 'para'; o.t = rnd(2, 4.5); o.lado = Math.random() < 0.5 ? 1 : -1; }
+        else { o.st = 'walk'; o.t = rnd(3, 8); if (Math.random() < 0.25) o.dir = -o.dir; }
+      }
+      // si se te pega (a pie o en carro despacito) te ofrece lo suyo
+      const d = dist(o.x, o.y, f.x, f.y), habla = this.bubble.ped === o;
+      if (!this.bubble.ped && now > o.hablaT && d < (car ? 45 : 26) && csp < 40) {
+        o.hablaT = now + 12000;
+        this.globo(o, 'vendedor', pick(Math.random() < 0.8 ? VENDEDORES[o.k] : FRASES_VENDEDOR), 3.5);
+        if (window.SND) SND.play('chat');
+      }
+      if (o.st === 'para' || habla) {
+        if (o.sprite.anims.isPlaying) o.sprite.anims.pause();
+        const mira = habla && d < 60 ? Math.atan2(f.y - o.y, f.x - o.x) : o.a + o.lado * Math.PI / 2 + Math.sin(now / 500 + o.ph) * 0.15;
+        o.sprite.setRotation(mira);
+        o.carga.setPosition(o.x + Math.cos(mira) * 4.5, o.y + Math.sin(mira) * 4.5).setRotation(mira);
+        continue;
+      }
+      if (o.sprite.anims.isPaused) o.sprite.anims.resume();
+      o.s += o.dir * o.speed * dt;
+      if (o.s < o.T.t0 || o.s > o.T.t1) { o.s = Math.max(o.T.t0, Math.min(o.T.t1, o.s)); o.dir = -o.dir; }
+      edgePos(o.T.e, o.s, 1, o.lat, tmp);
+      o.x = tmp.x; o.y = tmp.y; o.a = tmp.a + (o.dir < 0 ? Math.PI : 0);
+      o.sprite.setPosition(o.x, o.y).setRotation(o.a);
+      o.carga.setPosition(o.x + Math.cos(o.a) * 4.5, o.y + Math.sin(o.a) * 4.5).setRotation(o.a);
+    }
+    // el pregon: de vez en cuando uno de los que se ven grita lo que vende
+    if ((this.pregonT = (this.pregonT ?? 3) - dt) <= 0) {
+      this.pregonT = rnd(5, 9);
+      const L = this.vendedores.filter(o => o.st !== 'down' && dist(o.x, o.y, f.x, f.y) < 260);
+      if (L.length && !this.bubble.ped) { const o = pick(L); this.globo(o, 'vendedor', pick(VENDEDORES[o.k]), 3); }
+    }
   }
   // ----- escenas de trafico (ver ESCENAS) -----
   // aparecen cuando te acercas sin que se vea el lugar (7 de cada 10 veces), y se quitan al alejarte
@@ -8263,7 +8366,7 @@ async function start() {
     scene: [Main], fps: { target: 60, smoothStep: false },
   });
   window.addEventListener('resize', () => game.scale.resize(window.innerWidth * DPR, window.innerHeight * DPR));
-  window.TJGTA = game; game.dbg = { GARITAS, filaSlots, chunkFila, enComida, comidaGrid, walkG, edgePos, pasoBanqueta, SOBRERUEDAS, tianguis, puestos, chunkPuestos, pintarPuesto, walkTianguis, enSobreruedas, findRoute, ESCENAS, tocaChoque, WORLD_W, WORLD_H, regiones, esperarRegiones, chunkBlds, miniCuadros, miniVista, borderY, INICIO, traffic, nextEdge, arboles, arbolVa, arbolEn, bajoTecho, chinas, VTYPES, vehicleTexture, state, drawChunk, chunkSteps, areaFill, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, walkableTo, waterAreas, roads, PED_VARIANTS };
+  window.TJGTA = game; game.dbg = { VENDEDORES, GARITAS, filaSlots, chunkFila, enComida, comidaGrid, walkG, edgePos, pasoBanqueta, SOBRERUEDAS, tianguis, puestos, chunkPuestos, pintarPuesto, walkTianguis, enSobreruedas, findRoute, ESCENAS, tocaChoque, WORLD_W, WORLD_H, regiones, esperarRegiones, chunkBlds, miniCuadros, miniVista, borderY, INICIO, traffic, nextEdge, arboles, arbolVa, arbolEn, bajoTecho, chinas, VTYPES, vehicleTexture, state, drawChunk, chunkSteps, areaFill, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, walkableTo, waterAreas, roads, PED_VARIANTS };
 }
 $('go').addEventListener('click', start);
 
