@@ -649,7 +649,7 @@ function buildGraph(filter, oneways) {
       const len = cum[cum.length - 1];
       if (len > 2) {
         const e = { p: ep, cum, len, a: node(ep[0], ep[1]), b: node(ep[ep.length - 2], ep[ep.length - 1]),
-          one: oneways && (r.f & 2) !== 0, w: r.w * M, c: r.c, n: r.n, id: edges.length };
+          one: oneways && (r.f & 2) !== 0, puente: (r.f & 1) !== 0, w: r.w * M, c: r.c, n: r.n, id: edges.length };
         edges.push(e);
         adj[e.a].push({ e, dir: 1 });
         if (!e.one) adj[e.b].push({ e, dir: -1 });
@@ -5099,6 +5099,110 @@ const tocaChoque = () => {
   return BOLSA_ESCENAS.pop();
 };
 
+// ---------- la fila de las garitas ----------
+// En San Ysidro y en Otay siempre hay fila para cruzar a Estados Unidos. Los carriles que llegan a la linea son de
+// un sentido y no tienen salida (el trafico no se mete: son trampas, ver marcarTrampas); desde la caseta (cerca, px
+// del mapa; y los carriles que se llaman como en carriles, que en el mapa no llegan hasta la linea) se recorren
+// hacia atras hasta largo px y se llenan sus carriles de carros, defensa con defensa, dejando libres los cruces con
+// otras calles. Los carros no se mueven: aparecen al acercarte (ver updateFila) como estacionados que no se pueden robar.
+const GARITAS = [
+  { k: 'sanYsidro', nombre: 'la Garita de San Ysidro', cerca: [53500, 12900], largo: 2000, carriles: [], tipos: [0, 0, 0, 1, 2, 3, 3, 3, 4, 4, 5, 6, 7],
+    dato: 'De los cruces fronterizos más transitados del mundo.' },
+  { k: 'otay', nombre: 'la Garita de Otay', cerca: [95750, 8700], largo: 2400, carriles: ['Linea Global Entry SENTRI', 'Línea (Ready Lane)'], tipos: [0, 0, 1, 2, 2, 3, 3, 3, 4, 4, 5, 9, 9],
+    dato: 'El otro cruce a San Diego, el de la Mesa de Otay.' },
+];
+const FRASES_FILA = [
+  '¡Ya llevo tres horas aquí y no he avanzado ni un carro!',
+  'Salí de madrugada para ganarle a la fila. Todos pensaron lo mismo.',
+  'La aplicación decía 45 minutos. La aplicación miente.',
+  'Ya me terminé la música dos veces. Voy por la tercera.',
+  'Ya compré churros, una cobija, un Cristo de yeso y unos chicles. Y sigo aquí.',
+  'Joven, ¿no trae un cargador? Se me está acabando la pila.',
+  '¡No se meta, compa! Aquí todos estamos haciendo fila.',
+  'Mi jefe en San Diego no me cree que la fila estaba así. Le voy a mandar foto.',
+  'Dicen que el carril de en medio avanza más rápido. Mentira.',
+  'El de enfrente apagó el carro. Ya sabemos cómo va a estar.',
+  'Si avanzo un carro más, lo celebro con un tamal.',
+  '¿Me cuida el lugar? Voy al baño... a mi casa.',
+  'Cuando llegue a la caseta me van a preguntar a qué voy. A trabajar, oficial, como diario.',
+  'Aquí desayuno, aquí como y a veces aquí ceno.',
+  'Traigo la visa en una mano y el burrito en la otra. Listo para todo.',
+  'Ya me sé el nombre de los vendedores, de sus hijos y de sus perros.',
+  'Bajé la ventana para ver si avanzaba más rápido. No funcionó.',
+  'Cuando era niño esta fila ya estaba aquí. Creo que es el mismo carro de enfrente.',
+];
+const FRASES_FILA_ROBO = [
+  'Si se lo quitas, el dueño pierde su lugar en la fila. Eso aquí es peor que robarle el carro.',
+  'Nadie suelta su lugar en la fila. Ni a la fuerza.',
+  'Además no lo podrías mover: está encajonado entre los de la fila.',
+  'El señor lleva dos horas ahí. No le hagas eso.',
+];
+const filaSlots = [], chunkFila = new Map(), NADA = [];
+{
+  const tmp = {}, entra = new Map(); // nodo -> tramos de un sentido que llegan ahi
+  for (const e of traffic.edges) if (e.one) { if (!entra.has(e.b)) entra.set(e.b, []); entra.get(e.b).push(e); }
+  // para no encimar carros donde se juntan dos carriles (o donde la calle viene dos veces): celdas de 16 px
+  const FC = 16, puestos = new Map(), libre = (x, y) => {
+    const cx = Math.floor(x / FC), cy = Math.floor(y / FC);
+    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (const s of puestos.get(GK(cx + i, cy + j)) || []) if (Math.hypot(s.x - x, s.y - y) < 16) return false;
+    return true;
+  };
+  const toca = new Map(); // nodo -> tramos que llegan o salen de ahi
+  for (const e of traffic.edges) for (const n of [e.a, e.b]) { if (!toca.has(n)) toca.set(n, []); toca.get(n).push(e); }
+  for (const G of GARITAS) {
+    const [gx, gy] = G.cerca, cola = [], fila = new Map(); // tramo -> que tan lejos de la caseta acaba
+    const nombres = G.carriles.map(c => D.names.indexOf(c));
+    let sx = 0, sy = 0, n0 = 0;
+    for (const e of traffic.edges) {
+      if (!e.one) continue;
+      const bx = e.p[e.p.length - 2], by = e.p[e.p.length - 1];
+      const llega = !traffic.adj[e.b].length && Math.hypot(bx - gx, by - gy) < 900 && by - borderY(bx) < 700;
+      if (!llega && !(nombres.includes(e.n) && Math.hypot(bx - gx, by - gy) < 3000)) continue;
+      cola.push(e); fila.set(e, 0);
+      if (llega) { sx += bx; sy += by; n0++; }
+    }
+    G.x = n0 ? sx / n0 : gx; G.y = n0 ? sy / n0 : gy; G.n = 0;
+    if (!n0) { console.warn('garita sin carriles', G.k); continue; }
+    for (let i = 0; i < cola.length; i++) {
+      const e = cola[i], d1 = fila.get(e) + e.len;
+      if (d1 < G.largo) for (const o of entra.get(e.a) || []) if (o.trampa && !o.cerrada && !fila.has(o)) { fila.set(o, d1); cola.push(o); }
+    }
+    // en cada punta, lo que hay que dejar libre: el ancho de las calles que cruzan o salen de ahi
+    const libreEn = (n) => { let w = 0; for (const o of toca.get(n)) if (!fila.has(o)) w = Math.max(w, o.w / 2 + 3 * M); return w; };
+    // y donde la cruza otra calle sin tocarla en un nodo (si no es un puente que pasa por arriba, ni otra calle que
+    // va encimada a lo largo del carril)
+    const cruce = (x, y, a, e) => {
+      for (const id of traffic.grid.get(GK(Math.floor(x / traffic.GC), Math.floor(y / traffic.GC))) || []) {
+        const o = traffic.edges[id]; if (fila.has(o) || o.puente || e.puente) continue;
+        for (let q = 0; q < o.p.length - 2; q += 2) {
+          if (segDist(x, y, o.p[q], o.p[q + 1], o.p[q + 2], o.p[q + 3]) >= o.w / 2 + 2 * M) continue;
+          if (Math.abs(Math.sin(Math.atan2(o.p[q + 3] - o.p[q + 1], o.p[q + 2] - o.p[q]) - a)) > 0.4) return true;
+        }
+      }
+      return false;
+    };
+    for (const [e, d0] of fila) {
+      const rr = mulberry(e.id * 131 + 7), ta = libreEn(e.a), tb = libreEn(e.b);
+      for (const k of e.c <= MAJOR ? [0, 1, 2] : [0]) {
+        let t = e.len - tb - (d0 || tb ? rr() * 6 : 4 * M + rr() * 10); // la cabeza de la fila, un poco antes de la caseta
+        for (;;) {
+          const ti = G.tipos[(rr() * G.tipos.length) | 0], T = VTYPES[ti];
+          t -= T.L / 2;
+          if (t < ta + T.L / 2 || d0 + e.len - t > G.largo) break;
+          edgePos(e, t, 1, laneLat(e, k) + (rr() - 0.5) * 2.5, tmp);
+          if (!blocked(tmp.x, tmp.y) && libre(tmp.x, tmp.y) && !cruce(tmp.x, tmp.y, tmp.a, e)) {
+            const s = { x: tmp.x, y: tmp.y, a: tmp.a + (rr() - 0.5) * 0.07, ti, ci: (rr() * T.cols.length) | 0, d: rr() < 0.4 ? 1 + ((rr() * DIRTY_SEEDS) | 0) : 0, G, car: null };
+            filaSlots.push(s); G.n++;
+            const key = GK(Math.floor(s.x / FC), Math.floor(s.y / FC)); if (!puestos.has(key)) puestos.set(key, []); puestos.get(key).push(s);
+            gridAdd(chunkFila, s, [s.x, s.y, s.x, s.y], CHUNK);
+          }
+          t -= T.L / 2 + 3 + rr() * 5; // defensa con defensa (algunos dejan su espacito)
+        }
+      }
+    }
+  }
+}
+
 class Main extends Phaser.Scene {
   constructor() { super('main'); }
 
@@ -5106,6 +5210,7 @@ class Main extends Phaser.Scene {
     makeTextures(this);
     this.chunks = new Map();
     this.cars = []; this.peds = []; this.parked = [];
+    this.fila = []; this.filaGrid = new Map(); // los de la fila de la garita (ver updateFila)
     this.tmp = {};
     this.cameras.main.setBounds(-NIEBLA_FUERA, 0, WORLD_W + 2 * NIEBLA_FUERA, WORLD_H + NIEBLA_FUERA);
     this.makeNiebla();
@@ -5355,7 +5460,7 @@ class Main extends Phaser.Scene {
     const ve = (x, y) => x > v.x - 40 && x < v.right + 40 && y > v.y - 40 && y < v.bottom + 40;
     const fade = (o, sp, min) => {
       if (!sp || !sp.visible || !ve(o.x, o.y)) return;
-      const t = bajoTecho(o.x, o.y) ? min : 1;
+      const t = (o.fila ? (o.techo ??= bajoTecho(o.x, o.y)) : bajoTecho(o.x, o.y)) ? min : 1;
       if (sp.alpha !== t) sp.setAlpha(Math.abs(t - sp.alpha) < 0.02 ? t : sp.alpha + (t - sp.alpha) * k);
       if (o.scorch) o.scorch.setAlpha(sp.alpha);
     };
@@ -5363,6 +5468,7 @@ class Main extends Phaser.Scene {
     for (const d of this.perros) if (!d.dead && d.st !== 'vete') fade(d, d.sprite, 0);
     if (this.ratero) fade(this.ratero, this.ratero.sprite, 0);
     for (const L of [this.cars, this.parked]) for (const c of L) if (c !== this.inCar) fade(c, c.sprite, 0);
+    for (const c of this.fila) if (c.techo !== false || c.sprite.alpha !== 1) fade(c, c.sprite, 0); // los que no tapa nada ya quedaron
     if (this.inCar) fade(this.inCar, this.inCar.sprite, 0.4); else fade(P, P.sprite, 0.4);
   }
 
@@ -5491,6 +5597,7 @@ class Main extends Phaser.Scene {
     this.updateRatero(dt);
     this.updateEscenas(dt);
     this.updateLotes(dt);
+    this.updateFila(dt);
     this.updateSobreruedas();
     this.pedChat(dt);
     this.updateBurning(dt);
@@ -5558,8 +5665,16 @@ class Main extends Phaser.Scene {
 
   // a pie los carros son solidos: no te puedes meter en uno, pero si uno se te encima si puedes salirte
   carBlocks(x0, y0, x1, y1, r) {
-    for (const list of [this.cars, this.parked]) for (const c of list) if (insideCar(c, x1, y1, r) && !insideCar(c, x0, y0, r)) return true;
+    for (const list of [this.cars, this.parked, this.filaEn(x1, y1)]) for (const c of list) if (insideCar(c, x1, y1, r) && !insideCar(c, x0, y0, r)) return true;
     return false;
+  }
+  // los carros de la fila que estan cerca de un punto (hasta 64 px; son muchos y se buscan en su rejilla)
+  filaEn(x, y) {
+    const b = this.filaBB;
+    if (!this.fila.length || x < b[0] || y < b[1] || x > b[2] || y > b[3]) return NADA;
+    const out = [], cx = Math.floor(x / 64), cy = Math.floor(y / 64);
+    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) { const L = this.filaGrid.get(GK(cx + i, cy + j)); if (L) for (const c of L) out.push(c); }
+    return out;
   }
 
   driveCar(car, c, dt) {
@@ -5755,7 +5870,7 @@ class Main extends Phaser.Scene {
   onda(x, y, k, src) {
     const R = k > 1.5 ? 160 : 55, DMG = k > 1.5 ? 300 : 45;
     const me = this.inCar;
-    const todos = this.cars.concat(this.parked); if (me) todos.push(me);
+    const todos = this.cars.concat(this.parked, this.filaEn(x, y)); if (me) todos.push(me);
     for (const o of todos) {
       if (o === src || o.wrecked) continue;
       const d = dist(x, y, o.x, o.y); if (d > R) continue;
@@ -5921,7 +6036,7 @@ class Main extends Phaser.Scene {
     if (c.derrapeV) c.derrape += c.derrapeV * dt;
     const fx = c.x + hx * (c.hl + 2), fy = c.y + hy * (c.hl + 2);
     let otro = null;
-    if (c.speed > 35) for (const o of this.cars.concat(this.parked)) if (o !== c && Math.abs(o.x - c.x) < 60 && Math.abs(o.y - c.y) < 60 && axisDist(fx, fy, o) < o.hw + 1) { otro = o; break; }
+    if (c.speed > 35) for (const o of this.cars.concat(this.parked, this.filaEn(c.x, c.y))) if (o !== c && Math.abs(o.x - c.x) < 60 && Math.abs(o.y - c.y) < 60 && axisDist(fx, fy, o) < o.hw + 1) { otro = o; break; }
     const pared = c.derrapeV && (blocked(fx, fy) || arbolEn(fx, fy, 0) || Math.abs(c.derrape) > c.e.w / 2 + 14 * M);
     if (!otro && !pared) return false;
     c.speed = 0; c.hp = 0; this.wreck(c);
@@ -5960,7 +6075,7 @@ class Main extends Phaser.Scene {
     if (arb) { if (!count) return true; n += arb; }
     // los demas vehiculos son capsulas a lo largo de su eje
     const h = Math.max(0, hl - hw), pts = [[x, y], [x + c * h, y + s * h], [x - c * h, y - s * h]];
-    for (const list of [this.cars, this.parked]) for (const o of list) {
+    for (const list of [this.cars, this.parked, this.filaEn(x, y)]) for (const o of list) {
       if (o === self || Math.abs(o.x - x) > 70 || Math.abs(o.y - y) > 70) continue;
       for (const [px, py] of pts) if (axisDist(px, py, o) < o.hw + hw + 1) { this.lastHit = o; if (!count) return true; n += 1 + (o.hw + hw + 1 - axisDist(px, py, o)) / 4; }
     }
@@ -5987,10 +6102,11 @@ class Main extends Phaser.Scene {
       return;
     }
     const p = this.player;
-    let best = null, bd = 56;
+    let best = null, bd = 56, fila = null;
     for (const c of this.parked) { const d = dist(c.x, c.y, p.x, p.y); if (d < bd) { bd = d; best = c; } }
+    for (const c of this.filaEn(p.x, p.y)) if (dist(c.x, c.y, p.x, p.y) < 56) fila = c;
     for (const c of this.cars) { const d = dist(c.x, c.y, p.x, p.y); if (d < bd) { bd = d; best = c; } }
-    if (!best) return;
+    if (!best) { if (fila) toast('🚗 Ese carro va en la fila de la garita', pick(FRASES_FILA_ROBO), 2.5); return; }
     if (best.hp <= 0) { toast('Ese auto ya no sirve', ''); return; }
     if (best.poli) { toast('🚓 ¿Robarle la patrulla a la poli?', 'Ni lo pienses, compa.', 2); return; }
     if (best.escena) { toast('Ese carro está esperando al ajustador', 'Mejor busca otro, compa.', 2); return; }
@@ -6048,7 +6164,7 @@ class Main extends Phaser.Scene {
         if (o.wrecked || o.quieto) { if (!c.desvioT) { const lado = ((o.x - c.x) * -hy + (o.y - c.y) * hx) > 0 ? -1 : 1; c.desvio = lado * (o.hw + c.hw + 6); c.desvioT = 3; } continue; }
         stop = true; bloq = o; break;
       }
-      if (!stop) for (const o of this.parked) { if (axisDist(ax, ay, o) < o.hw + gap) { stop = true; bloq = o; break; } }
+      if (!stop) for (const L of [this.parked, this.filaEn(ax, ay)]) for (const o of L) { if (Math.abs(o.x - ax) < 60 && Math.abs(o.y - ay) < 60 && axisDist(ax, ay, o) < o.hw + gap) { stop = true; bloq = o; break; } }
       if (!stop) for (const o of this.peds) { if (o.st === 'walk' && dist(ax, ay, o.x, o.y) < 9) { stop = true; break; } }
       // si alguien le estorba: a veces se lo lleva de corbata, y si hay carril libre se cambia; si no, claxon
       if (c.rutero && bloq) {
@@ -6091,7 +6207,7 @@ class Main extends Phaser.Scene {
     // choques del jugador contra autos
     if (this.inCar) {
       const me = this.inCar;
-      for (const o of this.cars.concat(this.parked)) {
+      for (const o of this.cars.concat(this.parked, this.filaEn(me.x, me.y))) {
         if (Math.abs(o.x - me.x) > 70 || Math.abs(o.y - me.y) > 70) continue;
         // punto de mi eje mas cercano al eje del otro
         const h = Math.max(0, me.hl - me.hw), c = Math.cos(me.a), s = Math.sin(me.a);
@@ -6487,7 +6603,7 @@ class Main extends Phaser.Scene {
     if (b.ped) {
       b.t -= dt;
       this.placeBubble();
-      if (b.t <= 0 || b.ped.st === 'down' || dist(b.ped.x, b.ped.y, this.focus().x, this.focus().y) > (b.ped.robado || b.ped.escena ? 260 : 140)) { b.ped = null; b.el.classList.remove('on'); }
+      if (b.t <= 0 || b.ped.st === 'down' || dist(b.ped.x, b.ped.y, this.focus().x, this.focus().y) > (b.ped.robado || b.ped.escena || b.ped.fila ? 260 : 140)) { b.ped = null; b.el.classList.remove('on'); }
     }
     const cy = this.coy;
     if (cy) { cy.t -= dt; if (cy.t <= 0 || this.inCar || dist(cy.p.x, cy.p.y, this.player.x, this.player.y) > 70) { this.coy = null; this.setObjective(); } }
@@ -6675,6 +6791,54 @@ class Main extends Phaser.Scene {
         this.lotes.add(L);
       }
     }
+  }
+  // ----- la fila de las garitas (ver GARITAS) -----
+  // los carros aparecen al acercarte (sin que se vea su lugar, salvo al arrancar) y se quitan al alejarte; un aviso
+  // al llegar, y de vez en cuando alguien de la fila pita o te dice algo
+  updateFila(dt) {
+    if ((this.filaT = (this.filaT ?? 0) - dt) > 0) return;
+    const inicial = !this.filaOn; this.filaT = 0.4; this.filaOn = this.filaOn || new Set();
+    const f = this.focus(), R = this.viewR(), v = this.cameras.main.worldView, A = R + 220; // R: lo mas lejos que se ve
+    for (const s of this.filaOn) {
+      if (dist(s.x, s.y, f.x, f.y) < A + 200) continue;
+      const c = s.car, L = this.filaGrid.get(c.k);
+      c.sprite.destroy(); L.splice(L.indexOf(c), 1);
+      if (this.bubble.ped === c) this.bubble.t = 0;
+      s.car = null; this.filaOn.delete(s);
+    }
+    if (this.fila.length !== this.filaOn.size) this.fila = [...this.filaOn].map(s => s.car);
+    this.filaBB = [Infinity, Infinity, -Infinity, -Infinity]; // donde hay (con margen), para no buscar donde no
+    // donde no estorbe: ni tu, ni tu carro (si lo dejaste en la fila), ni otros
+    const otros = this.cars.concat(this.parked, [this.player]);
+    for (let cx = Math.floor((f.x - A) / CHUNK); cx <= Math.floor((f.x + A) / CHUNK); cx++) for (let cy = Math.floor((f.y - A) / CHUNK); cy <= Math.floor((f.y + A) / CHUNK); cy++) {
+      for (const s of chunkFila.get(GK(cx, cy)) || []) {
+        if (s.car || dist(s.x, s.y, f.x, f.y) > A) continue;
+        if (!inicial && s.x > v.x - 40 && s.x < v.right + 40 && s.y > v.y - 40 && s.y < v.bottom + 40) continue;
+        if (otros.some(o => Math.abs(o.x - s.x) < 30 && Math.abs(o.y - s.y) < 30)) continue;
+        const car = this.makeCar(s.x, s.y, s.a, this.carSpec({ ti: s.ti, ci: s.ci, d: s.d }));
+        car.fila = s.G; car.k = GK(Math.floor(s.x / 64), Math.floor(s.y / 64)); s.car = car; this.fila.push(car); this.filaOn.add(s);
+        if (!this.filaGrid.has(car.k)) this.filaGrid.set(car.k, []); this.filaGrid.get(car.k).push(car);
+      }
+    }
+    const bb = this.filaBB;
+    for (const c of this.fila) { bb[0] = Math.min(bb[0], c.x - 130); bb[1] = Math.min(bb[1], c.y - 130); bb[2] = Math.max(bb[2], c.x + 130); bb[3] = Math.max(bb[3], c.y + 130); }
+    // los de la fila que se ven cerca: el aviso al llegar y el ambiente
+    const cerca = [];
+    for (const s of this.filaOn) if (s.car && !s.car.wrecked && dist(s.x, s.y, f.x, f.y) < R * 0.8) cerca.push(s.car);
+    for (const G of GARITAS) {
+      const n = cerca.filter(c => c.fila === G).length;
+      if (!n && dist(G.x, G.y, f.x, f.y) > G.largo + R + 600) G.avisado = false;
+      else if (n >= 6 && !G.avisado) {
+        G.avisado = true;
+        toast('🚗 La fila de ' + G.nombre, G.dato + ' Aquí siempre hay fila para cruzar a Estados Unidos: los carros no se mueven.', 5);
+      }
+    }
+    if (!cerca.length || (this.filaHablaT = (this.filaHablaT ?? 2) - 0.4) > 0) return;
+    this.filaHablaT = rnd(2.5, 5);
+    const c = pick(cerca);
+    if (window.SND && Math.random() < 0.6) SND.play('pito', 0.3 + 0.7 * Math.max(0, 1 - dist(c.x, c.y, f.x, f.y) / R));
+    const junto = cerca.filter(o => dist(o.x, o.y, f.x, f.y) < 220);
+    if (!this.bubble.ped && junto.length && Math.random() < 0.7) this.globo(pick(junto), 'fila', pick(FRASES_FILA), 4);
   }
   // ----- escenas de trafico (ver ESCENAS) -----
   // aparecen cuando te acercas sin que se vea el lugar (7 de cada 10 veces), y se quitan al alejarte
@@ -8017,7 +8181,7 @@ async function start() {
     scene: [Main], fps: { target: 60, smoothStep: false },
   });
   window.addEventListener('resize', () => game.scale.resize(window.innerWidth * DPR, window.innerHeight * DPR));
-  window.TJGTA = game; game.dbg = { enComida, comidaGrid, walkG, edgePos, pasoBanqueta, SOBRERUEDAS, tianguis, puestos, chunkPuestos, pintarPuesto, walkTianguis, enSobreruedas, findRoute, ESCENAS, tocaChoque, WORLD_W, WORLD_H, regiones, esperarRegiones, chunkBlds, miniCuadros, miniVista, borderY, INICIO, traffic, nextEdge, arboles, arbolVa, arbolEn, bajoTecho, chinas, VTYPES, vehicleTexture, state, drawChunk, chunkSteps, areaFill, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, walkableTo, waterAreas, roads, PED_VARIANTS };
+  window.TJGTA = game; game.dbg = { GARITAS, filaSlots, chunkFila, enComida, comidaGrid, walkG, edgePos, pasoBanqueta, SOBRERUEDAS, tianguis, puestos, chunkPuestos, pintarPuesto, walkTianguis, enSobreruedas, findRoute, ESCENAS, tocaChoque, WORLD_W, WORLD_H, regiones, esperarRegiones, chunkBlds, miniCuadros, miniVista, borderY, INICIO, traffic, nextEdge, arboles, arbolVa, arbolEn, bajoTecho, chinas, VTYPES, vehicleTexture, state, drawChunk, chunkSteps, areaFill, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, walkableTo, waterAreas, roads, PED_VARIANTS };
 }
 $('go').addEventListener('click', start);
 

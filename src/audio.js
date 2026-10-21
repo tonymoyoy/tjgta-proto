@@ -199,6 +199,10 @@ const SFX = {
       tone(sfxBus, 'sawtooth', 233, t + d, l, 0.14 * v, { lp: 1600, a: 0.02 }); tone(sfxBus, 'sawtooth', 294, t + d, l, 0.11 * v, { lp: 1600, a: 0.02 });
     }
   },
+  pito(v = 1) { // el claxon de un carro desesperado en la fila: corto, a veces dos o tres seguidos
+    const t = ctx.currentTime, f = 330 + Math.random() * 150, n = 1 + (Math.random() * 3 | 0);
+    for (let i = 0; i < n; i++) { tone(sfxBus, 'square', f, t + i * 0.2, 0.12 + Math.random() * 0.12, 0.07 * v, { lp: 1500 }); tone(sfxBus, 'square', f * 1.26, t + i * 0.2, 0.12, 0.045 * v, { lp: 1500 }); }
+  },
   gasLP(v = 1) { // la cancioncita de la pipa que anda vendiendo gas por la colonia
     const t = ctx.currentTime, mel = [[67, 1], [72, 1], [72, 1], [76, 2], [74, 1], [72, 1], [74, 1], [79, 3]];
     let d = 0;

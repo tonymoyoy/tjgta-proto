@@ -80,6 +80,8 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); c
 /* los del sobreruedas: rosa mexicano con una tira de lonas de colores arriba */
 .bubble.tianguis { --bg: #fff4fa; --bd: #d81b60; --fg: #4a0d26;
   background: repeating-linear-gradient(90deg, #1f6fd1 0 14px, #f0b429 14px 28px, #d23b3b 28px 42px, #2e9e5b 42px 56px) top / 100% 6px no-repeat, #fff4fa; }
+/* los de la fila de la garita: azul de ventanilla con borde de defensa cromada */
+.bubble.fila { --bg: #e8f1fb; --bd: #8a96a3; --fg: #12324f; }
 .bubble.linea { --bg: #eef2f6; --bd: #475569; --fg: #1e293b; }
 .bubble.barrio { --bg: #fff0f6; --bd: #db2777; }
 .bubble.colonia { --bg: #ecfdf3; --bd: #15803d; --fg: #14532d; }
