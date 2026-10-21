@@ -1826,7 +1826,17 @@ const FRASES_CAFE = ['Un americano para el camino.', 'Café de olla bien cargado
 const FRASES_BACHE = ['¡Ese bache tenía su propio código postal!', 'Ahí se fue la suspensión, compa.', 'Bache tijuanense: si lo tapan, lo extrañan.',
   '¡Uy! Ese ya hasta paga predial.', 'Gracias, Ayuntamiento.', '¿Bache o alberca? Ni el gobierno sabe.', 'Se te cayó hasta la placa.',
   'Ese bache tiene más años que la Revu.', 'Directo a la llantera.', 'Ni el Mimo Moy se hace que no lo vio.',
-  'Ahí vive una familia de tlacuaches.', 'Ese bache sale en Google Maps.'];
+  'Ahí vive una familia de tlacuaches.', 'Ese bache sale en Google Maps.',
+  '¡Ese no era bache, era cráter!', 'Se me desacomodaron hasta los recuerdos.', 'Ya tiene nombre: le dicen «El Abuelo».',
+  '¡Cayó la llanta y regresó sola!', 'Ese bache ya está en el escudo de la colonia.', 'Mañana le ponen una cruz y unas flores.',
+  'Los de la llantera te mandan saludos.', '¡Ahí se quedó el tapón!', 'Con ese bache ya no necesitas topes.',
+  'Un poquito más hondo y salías en Ensenada.', '¡Hasta el aromatizante se cayó!',
+  'Dicen que si lo ves de noche te jala.', 'Ese bache tiene doble nacionalidad.', 'Rellénalo con frijoles y hazle tamales.',
+  'Bache nuevo, el de ayer ya se lo llevó la lluvia.', 'Ahí iba a ser un pozo de agua, pero se quedó en bache.',
+  '¡Se te salió el alma por la ventana!', 'El amortiguador pidió su liquidación.', 'Ya lo reportaste tres veces. Sigue ahí.'];
+// la reaccion que va antes de la frase (las fuertes cuando caes rapido)
+const REACCION_BACHE = ['🕳️', '😵', '😬', '🫨', '😖', '🙄', '🤕', '😩'];
+const REACCION_BACHE_FUERTE = ['😱', '💀', '🤯', '😵‍💫', '🚑', '💥🕳️', '😭', '🛞💨'];
 // lo que te dice la gente cuando te le pegas caminando, agrupado por tema:
 // cada tema tiene su propio globo (ver .bubble en style.css)
 const FRASES = {
@@ -5284,7 +5294,7 @@ class Main extends Phaser.Scene {
           car.hp -= dmg; car.vx *= 0.8; car.vy *= 0.8;
           this.jolt(160, Math.min(0.012, sp / 20000));
           if (window.SND) SND.play('crash', 0.35);
-          toast('🕳️ ' + pick(FRASES_BACHE), 'Tu auto: -' + Math.round(dmg) + ' de vida', 2);
+          toast(pick(sp > 140 ? REACCION_BACHE_FUERTE : REACCION_BACHE) + ' ' + pick(FRASES_BACHE), 'Tu auto: -' + Math.round(dmg) + ' de vida', 2);
           if (car.hp <= 0 && !broken) { this.wreck(car); toast('¡Auto deshuesado!', 'El bache ganó. Bájate con E y roba otro.'); }
         }
       }
