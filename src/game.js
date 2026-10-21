@@ -3895,6 +3895,24 @@ function makeCafes(scene) {
     t.refresh();
   });
 }
+// lo solido de los puestos de tacos y de los cafes (no se camina ni se maneja encima): cajas [u0, v0, u1, v1] y
+// circulos [u, v, r] en px del mundo, relativos al centro del dibujo sin girar (u a lo ancho, v hacia el frente)
+const SOLIDO_PUESTO = { cajas: [[-24, -23, 18, 6], [16, -18, 27, -6]], circs: [] };            // carrito con su lona y el trompo
+const SOLIDO_CAFE = { cajas: [[-26, -21, 24, -5]], circs: [[-16, 7, 7.5], [14, 7, 7.5], [0, 9.5, 4]] }; // toldo, mesitas y pizarron
+const CCELL = 64, comidaGrid = new Map();
+function solidoComida(x, y, rot, forma) {
+  const o = { x, y, c: Math.cos(rot), s: Math.sin(rot), f: forma };
+  gridAdd(comidaGrid, o, [x - 34, y - 34, x + 34, y + 34], CCELL);
+}
+function enComida(x, y, pad = 0) {
+  const a = comidaGrid.get(GK(Math.floor(x / CCELL), Math.floor(y / CCELL))); if (!a) return false;
+  for (const o of a) {
+    const dx = x - o.x, dy = y - o.y, u = dx * o.c + dy * o.s, v = -dx * o.s + dy * o.c;
+    for (const b of o.f.cajas) if (u > b[0] - pad && u < b[2] + pad && v > b[1] - pad && v < b[3] + pad) return true;
+    for (const c of o.f.circs) if (Math.hypot(u - c[0], v - c[1]) < c[2] + pad) return true;
+  }
+  return false;
+}
 // pines de las taquerias y cafes que te faltan: gota de color con borde blanco, brillo y el emoji adentro
 // ('pinTaco', 'pinCafe'; PIN_W x PIN_H px del mundo, la punta abajo al centro)
 const PIN_W = 20, PIN_H = 27;
@@ -5094,7 +5112,7 @@ class Main extends Phaser.Scene {
       const ox = 10.5 + 5 - PUESTO_W / 2, oy = 23 + 3 - PUESTO_H / 2, c = Math.cos(rot), sn = Math.sin(rot);
       t.vapor = [0, 1].map(i => this.add.image(t.x + ox * c - oy * sn, t.y + ox * sn + oy * c, 'vapor').setDepth(6.5).setAlpha(0).setScale(0.4 / SPR));
       t.vapor.forEach((v, i) => this.tweens.add({ targets: v, y: v.y - 10, alpha: { from: 0.55, to: 0 }, scale: { from: 0.35 / SPR, to: 0.9 / SPR }, duration: 1600, delay: i * 800 + Math.random() * 400, repeat: -1 }));
-      this.adornosComida(t, COMIDA.taco);
+      this.adornosComida(t, COMIDA.taco); solidoComida(t.x, t.y, rot, SOLIDO_PUESTO);
     }
     for (const c of cafes) {
       // el toldo queda pegado a la fachada, del lado de la banqueta que da al edificio
@@ -5108,7 +5126,7 @@ class Main extends Phaser.Scene {
         this.tweens.add({ targets: v, y: v.y - 7, alpha: { from: 0.45, to: 0 }, scale: { from: 0.2 / SPR, to: 0.55 / SPR }, duration: 1800, delay: i * 900 + Math.random() * 500, repeat: -1 });
         return v;
       });
-      this.adornosComida(c, COMIDA.cafe);
+      this.adornosComida(c, COMIDA.cafe); solidoComida(c.x, c.y, rot, SOLIDO_CAFE);
     }
     for (const c of chinas) {
       // la entrada (punta de la alfombra) queda en la banqueta; el local se mete hacia el edificio
@@ -5494,7 +5512,8 @@ class Main extends Phaser.Scene {
       mx /= m; my /= m;
       const nx = p.x + mx * sp * dt, ny = p.y + my * sp * dt;
       // los arboles como los carros: no te metes en uno, pero si apareciste encima si te puedes salir
-      const arb = (x1, y1) => arbolEn(x1, y1, 3) && !arbolEn(p.x, p.y, 3);
+      // (lo mismo con los puestos de tacos y los cafes)
+      const arb = (x1, y1) => (arbolEn(x1, y1, 3) && !arbolEn(p.x, p.y, 3)) || (enComida(x1, y1, 2) && !enComida(p.x, p.y, 2));
       if (!blocked(nx, p.y) && !this.carBlocks(p.x, p.y, nx, p.y, 3) && !arb(nx, p.y)) p.x = nx;
       if (!blocked(p.x, ny) && !this.carBlocks(p.x, p.y, p.x, ny, 3) && !arb(p.x, ny)) p.y = ny;
       p.a = Math.atan2(my, mx);
@@ -5914,7 +5933,7 @@ class Main extends Phaser.Scene {
     let n = 0;
     for (const [u, v] of [[hl, hw], [hl, -hw], [-hl, hw], [-hl, -hw], [hl + 2, 0], [0, hw], [0, -hw]]) {
       const px = x + c * u - s * v, py = y + s * u + c * v;
-      if (blocked(px, py) || (enSobreruedas(px, py) && (this.choqueSobre = true))) { if (!count) return true; n++; }
+      if (blocked(px, py) || enComida(px, py) || (enSobreruedas(px, py) && (this.choqueSobre = true))) { if (!count) return true; n++; }
     }
     const arb = arbolEnCaja(x, y, c, s, hl, hw);
     if (arb) { if (!count) return true; n += arb; }
@@ -7979,7 +7998,7 @@ async function start() {
     scene: [Main], fps: { target: 60, smoothStep: false },
   });
   window.addEventListener('resize', () => game.scale.resize(window.innerWidth * DPR, window.innerHeight * DPR));
-  window.TJGTA = game; game.dbg = { SOBRERUEDAS, tianguis, puestos, chunkPuestos, pintarPuesto, walkTianguis, enSobreruedas, findRoute, ESCENAS, tocaChoque, WORLD_W, WORLD_H, regiones, esperarRegiones, chunkBlds, miniCuadros, miniVista, borderY, INICIO, traffic, nextEdge, arboles, arbolVa, arbolEn, bajoTecho, chinas, VTYPES, vehicleTexture, state, drawChunk, chunkSteps, areaFill, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, walkableTo, waterAreas, roads, PED_VARIANTS };
+  window.TJGTA = game; game.dbg = { enComida, comidaGrid, SOBRERUEDAS, tianguis, puestos, chunkPuestos, pintarPuesto, walkTianguis, enSobreruedas, findRoute, ESCENAS, tocaChoque, WORLD_W, WORLD_H, regiones, esperarRegiones, chunkBlds, miniCuadros, miniVista, borderY, INICIO, traffic, nextEdge, arboles, arbolVa, arbolEn, bajoTecho, chinas, VTYPES, vehicleTexture, state, drawChunk, chunkSteps, areaFill, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, walkableTo, waterAreas, roads, PED_VARIANTS };
 }
 $('go').addEventListener('click', start);
 
