@@ -237,8 +237,8 @@ function gridLineas(items, cell, pad) {
 }
 const roadPad = (r) => (r.w / 2 + 3) * M; // el mismo margen que su caja (r.bb)
 const chunkRoads = gridLineas(roads, CHUNK, roadPad);
-// el pasto con margen: su orilla (ver orillaPasto) se sale unos pixeles del poligono
-const chunkAreas = gridIndex(areas, CHUNK, 'bb', a => (a.k === 0 || a.k === 1 ? 10 : 0));
+// el pasto y el agua con margen: sus orillas (ver orillaPasto y haloLago) se salen unos pixeles del poligono
+const chunkAreas = gridIndex(areas, CHUNK, 'bb', a => (a.k === 0 || a.k === 1 || a.k === AREA_AGUA ? 10 : 0));
 const BCELL = 64;
 
 // ---------- edificios por regiones ----------
@@ -532,7 +532,11 @@ for (const a of waterAreas) {
   A = Math.abs(A) / 2;
   const W = 2 * A / P, largo = P * P / (4 * Math.PI * A), derecho = Math.hypot(a.bb[2] - a.bb[0], a.bb[3] - a.bb[1]) / (P / 2);
   if (largo >= 5 && W < 700 && derecho >= 0.6) a.canal = { b: Math.max(5, Math.min(45, W * 0.16)), f: Math.max(3, Math.min(80, W * 0.18)) };
+  else a.lago = { W, giro: 1, orilla: null };
 }
+// el mapa trae algunos lagos repetidos (el mismo poligono dos veces): el segundo no se pinta
+{ const vistos = new Set();
+  for (const a of waterAreas) if (a.lago) { const k = a.bb.map(Math.round).join() + ',' + a.p.length; if (vistos.has(k)) a.lago.dup = true; vistos.add(k); } }
 const WCELL = 256; // celdas grandes: los poligonos de agua son pocos pero enormes
 const waterGrid = gridIndex(waterAreas, WCELL, 'bb');
 // los rios y arroyos (lineas de clase 11): sus tramos en un arreglo (x0 y0 x1 y1) y en una rejilla densa, como las calles
@@ -1836,14 +1840,93 @@ function orillaPasto(ctx, a, idx, X0, Y0, X1, Y1) {
   ctx.strokeStyle = 'rgba(35,65,20,0.55)'; ctx.stroke(hojasO);
   ctx.strokeStyle = 'rgba(150,180,85,0.5)'; ctx.stroke(hojasC);
 }
+// los lagos, la presa, los estanques y el mar: la orilla de lodo mojado por fuera; por dentro, el agua clarita y
+// bajita junto a la orilla que se va haciendo honda, una rayita de espuma, la sombra del bordo arriba a la
+// izquierda (el agua va mas abajo que la tierra) y unos tulares. Solo cuentan los lados que dan a tierra: donde un
+// lago se junta con otra agua (la presa viene en pedazos, los canales que le llegan) no hay orilla
+const ORILLA_LAGO = 40;
+// lado i da a tierra? (se calcula la primera vez que un trozo lo necesita: la presa tiene mas de mil lados)
+function esOrilla(a, i) {
+  const L = a.lago, p = a.p, n = p.length / 2;
+  if (!L.orilla) {
+    let s = 0;
+    for (let k = 0; k < n; k++) { const j = (k + 1) % n; s += p[k * 2] * p[j * 2 + 1] - p[j * 2] * p[k * 2 + 1]; }
+    L.giro = s > 0 ? 1 : -1; L.orilla = new Int8Array(n).fill(-1);
+  }
+  if (L.orilla[i] < 0) {
+    const j = (i + 1) % n, ax = p[i * 2], ay = p[i * 2 + 1], bx = p[j * 2], by = p[j * 2 + 1], len = Math.hypot(bx - ax, by - ay) || 1, g = L.giro;
+    // un punto un poquito afuera del lado: si cae en otra agua, ese lado no es orilla
+    const x = (ax + bx) / 2 + (by - ay) / len * g * 2, y = (ay + by) / 2 - (bx - ax) / len * g * 2;
+    const c = waterGrid.get(GK(Math.floor(x / WCELL), Math.floor(y / WCELL)));
+    L.orilla[i] = c && c.some(k => { const w = waterAreas[k]; return w !== a && !(w.lago && w.lago.dup) && x >= w.bb[0] && x <= w.bb[2] && y >= w.bb[1] && y <= w.bb[3] && pip(x, y, w.p); }) ? 0 : 1;
+  }
+  return L.orilla[i];
+}
+// el camino de la orilla dentro del trozo (con margen): tramos seguidos de lados que dan a tierra
+function caminoOrilla(a, X0, Y0, X1, Y1) {
+  const p = a.p, n = p.length / 2, m = ORILLA_LAGO, path = new Path2D(); let abierto = false, hay = false;
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n, ax = p[i * 2], ay = p[i * 2 + 1], bx = p[j * 2], by = p[j * 2 + 1];
+    if (Math.max(ax, bx) < X0 - m || Math.min(ax, bx) > X1 + m || Math.max(ay, by) < Y0 - m || Math.min(ay, by) > Y1 + m || !esOrilla(a, i)) { abierto = false; continue; }
+    if (!abierto) path.moveTo(ax, ay);
+    path.lineTo(bx, by); abierto = hay = true;
+  }
+  return hay ? path : null;
+}
+function haloLago(ctx, a, path) {
+  const mar = a.lago.W > 5000;
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  if (mar) { ctx.lineWidth = 16; ctx.strokeStyle = 'rgba(214,200,160,0.55)'; ctx.stroke(path); }
+  ctx.lineWidth = 9; ctx.strokeStyle = mar ? 'rgba(150,135,100,0.45)' : 'rgba(110,98,70,0.35)'; ctx.stroke(path);
+  ctx.lineWidth = 5; ctx.strokeStyle = mar ? 'rgba(120,105,75,0.4)' : 'rgba(80,70,50,0.4)'; ctx.stroke(path);
+}
+function pintarLago(ctx, a, idx, path, X0, Y0, X1, Y1) {
+  const W = a.lago.W, D = Math.max(6, Math.min(W > 5000 ? 70 : 34, W * 0.3));
+  ctx.save(); trace(ctx, a.p, true); ctx.clip(); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  const tr = (w, col) => { ctx.lineWidth = w; ctx.strokeStyle = col; ctx.stroke(path); };
+  // lo bajito: capas que se enciman hacia la orilla, verde agua y luego arenoso
+  for (const k of [1, 0.8, 0.62, 0.46, 0.32, 0.2]) tr(2 * D * k, 'rgba(105,150,135,0.085)');
+  tr(Math.min(10, D * 0.5), 'rgba(150,140,100,0.22)');
+  // la sombra del bordo: la misma orilla corrida abajo a la derecha, solo se queda del lado de arriba-izquierda
+  ctx.save(); ctx.translate(2.5, 3); tr(6, 'rgba(15,25,30,0.22)'); ctx.restore();
+  tr(2.4, 'rgba(225,238,235,0.45)'); // espuma
+  ctx.restore();
+  ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(45,38,30,0.45)'; ctx.stroke(path);
+  // la orilla no es una raya: bolitas de lodo que se meten al agua, piedritas y (no en el mar) tulares
+  const p = a.p, n = p.length / 2, g = a.lago.giro, m = ORILLA_LAGO;
+  const lodo = new Path2D(), piedra = new Path2D(), ver = new Path2D(), caf = new Path2D();
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n, ax = p[i * 2], ay = p[i * 2 + 1], bx = p[j * 2], by = p[j * 2 + 1], len = Math.hypot(bx - ax, by - ay);
+    if (len < 1 || Math.max(ax, bx) < X0 - m || Math.min(ax, bx) > X1 + m || Math.max(ay, by) < Y0 - m || Math.min(ay, by) > Y1 + m || !esOrilla(a, i)) continue;
+    const rnd = mulberry(idx * 6151 + i * 17 + 3), ux = (bx - ax) / len, uy = (by - ay) / len, nx = -uy * g, ny = ux * g; // hacia adentro
+    for (let t = rnd() * 3; t < len; t += 1.4 + rnd() * 2.6) {
+      const q = rnd() * 2.4 - 0.5, r = 0.7 + rnd() * 1.7, x = ax + ux * t + nx * q, y = ay + uy * t + ny * q;
+      lodo.moveTo(x + r, y); lodo.arc(x, y, r, 0, 7);
+      if (rnd() < 0.12) { const R = 0.5 + rnd() * 0.9, px = x + nx * (r + 0.5), py = y + ny * (r + 0.5); piedra.moveTo(px + R, py); piedra.arc(px, py, R, 0, 7); }
+    }
+    if (W >= 5000) continue;
+    for (let t = rnd() * 40; t < len; t += 25 + rnd() * 60) {
+      if (rnd() < 0.35) continue;
+      const k = 3 + rnd() * 3, cx = ax + ux * t + nx * (1 + rnd() * 3), cy = ay + uy * t + ny * (1 + rnd() * 3), tallos = 12 + rnd() * 14;
+      for (let q = 0; q < tallos; q++) {
+        // tallos que salen de la mata hacia afuera, unos verdes y otros secos
+        const ang = rnd() * Math.PI * 2, r = rnd() * k * 0.35, l = k * (0.5 + rnd() * 0.6), sx = cx + Math.cos(ang) * r, sy = cy + Math.sin(ang) * r;
+        const h = q % 4 ? ver : caf; h.moveTo(sx, sy); h.lineTo(sx + Math.cos(ang) * l, sy + Math.sin(ang) * l);
+      }
+    }
+  }
+  ctx.fillStyle = 'rgba(105,92,66,0.55)'; ctx.fill(lodo);
+  ctx.fillStyle = 'rgba(150,145,135,0.9)'; ctx.fill(piedra);
+  ctx.lineCap = 'round'; ctx.lineWidth = 0.7; ctx.strokeStyle = 'rgba(55,90,35,0.9)'; ctx.stroke(ver);
+  ctx.strokeStyle = 'rgba(150,130,75,0.85)'; ctx.stroke(caf);
+}
 function* chunkSteps(cx, cy) {
   const cv = document.createElement('canvas'); cv.width = cv.height = (CHUNK + 2) * RES;
   const ctx = cv.getContext('2d', CTX2D);
   ctx.scale(RES, RES); ctx.translate(1 - cx * CHUNK, 1 - cy * CHUNK);
   ctx.fillStyle = areaFill(ctx, TEX_TIERRA); ctx.fillRect(cx * CHUNK - 1, cy * CHUNK - 1, CHUNK + 2, CHUNK + 2);
   const k = GK(cx, cy);
-  // el agua va encima de las demas areas (en el mapa a veces se enciman con el canal); los arroyos al ultimo,
-  // menos dentro de los canales (ahi ya esta el agua)
+  // el agua va encima de las demas areas (en el mapa a veces se enciman con el canal)
   const ia = Array.from(chunkAreas.get(k) || []), ar = ia.map(i => areas[i]), canales = ar.filter(a => a.canal);
   const X0 = cx * CHUNK, Y0 = cy * CHUNK, X1 = X0 + CHUNK, Y1 = Y0 + CHUNK, pasto = a => a.k === 0 || a.k === 1;
   // los halos del pasto antes que todas las areas: solo se ven sobre la tierra pelona
@@ -1852,19 +1935,13 @@ function* chunkSteps(cx, cy) {
   let hay = false;
   ar.forEach((a, n) => { if (pasto(a)) { orillaPasto(ctx, a, ia[n], X0, Y0, X1, Y1); hay = true; } });
   if (hay) yield; // las orillas del pasto cuestan un par de milisegundos en el celular: lo demas en otro cuadro
-  for (const a of ar) if (a.k === AREA_AGUA && !a.canal) { ctx.fillStyle = areaFill(ctx, a.k); trace(ctx, a.p, true); ctx.fill(); }
+  const lagos = []; ar.forEach((a, n) => { if (a.lago && !a.lago.dup) { const c = caminoOrilla(a, X0, Y0, X1, Y1); lagos.push([a, ia[n], c]); } });
+  for (const [a, , c] of lagos) if (c) haloLago(ctx, a, c);
+  // los arroyos entubados antes que el agua: donde llegan a un lago o a un canal, el agua los tapa
+  for (const r of chunkRoads.get(k) || []) if (roads[r].c === 11) pintarArroyo(ctx, roads[r]);
+  for (const [a] of lagos) { ctx.fillStyle = areaFill(ctx, a.k); trace(ctx, a.p, true); ctx.fill(); }
+  for (const [a, i, c] of lagos) if (c) pintarLago(ctx, a, i, c, X0, Y0, X1, Y1);
   for (const a of canales) pintarCanal(ctx, a);
-  const arroyos = Array.from(chunkRoads.get(k) || [], i => roads[i]).filter(r => r.c === 11);
-  if (arroyos.length) {
-    ctx.save();
-    if (canales.length) {
-      ctx.beginPath(); ctx.rect(cx * CHUNK - 2, cy * CHUNK - 2, CHUNK + 4, CHUNK + 4);
-      for (const a of canales) { ctx.moveTo(a.p[0], a.p[1]); for (let i = 2; i < a.p.length; i += 2) ctx.lineTo(a.p[i], a.p[i + 1]); ctx.closePath(); }
-      ctx.clip('evenodd');
-    }
-    for (const r of arroyos) pintarArroyo(ctx, r);
-    ctx.restore();
-  }
   for (const e of chunkEst.get(k) || []) pintarEstacionamiento(ctx, e);
   const sl = chunkSuelo.get(k) || [];
   for (const e of sl) pintarSuelo(ctx, e);
