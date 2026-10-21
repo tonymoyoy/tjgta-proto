@@ -27,6 +27,7 @@ T trabajar de taxista · M mapa grande (toca para marcar destino). En celular ha
   Agua Caliente e Hipódromo (Estadio Caliente, el Campestre...) Otay y La Mesa (Garita de Otay, Aeropuerto, UABC, Las 5 y 10, El Trompo, Parque Morelos...) La Presa (Estadio de los Toros, Mirador del Cerro Colorado, Presa Rodríguez...) Playas (El Muro en la Playa, Faro, Malecón, El Colef...) y las orillas (Santa Fe, Natura, El Florido...).
 - Ruta del taco 🌮: 205 taquerías reales del mapa (las que llegaron con cada ampliación, a 700 m o más una de otra; desde la última, a 1.5 km).
 - Cafés ☕: 176 cafés reales para coleccionar.
+  Las taquerías y cafés que te faltan se ven desde lejos: un pin con 🌮 o ☕ que flota sobre el puesto, una luz que late en el piso y el nombre en una etiqueta de color. Al visitarlos el pin se desinfla y el puesto queda más apagado.
 - Comida china 🏮: 6 locales ficticios en la Calle Coahuila; al entrar pierdes dinero (no se coleccionan).
 - Repartidor 🛵: roba una moto de repartidor (scooter con caja térmica verde, naranja, roja o azul) y entrega el pedido antes de que se acabe el tiempo.
 - Taxi: recoge pasajeros y llévalos a un lugar antes de que se acabe el tiempo.

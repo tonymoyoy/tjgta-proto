@@ -3191,7 +3191,7 @@ function drawPlayer(x, sw) {
   x.restore();
 }
 function makeTextures(scene) {
-  makeLights(scene); makeFiesta(scene); makeMoto(scene); makeDeportiva(scene); makeEscolta(scene); makePerro(scene); makePerros(scene); makeGatos(scene); makeLandmarkIcons(scene); makeTrocaTacos(scene); makeZonkey(scene); makeTaxi(scene); makePolice(scene); makeUrbano(scene); makePipaGas(scene); makeExplosiones(scene); makeTacoStands(scene); makeCafes(scene); makeChinas(scene); makeYonke(scene); makeEggs(scene); makeScorch(scene);
+  makeLights(scene); makeFiesta(scene); makeMoto(scene); makeDeportiva(scene); makeEscolta(scene); makePerro(scene); makePerros(scene); makeGatos(scene); makeLandmarkIcons(scene); makeTrocaTacos(scene); makeZonkey(scene); makeTaxi(scene); makePolice(scene); makeUrbano(scene); makePipaGas(scene); makeExplosiones(scene); makeTacoStands(scene); makeCafes(scene); makePinesComida(scene); makeChinas(scene); makeYonke(scene); makeEggs(scene); makeScorch(scene);
   // personas vistas desde arriba, mirando a la derecha; 8 cuadros de caminata (el cuadro 0 es parado).
   // Una textura por variante de PED_VARIANTS ('ped0'...) y la del jugador ('pedP'); ver drawPerson.
   // Se dibujan a SPR veces la resolucion y el sprite se muestra a escala 1 / SPR para que se vean nitidas.
@@ -3894,6 +3894,25 @@ function makeCafes(scene) {
     rrect('#d7ccc8', 20.5, 16.4, 11, 3.4, 0.6); rrect(c1, 21.1, 16.9, 9.8, 2.4, 0.4);
     t.refresh();
   });
+}
+// pines de las taquerias y cafes que te faltan: gota de color con borde blanco, brillo y el emoji adentro
+// ('pinTaco', 'pinCafe'; PIN_W x PIN_H px del mundo, la punta abajo al centro)
+const PIN_W = 20, PIN_H = 27;
+const COMIDA = { taco: { pin: 'pinTaco', col: '#f57c00', luz: 0xff9f1c, emoji: '🌮', fondo: 'rgba(170,60,0,0.88)' },
+  cafe: { pin: 'pinCafe', col: '#8d5524', luz: 0xd7a46a, emoji: '☕', fondo: 'rgba(62,39,35,0.88)' } };
+function makePinesComida(scene) {
+  for (const C of Object.values(COMIDA)) {
+    const t = scene.textures.createCanvas(C.pin, PIN_W * SPR, PIN_H * SPR), x = t.getContext();
+    x.scale(SPR, SPR); x.translate(PIN_W / 2, 10);
+    const gota = () => { x.beginPath(); x.moveTo(0, 16); x.bezierCurveTo(-3, 10, -9, 5, -9, -0.5); x.arc(0, -0.5, 9, Math.PI, 0); x.bezierCurveTo(9, 5, 3, 10, 0, 16); x.closePath(); };
+    x.save(); x.shadowColor = 'rgba(0,0,0,0.45)'; x.shadowBlur = 2; x.shadowOffsetY = 1; gota(); x.fillStyle = C.col; x.fill(); x.restore();
+    gota(); x.lineWidth = 1.4; x.strokeStyle = '#fff'; x.stroke();
+    x.fillStyle = 'rgba(255,255,255,0.95)'; x.beginPath(); x.arc(0, -0.5, 5.9, 0, 7); x.fill();
+    x.font = '7.8px "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.fillText(C.emoji, 0, 0.2);
+    x.fillStyle = 'rgba(255,255,255,0.55)'; x.beginPath(); x.ellipse(-4.6, -5.2, 1.8, 1, -0.7, 0, 7); x.fill(); // brillo
+    t.refresh();
+  }
 }
 // "comida china": local grande con marquesina de neon, faroles rojos, alfombra, cordon y cadenero.
 // Dos texturas para que el neon parpadee. El frente (alfombra) va hacia abajo.
@@ -5075,7 +5094,7 @@ class Main extends Phaser.Scene {
       const ox = 10.5 + 5 - PUESTO_W / 2, oy = 23 + 3 - PUESTO_H / 2, c = Math.cos(rot), sn = Math.sin(rot);
       t.vapor = [0, 1].map(i => this.add.image(t.x + ox * c - oy * sn, t.y + ox * sn + oy * c, 'vapor').setDepth(6.5).setAlpha(0).setScale(0.4 / SPR));
       t.vapor.forEach((v, i) => this.tweens.add({ targets: v, y: v.y - 10, alpha: { from: 0.55, to: 0 }, scale: { from: 0.35 / SPR, to: 0.9 / SPR }, duration: 1600, delay: i * 800 + Math.random() * 400, repeat: -1 }));
-      t.label = this.add.text(t.x, t.y - 34, t.name, { fontSize: '12px', color: '#ffe0a0', stroke: '#000', strokeThickness: 3, resolution: TXT_RES }).setOrigin(0.5).setDepth(19);
+      this.adornosComida(t, COMIDA.taco);
     }
     for (const c of cafes) {
       // el toldo queda pegado a la fachada, del lado de la banqueta que da al edificio
@@ -5089,7 +5108,7 @@ class Main extends Phaser.Scene {
         this.tweens.add({ targets: v, y: v.y - 7, alpha: { from: 0.45, to: 0 }, scale: { from: 0.2 / SPR, to: 0.55 / SPR }, duration: 1800, delay: i * 900 + Math.random() * 500, repeat: -1 });
         return v;
       });
-      c.label = this.add.text(c.x, c.y - 30, c.name, { fontSize: '12px', color: '#e8d2b5', stroke: '#000', strokeThickness: 3, resolution: TXT_RES }).setOrigin(0.5).setDepth(19);
+      this.adornosComida(c, COMIDA.cafe);
     }
     for (const c of chinas) {
       // la entrada (punta de la alfombra) queda en la banqueta; el local se mete hacia el edificio
@@ -7070,13 +7089,13 @@ class Main extends Phaser.Scene {
       }
       if (t.cool > 0) t.cool -= dt;
       if (t.eaten || dist(t.x, t.y, f.x, f.y) > 40 || sp > 70) continue;
-      t.eaten = true; state.money += 25; save(); updateStats();
+      t.eaten = true; state.money += 25; save(); updateStats(); this.quitarPin(t);
       if (this.inCar) this.inCar.hp = Math.min(this.inCar.maxHp, this.inCar.hp + 30);
       toast('🌮 ' + t.name, pick(['¡Qué buenos de asada!', 'Birria con consomé, uff.', 'Al pastor con piña.', 'Unos de adobada, de rigor.']) + '  (+$25)', 3);
     }
     for (const c of cafes) {
       if (c.drunk || dist(c.x, c.y, f.x, f.y) > 40 || sp > 70) continue;
-      c.drunk = true; state.money += 20; save(); updateStats();
+      c.drunk = true; state.money += 20; save(); updateStats(); this.quitarPin(c);
       toast('☕ ' + c.name, pick(FRASES_CAFE) + '  (+$20)', 3);
     }
     this.checkPerks();
@@ -7253,6 +7272,36 @@ class Main extends Phaser.Scene {
   }
 
 
+  // las taquerias y cafes que te faltan se notan desde lejos: una luz que late en el piso, un pin flotando con
+  // su emoji (y su sombra) y el nombre en una etiqueta de color. Ya visitados quedan solo el puesto, mas apagado
+  adornosComida(o, C) {
+    o.ph = Math.random() * 6.283;
+    o.glow = this.add.image(o.x, o.y, 'luz').setDepth(3).setTint(C.luz).setBlendMode(Phaser.BlendModes.ADD).setScale(0.6).setVisible(false);
+    o.sombraPin = this.add.image(o.x, o.y - 6, 'aroSombra').setDepth(6.6).setScale(0.45).setVisible(false);
+    o.pin = this.add.image(o.x, o.y - 8, C.pin).setOrigin(0.5, 1).setDepth(19.5).setScale(1 / SPR).setVisible(false);
+    o.label = this.add.text(o.x, o.y - 40, o.name, { fontFamily: 'system-ui, "Noto Sans", sans-serif', fontSize: '12px', fontStyle: 'bold', color: '#fff',
+      backgroundColor: C.fondo, padding: { x: 5, y: 2 }, resolution: TXT_RES }).setOrigin(0.5, 1).setDepth(19).setVisible(false);
+  }
+  moverAdornos(o, hecho, f, time) {
+    const d = dist(o.x, o.y, f.x, f.y), ver = !hecho && d < 900;
+    o.icon.setAlpha(hecho ? 0.7 : 1);
+    o.label.setVisible(!hecho && d < 420);
+    o.glow.setVisible(ver); o.sombraPin.setVisible(ver);
+    if (!o.pop) o.pin.setVisible(ver);
+    if (!ver) return;
+    const b = Math.sin(time / 320 + o.ph); // el pin sube y baja; su sombra se achica cuando sube
+    if (!o.pop) o.pin.y = o.y - 17 - (b + 1) * 2.5;
+    o.sombraPin.setScale(0.45 - (b + 1) * 0.05).setAlpha(0.8 - (b + 1) * 0.15);
+    o.glow.setAlpha(0.32 + 0.14 * Math.sin(time / 520 + o.ph)).setScale(0.55 + 0.05 * Math.sin(time / 520 + o.ph));
+    o.label.y = o.y - 46 - (b + 1) * 2.5;
+  }
+  // al visitarlo, el pin se infla y se desvanece hacia arriba
+  quitarPin(o) {
+    if (!o.pin) return;
+    o.pop = true;
+    this.tweens.add({ targets: o.pin, y: o.pin.y - 14, scale: 1.8 / SPR, alpha: 0, duration: 650, ease: 'Back.out',
+      onComplete: () => { o.pop = false; o.pin.setVisible(false).setAlpha(1).setScale(1 / SPR); } });
+  }
   // un aro (ver makeAros): luz en el piso, el aro, las rayitas que giran y una onda que sale cada tanto
   // con pin: ademas un pin que flota en medio (para los destinos, que no traen insignia)
   crearAro(color, depth, conPin) {
@@ -7292,8 +7341,8 @@ class Main extends Phaser.Scene {
       if (m.found !== m.l.found) { m.found = m.l.found; if (m.l.found) m.star.setTint(0x9a9a9a).setAlpha(0.85); else m.star.clearTint().setAlpha(1); }
       m.label.setVisible(near);
     }
-    for (const t of tacos) { t.icon.setAlpha(t.eaten ? 0.7 : 1); t.label.setVisible(!t.eaten && dist(t.x, t.y, f.x, f.y) < 300); }
-    for (const c of cafes) { c.icon.setAlpha(c.drunk ? 0.7 : 1); c.label.setVisible(!c.drunk && dist(c.x, c.y, f.x, f.y) < 300); }
+    for (const t of tacos) this.moverAdornos(t, t.eaten, f, time);
+    for (const c of cafes) this.moverAdornos(c, c.drunk, f, time);
     for (const c of chinas) c.label.setVisible(dist(c.x, c.y, f.x, f.y) < 300);
     YONKE.label.setVisible(dist(YONKE.x, YONKE.y, f.x, f.y) < 400);
     const g = this.goal();
