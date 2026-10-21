@@ -5207,16 +5207,16 @@ class Main extends Phaser.Scene {
       if (blocked(d.x, d.y) || !regionesListas(d.x, d.y, d.x, d.y) || (!initial && inView(d.x, d.y))) continue;
       this.perros.push(this.perroSprite(d));
     }
-    // un gato en la azotea de alguna casa (uno a la vez y no siempre: mas raros que los perros)
+    // gatos en las azoteas de las casas (hasta dos a la vez y no siempre: mas raros que los perros)
     const now = this.time.now;
-    if (!this.gatos.length && now > this.gatoProx) {
+    if (this.gatos.length < 2 && now > this.gatoProx) {
       const c = this.inCar, va = c && Math.hypot(c.vx, c.vy) > 40 ? Math.atan2(c.vy, c.vx) : undefined;
       const g = this.buscarAzotea(p.x, p.y, initial ? 120 : R + 20, R + 220, initial ? null : inView, va);
-      if (g) this.gatos.push(this.gatoSprite(g));
+      if (g && !this.gatos.some(o => o.b === g.b)) { this.gatos.push(this.gatoSprite(g)); this.gatoProx = now + rnd(8000, 20000); }
       else this.gatoProx = now + 2000;
     }
     const far = R + 520;
-    this.gatos = this.gatos.filter(c => { if (dist(c.x, c.y, p.x, p.y) > far) { c.sprite.destroy(); if (this.bubble.ped === c) this.bubble.t = 0; this.gatoProx = now + rnd(30000, 75000); return false; } return true; });
+    this.gatos = this.gatos.filter(c => { if (dist(c.x, c.y, p.x, p.y) > far) { c.sprite.destroy(); if (this.bubble.ped === c) this.bubble.t = 0; this.gatoProx = Math.max(this.gatoProx, now + rnd(10000, 25000)); return false; } return true; });
     this.perros = this.perros.filter(c => { if (dist(c.x, c.y, p.x, p.y) > far) { c.sprite.destroy(); return false; } return true; });
     this.cars = this.cars.filter(c => { if (!c.escena && dist(c.x, c.y, p.x, p.y) > far) { c.sprite.destroy(); return false; } return true; });
     this.peds = this.peds.filter(c => { if (dist(c.x, c.y, p.x, p.y) > far) { c.sprite.destroy(); return false; } return true; });
