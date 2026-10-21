@@ -75,6 +75,8 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); c
 /* los que saben que estan en un juego hablan como terminal */
 .bubble.cuartapared { --bg: #0b120c; --bd: #39ff6a; --fg: #39ff6a; font-family: ui-monospace, 'Droid Sans Mono', monospace;
   font-weight: 500; text-shadow: 0 0 6px rgba(57,255,106,.55); }
+/* los gatos de las azoteas: morado de noche con ojos amarillos, y muy creidos */
+.bubble.gato { --bg: #2a1f35; --bd: #f5b700; --fg: #ffe9a8; font-style: italic; }
 .bubble.linea { --bg: #eef2f6; --bd: #475569; --fg: #1e293b; }
 .bubble.barrio { --bg: #fff0f6; --bd: #db2777; }
 .bubble.colonia { --bg: #ecfdf3; --bd: #15803d; --fg: #14532d; }

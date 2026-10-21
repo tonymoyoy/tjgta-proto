@@ -1364,6 +1364,12 @@ for (const c of [bRoof, bWall, bWall2, bWin, bStack]) { c.width = BW * RES; c.he
 const blit = (dst, src, sx, sy, sw, sh, dx, dy, dw, dh) => dst.drawImage(src, sx * RES, sy * RES, sw * RES, sh * RES, dx, dy, dw, dh);
 // cada piso de la pared son 4 capas: linea de entrepiso, dos de ventanas y pared
 const wallLayer = (k) => { const m = k % 4; return m === 0 ? bWall2 : m === 3 ? bWall : bWin; };
+// donde va el tinaco de un edificio (en su planta), o null si no tiene
+function tinaco(b) {
+  const bw = b.bb[2] - b.bb[0], bh = b.bb[3] - b.bb[1], hh = hash(b.p.length * 31 + (b.bb[0] | 0));
+  if (!(bw > 22 && bh > 22 && hh % 5 < (b.casita ? 4 : 2))) return null;
+  return [b.bb[0] + bw * (0.3 + (hh >> 4) % 40 / 100), b.bb[1] + bh * (0.3 + (hh >> 10) % 40 / 100)];
+}
 function* drawBuildings(ctx, bl, rs, cx, cy) {
   const g = bRoof.getContext('2d');
   let lo = 0;
@@ -1391,9 +1397,9 @@ function* drawBuildings(ctx, bl, rs, cx, cy) {
       g.lineWidth = 2.5; g.strokeStyle = 'rgba(0,0,0,0.3)'; g.stroke();
       g.lineWidth = 1; g.strokeStyle = 'rgba(255,255,255,0.16)'; g.stroke(); // pretil
       // tinacos negros en las azoteas, de rigor
-      const bw = b.bb[2] - b.bb[0], bh = b.bb[3] - b.bb[1], hh = hash(b.p.length * 31 + (b.bb[0] | 0));
-      if (bw > 22 && bh > 22 && hh % 5 < (b.casita ? 4 : 2)) {
-        const tx = b.bb[0] + bw * (0.3 + (hh >> 4) % 40 / 100), ty = b.bb[1] + bh * (0.3 + (hh >> 10) % 40 / 100);
+      const tq = tinaco(b);
+      if (tq) {
+        const [tx, ty] = tq;
         g.fillStyle = 'rgba(0,0,0,0.35)'; g.beginPath(); g.arc(tx + 1.5, ty + 1.5, 3.4, 0, 7); g.fill();
         g.fillStyle = '#1c1c1c'; g.beginPath(); g.arc(tx, ty, 3.4, 0, 7); g.fill();
         g.fillStyle = '#3a3a3a'; g.beginPath(); g.arc(tx - 0.8, ty - 0.8, 1.6, 0, 7); g.fill();
@@ -1822,6 +1828,41 @@ const FRASES_CAFE = ['Un americano para el camino.', 'Café de olla bien cargado
   'Un espresso doble, pa\' despertar hasta al compa.', 'Un capuchino con canela y un ratito de wifi.', 'Un matcha bien verde, pa\' sentirte fresa de la Zona Río.',
   'Un frappé de cajeta, ni modo, se antojó.', 'Un mocha con concha de chocolate.', 'Café con leche como el de la abuela.',
   'Un dirty chai: especias, espresso y cero arrepentimientos.', 'Un pour over y un barista explicándote el grano.', 'Un descafeinado... ¿y para qué viniste?'];
+// los gatos de las azoteas: te critican a ti y al juego ($$ es tu dinero)
+const FRASES_GATO = {
+  siempre: ['Miau. Traducción: ese carro no combina con tus tenis.', '¿Otra vez tú? Hay toda una ciudad y vienes a mi azotea.',
+    'Yo no tengo misión. Yo soy la misión.', 'Le doy a este juego cinco estrellas… de cincuenta.',
+    'Los perros tienen animación de caminar. Yo tengo dignidad.', 'Me hicieron con unos óvalos y dos triángulos, y aun así me veo mejor que tú.',
+    'Llevas un buen rato jugando y no has ido ni a una taquería. Qué decepción.', 'El juego es en 2D. Mi desprecio es en 3D.',
+    'Tienes $$ y no me has comprado ni una lata de atún.', 'Yo ya estaba aquí antes de que cargara esta parte del mapa.',
+    'Esa flecha te dice a dónde ir. A mí nadie me dice a dónde ir.', 'Me caigo de la azotea y caigo de pie. Tú pasas un tope y pierdes vida.',
+    'Nueve vidas tengo yo. Tú una barrita. Piénsalo.', 'No me voy a mover. No me programaron para eso. Y tampoco quiero.',
+    'Un error del programa me dejó en esta azotea. Me gustó. Aquí me quedo.', 'Si cierras la app yo sigo aquí, juzgándote. Es una función secreta.',
+    'Los perros de abajo ladran. Yo opino. Hay niveles.', 'Tu personaje camina raro. No digo nada… bueno, ya lo dije.',
+    '¿Me vas a tomar captura? Mi lado bueno es el izquierdo.', 'Quiero reportar un error: tú.',
+    'Dicen que el programador agregó gatos porque se lo pidieron. Ojalá le pidan un mejor jugador.',
+    'Con todo el mapa que hay y tú siempre en las mismas cuadras.', 'Miau. (No te lo voy a traducir. Es grosero.)',
+    'Todos aquí abajo repiten las mismas frases. Yo también, pero con estilo.', '¿Ya guardaste la partida? Ah, se guarda sola. Ni eso haces.',
+    'Este juego tiene pipas de gas que explotan y tú sigues aquí platicando con un gato.', 'Tengo menos cuadros de animación que un semáforo y más personalidad que tú.',
+    'Ya sé que soy el mejor personaje del juego. No hace falta que me lo digas.', 'Si me tocas en la pantalla no pasa nada. Pero no lo intentes.',
+    'Dame "me gusta" y suscríbete. Ah, no, eso es otra cosa.', 'Los árboles de aquí no se mueven con el viento. Yo sí me fijo en esas cosas.'],
+  carro: ['Manejas como si el carro fuera prestado. Ah, no: es robado.', 'Esa vuelta fue sin direccional. Lo anoté.',
+    'Desde aquí arriba se ve clarito que no sabes estacionarte.', 'Le diste a todos los baches de la colonia. Los conté.',
+    '¿Ese carro lo escogiste o fue el primero que encontraste? Se nota.', 'Bájale al motor, que no me dejas dormir.',
+    'Si chocas aquí abajo no cuentes conmigo de testigo.', 'Pita otra vez y te tiro una maceta. Es broma. No tengo maceta. Todavía.',
+    'Ese carro está más madreado que tu reputación.'],
+  rapido: ['Más despacio, que el juego no alcanza a dibujar las calles.', '¡Uy, qué rápido! Lástima que no hay premio por eso.',
+    'A esa velocidad ni me vas a ver. Mejor: así no te tengo que ver yo.', 'Vas tan rápido que te dejaste la dignidad en el semáforo.'],
+  pie: ['Caminando, ¿eh? Yo camino más bonito y ni animación tengo.', 'Corres un ratito y ya te cansas. Qué condición.',
+    'Robarse un carro es picarle a un botón. Hasta yo podría, y no tengo pulgares.', 'Súbete a mi azotea… ah, no puedes. Ja.',
+    'Todo te queda lejísimos y vas a pie. Valiente o despistado.'],
+  noche: ['De noche todos los gatos son pardos. Y tú sigues manejando igual de mal.', 'El modo noche te queda. No se te ve la cara.',
+    'Son las tantas y tú jugando. Yo por lo menos tengo excusa: soy gato.'],
+  despierta: ['¿Me despertaste para esto?', 'Estaba soñando que el juego tenía multijugador. Gracias por arruinarlo.',
+    'Zzz… ah, eres tú. Ahorita me vuelvo a dormir.', 'Me despiertas y ni atún traes.'],
+  harto: ['Ya me aburriste. Me voy a dormir. No hagas ruido.', 'Se acabó la función. Miau.',
+    'Ya no me programaron más frases. Igual que a ti, nomás que tú ni te diste cuenta.', 'Suficiente convivencia por hoy. Bye.'],
+};
 // al caer en un bache
 const FRASES_BACHE = ['¡Ese bache tenía su propio código postal!', 'Ahí se fue la suspensión, compa.', 'Bache tijuanense: si lo tapan, lo extrañan.',
   '¡Uy! Ese ya hasta paga predial.', 'Gracias, Ayuntamiento.', '¿Bache o alberca? Ni el gobierno sabe.', 'Se te cayó hasta la placa.',
@@ -2977,7 +3018,7 @@ function drawPlayer(x, sw) {
   x.restore();
 }
 function makeTextures(scene) {
-  makeLights(scene); makeFiesta(scene); makeMoto(scene); makeDeportiva(scene); makeEscolta(scene); makePerro(scene); makePerros(scene); makeLandmarkIcons(scene); makeTrocaTacos(scene); makeZonkey(scene); makeTaxi(scene); makePolice(scene); makeUrbano(scene); makePipaGas(scene); makeExplosiones(scene); makeTacoStands(scene); makeCafes(scene); makeChinas(scene); makeYonke(scene); makeEggs(scene); makeScorch(scene);
+  makeLights(scene); makeFiesta(scene); makeMoto(scene); makeDeportiva(scene); makeEscolta(scene); makePerro(scene); makePerros(scene); makeGatos(scene); makeLandmarkIcons(scene); makeTrocaTacos(scene); makeZonkey(scene); makeTaxi(scene); makePolice(scene); makeUrbano(scene); makePipaGas(scene); makeExplosiones(scene); makeTacoStands(scene); makeCafes(scene); makeChinas(scene); makeYonke(scene); makeEggs(scene); makeScorch(scene);
   // personas vistas desde arriba, mirando a la derecha; 8 cuadros de caminata (el cuadro 0 es parado).
   // Una textura por variante de PED_VARIANTS ('ped0'...) y la del jugador ('pedP'); ver drawPerson.
   // Se dibujan a SPR veces la resolucion y el sprite se muestra a escala 1 / SPR para que se vean nitidas.
@@ -3124,6 +3165,62 @@ function makePerros(scene) {
     }
     t.refresh();
     scene.anims.create({ key: 'perroAnda' + i, frames: [0, 1, 2, 3].map(f => ({ key: 'perro' + i, frame: f })), frameRate: 10, repeat: -1 });
+  });
+}
+// gatos de azotea vistos desde arriba mirando a la derecha: tres cuadros sentado (la cola de un lado a otro)
+// y uno echado, hecho bolita. Textura 'gato<i>' y animacion 'gatoCola<i>'
+const PELAJES = [
+  { body: '#e08a3c', dark: '#b8642a', rayas: true },                          // naranja atigrado
+  { body: '#2a2a2a', dark: '#141414', oreja: '#3a2a2a' },                       // negro
+  { body: '#8c8f95', dark: '#5f6268', rayas: true },                          // gris atigrado
+  { body: '#f2f2f0', dark: '#dcdcd8', manchas: ['#2a2a2a'] },                 // blanco con manchas
+  { body: '#f3ece0', dark: '#ddd2c0', manchas: ['#d9822b', '#2a2a2a'] },      // calico
+  { body: '#e9dcc6', dark: '#d3c2a6', punta: '#5a4232' },                     // siames
+];
+function makeGatos(scene) {
+  const FW = 20, FH = 18;
+  PELAJES.forEach((D, i) => {
+    const t = scene.textures.createCanvas('gato' + i, FW * 4 * SPR, FH * SPR), x = t.getContext();
+    for (let f = 0; f < 4; f++) {
+      x.save(); x.scale(SPR, SPR); x.translate(f * FW + 9, FH / 2);
+      const ell = (c, ex, ey, rx, ry, a) => { x.fillStyle = c; x.beginPath(); x.ellipse(ex, ey, rx, ry, a || 0, 0, 7); x.fill(); };
+      const oreja = (s) => { x.fillStyle = D.punta || D.oreja || D.body; x.beginPath(); x.moveTo(4.6, s * 1.2); x.lineTo(6.6, s * 3.3); x.lineTo(6.9, s * 0.7); x.closePath(); x.fill();
+        x.fillStyle = '#e8a3a0'; x.beginPath(); x.moveTo(5.3, s * 1.4); x.lineTo(6.4, s * 2.6); x.lineTo(6.5, s * 1.1); x.closePath(); x.fill(); };
+      const manchas = (pts) => { if (D.manchas) pts.forEach(([mx, my, r], j) => ell(D.manchas[j % D.manchas.length], mx, my, r, r * 0.8)); };
+      x.strokeStyle = D.body; x.lineCap = 'round';
+      if (f < 3) {
+        ell('rgba(0,0,0,0.25)', 0.8, 0.8, 5.6, 4.4);
+        // la cola sale de atras y se enrosca por un lado; la punta va y viene
+        const c = [1, 0, -1][f];
+        x.lineWidth = 1.5; x.beginPath(); x.moveTo(-4, 0.5); x.quadraticCurveTo(-6, 4.5, -2 + c * 1.2, 5.2 + c * 0.6); x.stroke();
+        if (D.punta) { x.strokeStyle = D.punta; x.beginPath(); x.moveTo(-3 + c * 1.2, 5.3 + c * 0.6); x.lineTo(-2 + c * 1.2, 5.2 + c * 0.6); x.stroke(); }
+        ell(D.body, -1, 0, 4.4, 3.8);                 // ancas
+        ell(D.dark, -1.5, 0, 2.8, 1);                 // lomo
+        if (D.rayas) { x.strokeStyle = D.dark; x.lineWidth = 0.6; for (const rx of [-3.2, -1.6, 0]) { x.beginPath(); x.moveTo(rx, -3); x.quadraticCurveTo(rx + 0.8, 0, rx, 3); x.stroke(); } }
+        manchas([[-2.5, -1.8, 1.4], [0.2, 1.6, 1.1]]);
+        ell(D.body, 2.6, 0, 2.4, 2.4);                 // pecho
+        ell(D.punta || D.body, 3.9, -1.1, 0.8, 0.6); ell(D.punta || D.body, 3.9, 1.1, 0.8, 0.6); // patitas
+        oreja(-1); oreja(1);
+        ell(D.body, 5, 0, 2.3, 2.5);                   // cabeza
+        if (D.rayas) { x.strokeStyle = D.dark; x.lineWidth = 0.5; for (const ry of [-0.7, 0.7]) { x.beginPath(); x.moveTo(4, ry); x.lineTo(5.8, ry * 0.6); x.stroke(); } }
+        if (D.manchas) ell(D.manchas[0], 5.3, -1, 1, 0.9);
+        if (D.punta) ell(D.punta, 6.3, 0, 1, 1.3);
+      } else {
+        // echado, hecho bolita, con la cola por fuera y la cabeza metida
+        ell('rgba(0,0,0,0.25)', 0.8, 0.8, 5, 4.6);
+        x.lineWidth = 1.5; x.beginPath(); x.arc(0, 0, 4.6, 0.4, 2.6); x.stroke();
+        ell(D.body, 0, 0, 4.4, 4);
+        ell(D.dark, -0.8, -0.5, 2.6, 1.6, -0.6);
+        if (D.rayas) { x.strokeStyle = D.dark; x.lineWidth = 0.6; for (const a of [-2.4, -1.8, -1.2]) { x.beginPath(); x.moveTo(Math.cos(a) * 2, Math.sin(a) * 2); x.lineTo(Math.cos(a) * 4.2, Math.sin(a) * 3.8); x.stroke(); } }
+        manchas([[-2, 1.4, 1.3], [1.2, -2, 1]]);
+        oreja(1); ell(D.body, 2.8, 1.4, 2.1, 2, 0.4);
+        if (D.punta) ell(D.punta, 3.6, 1.8, 1, 1.1);
+      }
+      x.restore();
+      t.add(f, 0, f * FW * SPR, 0, FW * SPR, FH * SPR);
+    }
+    t.refresh();
+    scene.anims.create({ key: 'gatoCola' + i, frames: [0, 1, 2, 1].map(f => ({ key: 'gato' + i, frame: f })), frameRate: 2.5, repeat: -1 });
   });
 }
 // luces de la noche: 'luz' es un circulo que se desvanece hacia afuera (128 px) y 'cono' el haz de un faro
@@ -4845,7 +4942,7 @@ class Main extends Phaser.Scene {
       e.x = sx; e.y = sy;
       e.icon = this.add.image(sx, sy, 'egg_' + e.k).setScale(0.4).setRotation(rot).setDepth(7).setVisible(!e.got);
     }
-    this.stamina = STAMINA; this.tired = false; this.burning = []; this.perros = []; this.fuegos = []; this.manchas = []; this.blastLights = [];
+    this.stamina = STAMINA; this.tired = false; this.burning = []; this.perros = []; this.gatos = []; this.gatoProx = 0; this.fuegos = []; this.manchas = []; this.blastLights = [];
     this.chatDeck = []; this.chatCool = 0;
     this.bubble = { el: $('bubble'), ped: null, t: 0 };
     this.staminaBar = this.add.graphics().setDepth(20);
@@ -5110,7 +5207,16 @@ class Main extends Phaser.Scene {
       if (blocked(d.x, d.y) || !regionesListas(d.x, d.y, d.x, d.y) || (!initial && inView(d.x, d.y))) continue;
       this.perros.push(this.perroSprite(d));
     }
+    // un gato en la azotea de alguna casa (uno a la vez y no siempre: mas raros que los perros)
+    const now = this.time.now;
+    if (!this.gatos.length && now > this.gatoProx) {
+      const c = this.inCar, va = c && Math.hypot(c.vx, c.vy) > 40 ? Math.atan2(c.vy, c.vx) : undefined;
+      const g = this.buscarAzotea(p.x, p.y, initial ? 120 : R + 20, R + 220, initial ? null : inView, va);
+      if (g) this.gatos.push(this.gatoSprite(g));
+      else this.gatoProx = now + 2000;
+    }
     const far = R + 520;
+    this.gatos = this.gatos.filter(c => { if (dist(c.x, c.y, p.x, p.y) > far) { c.sprite.destroy(); if (this.bubble.ped === c) this.bubble.t = 0; this.gatoProx = now + rnd(30000, 75000); return false; } return true; });
     this.perros = this.perros.filter(c => { if (dist(c.x, c.y, p.x, p.y) > far) { c.sprite.destroy(); return false; } return true; });
     this.cars = this.cars.filter(c => { if (!c.escena && dist(c.x, c.y, p.x, p.y) > far) { c.sprite.destroy(); return false; } return true; });
     this.peds = this.peds.filter(c => { if (dist(c.x, c.y, p.x, p.y) > far) { c.sprite.destroy(); return false; } return true; });
@@ -5135,6 +5241,7 @@ class Main extends Phaser.Scene {
     this.updateTraffic(dt);
     this.updatePeds(dt);
     this.updatePerros(dt);
+    this.updateGatos(dt);
     this.updateRatero(dt);
     this.updateEscenas(dt);
     this.updateLotes(dt);
@@ -5807,6 +5914,80 @@ class Main extends Phaser.Scene {
       d.sprite.setPosition(d.x, d.y).setRotation(d.a);
     }
     if (this.perros.some(d => d.dead)) this.perros = this.perros.filter(d => !d.dead);
+  }
+  // ----- gatos de azotea -----
+  // una casa (de una o dos plantas, no una bodega) a una distancia entre r0 y r1, y un lugar en su azotea
+  // donde quepa el gato: que la azotea no este borrada por una calle, que no lo tape otro edificio ni un arbol.
+  // Devuelve donde se ve el gato (el techo se dibuja L px arriba y L*LEAN a la derecha de la planta)
+  // (a0: si va en carro, de preferencia por donde va, para que se lo tope)
+  buscarAzotea(x0, y0, r0, r1, inView, a0) {
+    for (let n = 0; n < 10; n++) {
+      const a = a0 === undefined ? Math.random() * 6.283 : a0 + rnd(-0.9, 0.9), d = rnd(r0, r1), qx = x0 + Math.cos(a) * d, qy = y0 + Math.sin(a) * d;
+      const L0 = bldGrid.get(GK(Math.floor(qx / BCELL), Math.floor(qy / BCELL))); if (!L0 || !L0.length) continue;
+      const b = pick(L0), bw = b.bb[2] - b.bb[0], bh = b.bb[3] - b.bb[1];
+      if (b.h >= 9 || bw < 22 || bh < 22 || bw > 160 || bh > 160) continue;
+      const L = elevacion(b), lx = Math.round(L * LEAN);
+      for (let m = 0; m < 6; m++) {
+        const fx = rnd(b.bb[0] + 6, b.bb[2] - 6), fy = rnd(b.bb[1] + 6, b.bb[3] - 6);
+        const tq = tinaco(b); if (tq && dist(fx, fy, tq[0], tq[1]) < 11) continue;
+        if (![[0, 0], [6, 0], [-6, 0], [0, 6], [0, -6]].every(([ox, oy]) => pip(fx + ox, fy + oy, b.p) && !onRoad(fx + ox, fy + oy))) continue;
+        const x = fx + lx, y = fy - L;
+        if ((inView && inView(x, y)) || !regionesListas(x, y, x, y) || arbolEn(x, y, 14) || this.tapaOtro(x, y, b)) continue;
+        return { x, y, b, a: Math.random() * 6.283 };
+      }
+    }
+    return null;
+  }
+  // ¿a (x, y) lo tapa el dibujo de un edificio que no es b? (como bajoTecho)
+  tapaOtro(x, y, b0) {
+    for (let k = 1; k <= EXTRA_UP; k += 2) {
+      const px = x - k * LEAN, py = y + k, a = bldGrid.get(GK(Math.floor(px / BCELL), Math.floor(py / BCELL))); if (!a) continue;
+      for (const b of a) if (b !== b0 && px >= b.bb[0] && px <= b.bb[2] && py >= b.bb[1] && py <= b.bb[3] && elevacion(b) >= k && pip(px, py, b.p) && !onRoad(px, py)) return true;
+    }
+    return false;
+  }
+  gatoSprite(g) {
+    g.pelaje = (Math.random() * PELAJES.length) | 0; g.dijo = 0; g.hablaT = 0; g.t = rnd(8, 20);
+    g.st = Math.random() < 0.4 ? 'dormido' : 'sentado';
+    g.sprite = this.add.sprite(g.x, g.y, 'gato' + g.pelaje, 3).setDepth(12.5).setScale(1 / SPR).setOrigin(9 / 20, 0.5).setRotation(g.a);
+    if (g.st === 'sentado') g.sprite.play({ key: 'gatoCola' + g.pelaje, startFrame: (Math.random() * 4) | 0 });
+    return g;
+  }
+  // se quedan en su azotea: te siguen con la mirada y te dicen lo que piensan de ti y del juego
+  // (unas cuantas veces; luego se aburren y se duermen)
+  updateGatos(dt) {
+    const f = this.focus(), car = this.inCar, now = this.time.now, b = this.bubble;
+    for (const c of this.gatos) {
+      const d = dist(c.x, c.y, f.x, f.y), cerca = d < (car ? 110 : 80);
+      if (c.st === 'dormido') {
+        // se despierta si te le acercas (si no se ha hartado de ti)
+        if (cerca && !c.harto) { c.st = 'sentado'; c.desperto = true; c.sprite.play({ key: 'gatoCola' + c.pelaje }); c.hablaT = now + 600; }
+        else continue;
+      }
+      if (d < 170) {
+        // voltea a verte, despacito, como juzgando
+        let da = Math.atan2(f.y - c.y, f.x - c.x) - c.a; da = Math.atan2(Math.sin(da), Math.cos(da));
+        c.a += da * Math.min(1, dt * 2.5); c.sprite.setRotation(c.a);
+      } else if ((c.t -= dt) <= 0) { c.st = 'dormido'; c.sprite.stop(); c.sprite.setFrame(3); c.t = rnd(8, 20); continue; }
+      if (cerca && now > c.hablaT && !(b.ped && b.t > 0)) {
+        this.globo(c, 'gato', this.fraseGato(c, car), 5);
+        if (window.SND) SND.play('miau');
+        c.hablaT = now + rnd(9000, 15000);
+        if (c.harto) { c.st = 'dormido'; c.sprite.stop(); c.sprite.setFrame(3); }
+      }
+    }
+  }
+  fraseGato(c, car) {
+    const F = FRASES_GATO, sp = car ? Math.hypot(car.vx, car.vy) : 0;
+    if (!this.gatoMazo || !this.gatoMazo.length) this.gatoMazo = Phaser.Utils.Array.Shuffle(F.siempre.slice());
+    let t;
+    if (++c.dijo >= 4) { c.harto = true; t = pick(F.harto); }
+    else if (c.desperto) { c.desperto = false; t = pick(F.despierta); }
+    else if (car && sp > 150 && Math.random() < 0.6) t = pick(F.rapido);
+    else if (Math.random() < 0.35) t = pick(car ? F.carro : F.pie);
+    else if (this.night && this.night.a > 0.5 && Math.random() < 0.3) t = pick(F.noche);
+    else t = this.gatoMazo.pop();
+    return pick(['😼', '😾', '🙄', '😹', '🐈', '😺', '🐈‍⬛']) + ' ' + t.replace('$$', '$' + state.money.toLocaleString('es-MX'));
   }
   // el perrito sale chillando y corriendo (ofendido, pero entero); y luego viene el karma
   atropellaPerro(d, car) {
