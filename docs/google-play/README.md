@@ -42,11 +42,11 @@ En `android/app/build.gradle` sube `versionCode` (entero, siempre mayor) y `vers
 **Nombre** (máx. 30): `TJ Rush`
 
 **Descripción breve** (máx. 80):
-> Roba autos, haz taxi y recorre Tijuana del Centro al Hipódromo. Calles reales.
+> Roba autos, haz taxi y recorre Tijuana de Playas a El Florido. Calles reales.
 
 **Descripción completa** (máx. 4000):
 
-> Recorre la Zona Centro, la Zona Norte, la Zona Río, Chapultepec y el Hipódromo de Tijuana en un juego de vista desde arriba, con las calles, los edificios y los lugares reales de la ciudad.
+> Recorre Tijuana de punta a punta (el Centro, la Zona Río, Otay, La Mesa, Playas, la Presa y El Florido) en un juego de vista desde arriba, con las calles, los edificios y los lugares reales de la ciudad.
 >
 > 🚕 Súbete a lo que encuentres: vochos, tsuritos, trocas, calafias, lowriders y hasta el taxi libre de la Revu. Trabaja de taxista o róbale la moto a un repartidor y entrega su pedido antes de que se enfríe.
 >
