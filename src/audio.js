@@ -212,6 +212,16 @@ const SFX = {
       d += l;
     }
   },
+  panLP(v = 1) { // la cancioncita del carro del pan por la bocina: cuadrada, aguda, sin graves y un poco rayada
+    const t = ctx.currentTime, mel = [[72, 1], [72, 1], [74, 1], [76, 1], [76, 1], [74, 1], [72, 2], [67, 1], [72, 3]];
+    let d = 0;
+    for (const [n, b] of mel) {
+      const l = b * 0.15, w = Math.random() < 0.15 ? 0.97 : 1; // a veces se jala la cinta
+      tone(ambBus, 'square', midi(n) * w, t + d, l * 0.85, 0.07 * v, { lp: 2200 }); tone(ambBus, 'sawtooth', midi(n) * w, t + d, l * 0.85, 0.03 * v, { lp: 1500 });
+      d += l;
+    }
+    noise(ambBus, t, d, 0.012 * v, 'bandpass', 2500, 1);
+  },
   ladrido(v = 1) { // guau guau
     const t = ctx.currentTime, n = 1 + (Math.random() * 2 | 0), f = 420 + Math.random() * 220;
     for (let i = 0; i < n; i++) { tone(sfxBus, 'sawtooth', f, t + i * 0.24, 0.1, 0.12 * v, { to: f * 0.5, lp: 1600 }); noise(sfxBus, t + i * 0.24, 0.07, 0.08 * v, 'bandpass', 900, 2); }

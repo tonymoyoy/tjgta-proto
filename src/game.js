@@ -2866,6 +2866,28 @@ const FRASES_TIPO = {
   globero: ['"¡Globos! Hay de corazón, de estrella y de dinosaurio."', '"Un día de Santa Ana casi salgo volando para San Diego."', '"El rojo es el que más se vende. Nadie sabe por qué."'],
   musico: ['"¿Una canción, joven? Por diez pesos le toco la que quiera."', '"Me sé todas las de antes. Las de ahora no les entiendo."', '"Toco en los camiones. Los choferes me odian."'],
 };
+// el carro del pan: como se oye la bocina (va y viene) y lo que grita el panadero
+const FRASES_PAN_CANCION = [
+  '♪ ¡El panadero con el pan! ♪ ¡El panadero con el pan! ♪',
+  '♪ Ahí viene el panadero con el pan... con el pan... ♪ (la bocina truena un poquito)',
+  '♪ ¡El panaderooo con el paaan! ♪ (a todo volumen y medio rayado)',
+  '♪ ¡El pa-na-de-ro con el pan! ♪ (se traba la grabación) ♪ ...con el pan, con el pan, con el pan ♪',
+  '♪ ¡El panadero con el pan! ♪ (todos los perros de la cuadra le contestan)',
+];
+const FRASES_PAN = [
+  '¡Lleve su pan! ¡Conchas, cuernitos, orejas, bolillo calientito!',
+  '¡Salga, señito, que ya pasó el pan! ¡Hay pan dulce y hay pan de sal!',
+  '¡Marranitos, polvorones, campechanas! ¡Tres por veinte!',
+  '¡Bolillo pa\'l susto, concha pa\'l café!',
+  '¡Ya llegó el pan, ya llegó el pan! ¡Pásele, que se enfría!',
+  '¡Pan de elote, pan de nata, empanadas de piña y de cajeta!',
+  'Joven, ¿una concha? La de chocolate es la buena, la de vainilla es pa\'l que no sabe.',
+  '¡Pan recién horneado! Bueno, de en la mañana, pero está bueno.',
+  '¡No me paro, eh! Si quiere pan, chífleme fuerte o córrale.',
+  '¡Orejas grandotas, como las de mi compadre!',
+  '¡Cuernitos, chilindrinas, besos y bigotes! ...son panes, no se espante.',
+  '¡Hay rosca todo el año! Si le sale el muñequito, me invita los tamales.',
+];
 const FRASES_FUGA = ['¡Le pegaste a la pipa del gas!', '¡Huele a gas!', '¡Se está saliendo el gas!', '¡Cuidado con la pipa!'];
 const FRASES_PIPA = ['¡Voló la pipa del gas!', '¡Se escuchó hasta San Diego!', '¡Explotó la pipa!', '¡Ahora sí hubo gas para toda la colonia!'];
 const FRASES_TOPE = [
@@ -3719,7 +3741,7 @@ function drawPlayer(x, sw) {
   x.restore();
 }
 function makeTextures(scene) {
-  makeLights(scene); makeFiesta(scene); makeMoto(scene); makeDeportiva(scene); makeEscolta(scene); makePerro(scene); makePerros(scene); makeGatos(scene); makeLandmarkIcons(scene); makeTrocaTacos(scene); makeZonkey(scene); makeTaxi(scene); makePolice(scene); makeUrbano(scene); makePipaGas(scene); makeExplosiones(scene); makeTacoStands(scene); makeCafes(scene); makePinesComida(scene); makeChinas(scene); makeYonke(scene); makeEggs(scene); makeScorch(scene);
+  makeLights(scene); makeFiesta(scene); makeMoto(scene); makeDeportiva(scene); makeEscolta(scene); makePerro(scene); makePerros(scene); makeGatos(scene); makeLandmarkIcons(scene); makeTrocaTacos(scene); makeZonkey(scene); makeTaxi(scene); makePolice(scene); makeUrbano(scene); makePipaGas(scene); makePanadero(scene); makeExplosiones(scene); makeTacoStands(scene); makeCafes(scene); makePinesComida(scene); makeChinas(scene); makeYonke(scene); makeEggs(scene); makeScorch(scene);
   // personas vistas desde arriba, mirando a la derecha; 8 cuadros de caminata (el cuadro 0 es parado).
   // Una textura por variante de PED_VARIANTS ('ped0'...) y la del jugador ('pedP'); ver drawPerson.
   // Se dibujan a SPR veces la resolucion y el sprite se muestra a escala 1 / SPR para que se vean nitidas.
@@ -4193,6 +4215,53 @@ function makePipaGas(scene) {
   x.fillStyle = 'rgba(255,255,255,0.2)'; x.fillRect(44.8, 2.8, 0.8, W - 5.6);
   x.fillStyle = '#7a1414'; x.fillRect(43, -1, 1.6, 1.2); x.fillRect(43, W - 0.2, 1.6, 1.2);
   x.fillStyle = '#fff6b0'; x.fillRect(L - 1.6, 1.6, 1.6, 2.6); x.fillRect(L - 1.6, W - 4.2, 1.6, 2.6);
+  x.fillStyle = '#ff3b30'; x.fillRect(0, 2, 1.2, 2.4); x.fillRect(0, W - 4.4, 1.2, 2.4);
+  t.refresh();
+}
+// el carro del pan: una guayín vieja color crema con una puerta de otro color, una concha gigante de fibra de
+// vidrio en el techo (ya despintada), la bocina amarrada adelante y la cajuela abierta con las charolas de pan.
+// Anda despacio por las colonias con su cancioncita (ver FRASES_PAN)
+const VT_PAN = { name: 'Carro del pan', L: 42, W: 18, top: 150, acc: 75, steer: 2.2, hp: 150 };
+function makePanadero(scene) {
+  const { L, W } = VT_PAN, t = scene.textures.createCanvas('panadero', (L + 5) * SPR, (W + 5) * SPR), x = t.getContext();
+  x.scale(SPR, SPR); x.translate(1, 1);
+  const rr = (X, Y, w, h, r, f) => { x.fillStyle = f; x.beginPath(); x.roundRect(X, Y, w, h, r); x.fill(); };
+  x.fillStyle = 'rgba(0,0,0,0.35)'; x.beginPath(); x.roundRect(2, 2, L, W, 4); x.fill();
+  // carroceria crema con la puerta de atras izquierda azul (de otro carro) y un golpe en la defensa
+  const g = x.createLinearGradient(0, 0, 0, W);
+  g.addColorStop(0, '#c9b98a'); g.addColorStop(0.3, '#f3e7c0'); g.addColorStop(0.7, '#efe2b6'); g.addColorStop(1, '#bba977');
+  rr(0, 0, L, W, 3.5, g);
+  x.fillStyle = '#5b86b0'; x.fillRect(13, 0.2, 9, 2.6);
+  x.strokeStyle = 'rgba(0,0,0,0.3)'; x.lineWidth = 0.5; x.beginPath(); x.roundRect(0, 0, L, W, 3.5); x.stroke();
+  x.fillStyle = '#8a7a52'; x.fillRect(L - 1.2, 2, 1.2, W - 4); x.fillStyle = '#6d6040'; x.fillRect(L - 1.4, W - 6, 1.4, 2.5); // defensa chueca
+  // cajuela abierta atras: las charolas con conchas, cuernitos y bolillos
+  rr(0.6, 2, 9, W - 4, 1, '#5a3d22');
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 4; j++) {
+    const cx = 2.4 + i * 2.8, cy = 4 + j * 3.4;
+    if ((i + j) % 3 === 0) { x.fillStyle = '#f8c9d4'; x.beginPath(); x.arc(cx, cy, 1.25, 0, 7); x.fill(); x.fillStyle = '#c98a4b'; x.fillRect(cx - 1.2, cy - 0.15, 2.4, 0.3); }
+    else if ((i + j) % 3 === 1) { x.fillStyle = '#d99a4e'; x.beginPath(); x.ellipse(cx, cy, 1.4, 0.8, 0.5, 0, 7); x.fill(); }
+    else { x.fillStyle = '#e8b878'; x.beginPath(); x.ellipse(cx, cy, 1.3, 0.9, 0, 0, 7); x.fill(); x.strokeStyle = '#a8692c'; x.lineWidth = 0.25; x.beginPath(); x.moveTo(cx - 0.6, cy); x.lineTo(cx + 0.6, cy); x.stroke(); }
+  }
+  // techo y vidrios
+  rr(10, 1.6, 24, W - 3.2, 2, '#e2d4a6');
+  x.fillStyle = GLASS; x.fillRect(34, 2.4, 3.2, W - 4.8); x.fillRect(10.2, 2.8, 1.6, W - 5.6);
+  x.fillStyle = 'rgba(255,255,255,0.2)'; x.fillRect(34.6, 3.2, 0.8, W - 6.4);
+  // la concha gigante en el techo: costra de azucar rosa y blanca con su cuadricula, y la orilla de pan dorado
+  const cx = 22, cy = W / 2;
+  x.fillStyle = '#c98a4b'; x.beginPath(); x.ellipse(cx, cy, 9.4, 7.4, 0, 0, 7); x.fill();
+  const h = x.createRadialGradient(cx - 2, cy - 2, 1, cx, cy, 8.4); h.addColorStop(0, '#ffe3ea'); h.addColorStop(1, '#e7a3b5');
+  x.fillStyle = h; x.beginPath(); x.ellipse(cx, cy, 8.4, 6.5, 0, 0, 7); x.fill();
+  x.save(); x.clip(); x.strokeStyle = '#b8794a'; x.lineWidth = 0.55;
+  for (let k = -16; k <= 16; k += 3) { x.beginPath(); x.moveTo(cx + k - 8, cy - 8); x.lineTo(cx + k + 8, cy + 8); x.stroke(); x.beginPath(); x.moveTo(cx + k + 8, cy - 8); x.lineTo(cx + k - 8, cy + 8); x.stroke(); }
+  x.fillStyle = 'rgba(255,255,255,0.35)'; x.fillRect(cx - 9, cy - 1, 4, 3); // lo despintado
+  x.restore();
+  // la bocina amarrada adelante del techo, viendo para el frente, con su cable
+  x.fillStyle = '#9e9e9e'; x.beginPath(); x.moveTo(31.5, cy - 1.2); x.lineTo(36.5, cy - 3); x.lineTo(36.5, cy + 3); x.lineTo(31.5, cy + 1.2); x.closePath(); x.fill();
+  x.strokeStyle = '#555'; x.lineWidth = 0.4; x.stroke(); x.fillStyle = '#333'; x.fillRect(36.2, cy - 2.6, 0.6, 5.2);
+  x.strokeStyle = '#222'; x.lineWidth = 0.3; x.beginPath(); x.moveTo(31.5, cy); x.quadraticCurveTo(30, cy + 4, 34, cy + 6); x.stroke();
+  // espejos, faros (uno fundido) y calaveras
+  x.fillStyle = '#7a6a45'; x.fillRect(32, -1, 1.6, 1.2); x.fillRect(32, W - 0.2, 1.6, 1.2);
+  x.fillStyle = '#fff6b0'; x.fillRect(L - 1.6, 1.6, 1.6, 2.6); x.fillStyle = '#8a8a7a'; x.fillRect(L - 1.6, W - 4.2, 1.6, 2.6);
   x.fillStyle = '#ff3b30'; x.fillRect(0, 2, 1.2, 2.4); x.fillRect(0, W - 4.4, 1.2, 2.4);
   t.refresh();
 }
@@ -6052,7 +6121,7 @@ class Main extends Phaser.Scene {
     const P = this.inCar || this.player, r = { p: m(P.x, P.y, P.a) };
     const car = this.inCar || this.ultimoCarro;
     const v = car && (car.moto ? { moto: true } : car.T === VT_DEPORTIVA ? { deportiva: true } : car.T === VT_TAXI ? { taxi: true } :
-      car.T === VT_URBANO ? { urbano: true } : car.gas ? { gas: true } : car.v && !car.special ? car.v : null);
+      car.T === VT_URBANO ? { urbano: true } : car.gas ? { gas: true } : car.pan ? { pan: true } : car.v && !car.special ? car.v : null);
     if (v && car.hp > 0 && !car.wrecked && (car === this.inCar || (this.parked.includes(car) && dist(car.x, car.y, P.x, P.y) < 400)))
       r.c = { p: m(car.x, car.y, car.a), v, hp: Math.round(car.hp), dentro: car === this.inCar };
     return r;
@@ -6082,6 +6151,7 @@ class Main extends Phaser.Scene {
     if (o.zonkey) return { T: VT_ZONKEY, key: 'zonkey', ox: (VT_ZONKEY.L / 2 + 3) / (VT_ZONKEY.L + 6), oy: 0.5, dirty: false };
     if (o.escolta) return { T: VT_ESCOLTA, key: 'escolta0', ox: (VT_ESCOLTA.L / 2 + 1) / (VT_ESCOLTA.L + 5), oy: (VT_ESCOLTA.W / 2 + 1) / (VT_ESCOLTA.W + 5), dirty: false };
     if (o.urbano) return { T: VT_URBANO, key: 'urbano' + ((Math.random() * URBANO_COLS.length) | 0), ox: (VT_URBANO.L / 2 + 1) / (VT_URBANO.L + 5), oy: (VT_URBANO.W / 2 + 1) / (VT_URBANO.W + 5), dirty: false };
+    if (o.pan) return { T: VT_PAN, key: 'panadero', ox: (VT_PAN.L / 2 + 1) / (VT_PAN.L + 5), oy: (VT_PAN.W / 2 + 1) / (VT_PAN.W + 5), dirty: false };
     if (o.gas) return { T: VT_GAS, key: 'pipa', ox: (VT_GAS.L / 2 + 1) / (VT_GAS.L + 5), oy: (VT_GAS.W / 2 + 1) / (VT_GAS.W + 5), dirty: false };
     if (o.poli) return { T: VT_POLI, key: 'poli0', ox: (VT_POLI.L / 2 + 1) / (VT_POLI.L + 5), oy: (VT_POLI.W / 2 + 1) / (VT_POLI.W + 5), dirty: false };
     const ti = o.ti ?? randomVType(), T = VTYPES[ti], ci = o.ci ?? (Math.random() * T.cols.length) | 0;
@@ -6090,7 +6160,7 @@ class Main extends Phaser.Scene {
   }
   makeCar(x, y, a, o) {
     const sp = o && o.T ? o : this.carSpec(o), T = sp.T, f = sp.dirty ? 0.7 : 1;
-    return { x, y, a, vx: 0, vy: 0, T, dirty: sp.dirty, moto: T === VT_MOTO, dosRuedas: T === VT_MOTO || T === VT_DEPORTIVA, poli: T === VT_POLI, gas: T === VT_GAS, hp: Math.round(T.hp * f), maxHp: Math.round(T.hp * f),
+    return { x, y, a, vx: 0, vy: 0, T, dirty: sp.dirty, moto: T === VT_MOTO, dosRuedas: T === VT_MOTO || T === VT_DEPORTIVA, poli: T === VT_POLI, gas: T === VT_GAS, pan: T === VT_PAN, hp: Math.round(T.hp * f), maxHp: Math.round(T.hp * f),
       top: T.top * (sp.dirty ? 0.92 : 1), acc: T.acc * (sp.dirty ? 0.9 : 1), hl: T.L / 2 - 1, hw: T.W / 2 - 1, v: sp.v,
       sprite: this.add.image(x, y, sp.key).setOrigin(sp.ox, sp.oy).setRotation(a).setDepth(10).setScale(1 / SPR) };
   }
@@ -6224,7 +6294,9 @@ class Main extends Phaser.Scene {
       const otro = moto || poli || deportiva;
       const urbano = !otro && e.c <= 4 && Math.random() < 0.25 && this.cars.filter(c => c.T === VT_URBANO).length < 4;
       const gas = !otro && !urbano && Math.random() < 0.1 && this.cars.filter(c => c.gas).length < 2;
-      const spec = this.carSpec({ moto, poli, deportiva, urbano, gas });
+      // el carro del pan nomas en las calles de las colonias, y uno a la vez
+      const pan = !otro && !urbano && !gas && (e.c === 5 || e.c === 6) && Math.random() < 0.12 && !this.cars.some(c => c.pan);
+      const spec = this.carSpec({ moto, poli, deportiva, urbano, gas, pan });
       if (this.cars.some(c => dist(c.x, c.y, q.x, q.y) < 26 + c.hl + spec.T.L / 2)) continue;
       const car = this.makeCar(q.x, q.y, q.a, spec);
       Object.assign(car, { e, dir, s, lat, lane, speed: 0, max: rnd(50, 80) * (e.c <= 2 ? 1.2 : 1) * (moto ? 1.15 : poli ? 1.1 : deportiva ? 1.35 : car.top / 230) });
@@ -6232,8 +6304,9 @@ class Main extends Phaser.Scene {
       // de golpe a subir pasaje
       if (urbano || spec.T.name === 'Calafia') Object.assign(car, { rutero: true, max: rnd(95, 120) * (e.c <= 2 ? 1.15 : 1), latS: lat, paradaT: rnd(12, 30), carrilT: 0, clxT: 0 });
       if (gas) Object.assign(car, { max: rnd(36, 50), paradaT: rnd(15, 35), golpes: 0 });
+      if (pan) Object.assign(car, { max: rnd(30, 42), paradaT: rnd(10, 25) });
       // conductores erraticos: zigzaguean, no frenan por nadie y tarde o temprano se estrellan
-      if (!otro && !car.rutero && !gas && Math.random() < 0.06 && this.cars.filter(c => c.loco).length < 2) {
+      if (!otro && !car.rutero && !gas && !pan && Math.random() < 0.06 && this.cars.filter(c => c.loco).length < 2) {
         Object.assign(car, { loco: true, ph: rnd(0, 6), wf: rnd(1.6, 2.6), max: car.max * 1.45, locoT: rnd(5, 14), derrape: 0 });
       }
       this.cars.push(car);
@@ -6859,6 +6932,7 @@ class Main extends Phaser.Scene {
       if (recuperado) { /* ya se aviso arriba */ }
       else if (best.moto) this.startDelivery();
       else if (best.T === VT_DEPORTIVA) toast('🏍️ ¡Moto deportiva!', 'Corre como ninguna, pero al primer choque se hace pedazos. Con cuidadito.', 3);
+      else if (best.pan) toast('🥖 ¡Te robaste el carro del pan!', 'La bocina no se apaga y las conchas van brincando atrás. Ahora tú eres el panadero.', 3.5);
       else if (best.gas) toast('⛽ ¡Te robaste una pipa de gas!', 'Dos golpes fuertes y vuela con todo y tú. Maneja suavecito.', 3.5);
       else if (best.T === VT_URBANO) toast('🚌 ¡Te robaste el camión de la ruta!', '¡Súbale, súbale! Hoy no se cobra pasaje.', 3);
       else toast(pick(FRASES_ROBO), best.T.name + (best.dirty ? ' bien tijuaneado' : ' de agencia'), 2.4);
@@ -6902,10 +6976,10 @@ class Main extends Phaser.Scene {
         if (c.speed > 70 && Math.random() < 0.3) this.embestir(c, bloq);
         if (this.cambiarCarril(c)) stop = false; else this.claxon(c);
       }
-      // paradas: el camion a subir pasaje y la pipa a vender gas
+      // paradas: el camion a subir pasaje, la pipa a vender gas y el del pan a esperar a las señoras
       if (c.paradaT !== undefined) {
-        if (c.paradaS > 0) { stop = true; if ((c.paradaS -= dt) <= 0) c.paradaT = c.gas ? rnd(20, 45) : rnd(15, 35); }
-        else if ((c.paradaT -= dt) <= 0 && !stop) c.paradaS = c.gas ? rnd(4, 7) : rnd(2, 3.5);
+        if (c.paradaS > 0) { stop = true; if ((c.paradaS -= dt) <= 0) c.paradaT = c.gas || c.pan ? rnd(20, 45) : rnd(15, 35); }
+        else if ((c.paradaT -= dt) <= 0 && !stop) c.paradaS = c.gas || c.pan ? rnd(4, 7) : rnd(2, 3.5);
       }
       let want = stop ? 0 : c.max;
       if (!c.rutero) for (const i of topesNear(c.x, c.y)) if (dist(c.x, c.y, topes[i].x, topes[i].y) < 45) want = Math.min(want, 35);
@@ -6934,6 +7008,20 @@ class Main extends Phaser.Scene {
       const f = this.focus(), R = this.viewR() * 1.3;
       let d = Infinity; for (const c of this.cars) if (c.gas && !c.wrecked) d = Math.min(d, dist(c.x, c.y, f.x, f.y));
       if (d < R) { this.gasMelT = rnd(9, 13); SND.play('gasLP', 0.35 + 0.65 * (1 - d / R)); }
+    }
+    // el carro del pan: su cancioncita por la bocina y, si pasas cerca, el globo con la cancion o lo que ofrece
+    if ((this.panT = (this.panT || 0) - dt) <= 0) {
+      this.panT = 1;
+      const f = this.focus(), R = this.viewR() * 1.2, c = this.cars.find(q => q.pan && !q.wrecked && q !== this.inCar);
+      const d = c ? dist(c.x, c.y, f.x, f.y) : Infinity;
+      if (d < R) {
+        this.panT = rnd(6, 9);
+        if (window.SND) SND.play('panLP', 0.35 + 0.65 * (1 - d / R));
+        if (!this.bubble.ped && d < 260) {
+          this.panCancion = !this.panCancion;
+          this.globo(c, 'pan', pick(this.panCancion ? FRASES_PAN_CANCION : FRASES_PAN), 4.5);
+        }
+      }
     }
     // choques del jugador contra autos
     if (this.inCar) {

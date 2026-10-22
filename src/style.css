@@ -88,6 +88,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); c
 .bubble.fila { --bg: #e8f1fb; --bd: #8a96a3; --fg: #12324f; }
 /* los vendedores de la fila: papel de estraza con borde naranja de mercado */
 .bubble.vendedor { --bg: #fff3dc; --bd: #e65100; --fg: #4e2600; font-weight: 700; }
+.bubble.pan { --bg: #fff0e6; --bd: #c98a4b; --fg: #5a2d0c; font-weight: 700; font-style: italic; }
 .bubble.linea { --bg: #eef2f6; --bd: #475569; --fg: #1e293b; }
 .bubble.barrio { --bg: #fff0f6; --bd: #db2777; }
 .bubble.colonia { --bg: #ecfdf3; --bd: #15803d; --fg: #14532d; }
