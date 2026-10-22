@@ -189,6 +189,25 @@ const EGGS = [
     say: '(Un venado de verdad, muy quitado de la pena, comiéndose el pasto del parque. A sus pies hay un billete. Él no lo necesita.)' },
   { k: 'concha', name: 'Una Concha de Mar', near: 'San Antonio del Mar', dx: -40, dy: 35, pay: 150,
     say: '(Una concha enorme y brillante. Adentro, en lugar de perla, hay un billete enrollado. El mar también hace paros.)' },
+  // fase 5: en las orillas, la historia de la ciudad: hechos recientes, nostalgia y consejos de aqui
+  { k: 'rodadora', name: 'Una Rodadora de Santa Ana', near: 'Mirador del Cerro Colorado', dx: 55, dy: 45, pay: 300,
+    say: '(Una rodadora llega con el viento caliente del este y se atora en tu pie, con un billete enredado.) Consejo: cuando sopla la Santa Ana toma agua, cierra ventanas y no hagas lumbre. Una chispa y se quema el cerro.' },
+  { k: 'mochila', name: 'La Señora de la Mochila', near: 'El Florido', dx: -45, dy: 50, pay: 300,
+    say: '"El Domingo de Pascua de 2010 tembló 7.2 cerca de Mexicali y aquí se mecieron hasta los tinacos. Desde entonces traigo mi mochila: agua, linterna, radio y copia de papeles. Ten, pa\' que armes la tuya."' },
+  { k: 'haiti', name: 'El Cocinero Haitiano', near: 'Central Camionera', dx: 50, dy: 60, pay: 300,
+    say: '"En 2016 llegamos miles de Haití pensando en cruzar, y muchos nos quedamos. Hoy hay arroz con frijol rojo a dos cuadras de la birria. Tijuana siempre ha sido de los que llegan. Ten, y vienes a probarlo."' },
+  { k: 'visa', name: 'Una Visa Olvidada', near: 'Garita de Otay', dx: 30, dy: 170, pay: 300,
+    say: '(Una visa tirada, con un billete adentro.) De 2020 a 2021 la línea estuvo cerrada para paseos casi 20 meses y muchas familias no se vieron en todo ese tiempo. Por eso aquí nadie se queja de la fila... bueno, casi nadie.' },
+  { k: 'nortec', name: 'El DJ del Nortec', near: 'Universidad Tecnológica', dx: 70, dy: 80, pay: 300,
+    say: '"Por ahí del 2000 a unos compas se les ocurrió mezclar tambora y acordeón con música electrónica, y medio mundo bailó con el sonido de Tijuana. Le pusieron Nortec. Ten, pa\' unos audífonos."' },
+  { k: 'chamarra', name: 'La Señora de la Chamarra', near: 'El Muro en la Playa', dx: 70, dy: 45, pay: 300,
+    say: '"¿A la playa sin chamarra? Aquí es mayo gris y junio nublado: el sol sale en la tarde, si sale. Y en septiembre, cuando ya quieres suéter, es cuando más calor hace. Ten, cómprate una sudadera."' },
+  { k: 'coyote', name: 'Un Coyote del Cañón', near: 'Mirador del Cañón del Sainz', dx: 45, dy: -50, pay: 300,
+    say: '(Un coyote te mira desde la orilla del cañón y se va sin prisa; dejó un billete.) Consejo: no les des de comer, y cuando llueva no cruces el arroyo: en un ratito baja con todo y arrastra carros.' },
+  { k: 'mona', name: 'El Vecino de La Mona', near: 'Aeropuerto de Tijuana', dx: 130, dy: 120, pay: 300,
+    say: '"En 1989, para los cien años de la ciudad, un escultor hizo por aquí una mujer de concreto de 17 metros y se fue a vivir adentro. Le dicen La Mona. En Tijuana hasta las estatuas tienen recámara. Ten."' },
+  { k: 'topografo', name: 'El Topógrafo de 1889', near: 'El Colef', dx: -50, dy: 55, pay: 300,
+    say: '(Un señor de bigote, con su plano enrollado y su tripié.) "Es julio de 1889 y estoy trazando un pueblito junto al río. ¿Que ya somos millones? Ah, caray. Ten, a ver si todavía te sirven estos pesos."' },
   // este no tiene un lugar cerca: va en metros desde la esquina noroeste del mapa, en plena Zona Norte
   { k: 'raton', name: 'La Botarga del Ratón Amarillo', at: [395, 615], pay: 200,
     say: '"¡Foto con el ratón, foto! ...No soy pirata, soy edición limitada. Ten, por no preguntar de qué caricatura soy."' },
@@ -5467,6 +5486,164 @@ function makeEggs(scene) {
       ell('#5d4037', 15, 12, 0.8, 0.55); line('#5d4037', 0.3, [[13.8, 13.3], [15, 13.9], [16.2, 13.3]]);
       for (const s of [-1, 1]) for (const dy of [-0.4, 0.5]) line('rgba(93,64,55,0.7)', 0.2, [[15 + s * 1.4, 12.3 + dy * 0.3], [15 + s * 4.2, 12 + dy * 1.6]]); // bigotes
     },
+    rodadora(x0) { // rodadora seca hecha bola, con su estela de polvo y un billete enredado
+      for (let i = 0; i < 4; i++) ell('rgba(205,180,130,' + (0.35 - i * 0.07) + ')', 8 - i * 2.4, 19 + i * 1.2, 4 - i * 0.6, 2.6 - i * 0.4);
+      shadow(18, 17, 9, 8.5);
+      ell('rgba(120,90,50,0.35)', 18, 16, 9, 8.6);
+      let s = 7;
+      const rr = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
+      for (let i = 0; i < 70; i++) { // ramitas enredadas
+        const a = rr() * 6.3, r = 2 + rr() * 7, b = a + 0.8 + rr() * 1.6, q = 2 + rr() * 7;
+        line(i % 3 ? '#a68552' : '#d4b77c', 0.25 + rr() * 0.25, [[18 + Math.cos(a) * r, 16 + Math.sin(a) * r * 0.95], [18 + Math.cos(b) * q, 16 + Math.sin(b) * q * 0.95]]);
+      }
+      x.save(); x.translate(21, 13); x.rotate(0.7); x.fillStyle = '#a5d6a7'; x.fillRect(-3, -1.4, 6, 2.8); x.strokeStyle = '#2e7d32'; x.lineWidth = 0.25; x.strokeRect(-3, -1.4, 6, 2.8); x.restore();
+      line('#8d6e47', 0.35, [[19, 12], [23, 14.5]]); line('#8d6e47', 0.35, [[20.5, 15], [22, 11.5]]); // ramas encima del billete
+    },
+    mochila(x0) { // senora con su mochila de emergencias naranja a la espalda, linterna y garrafon de agua
+      shadow(15, 17, 12, 11);
+      // garrafon de agua a un lado
+      ball(24.5, 23, 3.4, 'rgba(225,245,255,0.95)', 'rgba(100,170,220,0.9)', '#4a8ab8'); ell('#1e88e5', 24.5, 23, 1.2, 1.2);
+      // brazos y la linterna prendida
+      ell('#7b5e57', 8, 17.5, 1.5, 3, 0.4); ell('#7b5e57', 21, 13, 1.5, 3, -1.1);
+      x.fillStyle = 'rgba(255,245,170,0.45)'; x.beginPath(); x.moveTo(24, 11); x.lineTo(31, 6); x.lineTo(31, 14); x.closePath(); x.fill();
+      x.fillStyle = '#424242'; x.fillRect(22.5, 10.3, 2.4, 1.3); ell('#fff59d', 25, 11, 0.5, 0.7);
+      // blusa y la mochila encima de la espalda (se ve desde arriba)
+      shoulders(14, 15, '#9fa8da', '#5c6bc0', 6, 3.8);
+      x.fillStyle = rad(14, 19, 6, '#ffb74d', '#e65100'); x.beginPath(); x.roundRect(9.6, 16, 8.8, 8.5, 2); x.fill();
+      x.strokeStyle = '#bf360c'; x.lineWidth = 0.35; x.stroke();
+      x.fillStyle = '#ef6c00'; x.beginPath(); x.roundRect(10.8, 20.4, 6.4, 3.4, 1); x.fill();
+      line('#fafafa', 0.6, [[12.6, 22.1], [15.4, 22.1]]); line('#e53935', 0.6, [[14, 20.8], [14, 23.4]]); // cruz de primeros auxilios
+      line('#5d4037', 0.6, [[11, 16], [10.6, 13]]); line('#5d4037', 0.6, [[17, 16], [17.4, 13]]); // tirantes
+      // cabeza con chongo canoso
+      ball(14, 12, 3, '#d7ccc8', '#8d8d8d', 'rgba(0,0,0,0.35)'); ball(14, 14.2, 1.4, '#eeeeee', '#9e9e9e');
+      ell('#c99a6b', 14, 9.8, 1.8, 1); // frente asomando
+    },
+    haiti(x0) { // cocinero con gorro blanco, mandil con los colores de Haiti y su plato de arroz con frijol rojo
+      shadow(15, 17, 12, 11);
+      // brazos sosteniendo el plato
+      ell('#5d4037', 8, 18, 1.6, 3.2, 0.3); ell('#5d4037', 20.5, 15, 1.6, 3.2, -0.9);
+      // filipina blanca y el mandil azul y rojo
+      shoulders(14, 16, '#ffffff', '#cfd8dc', 6.2, 4);
+      x.save(); x.beginPath(); x.ellipse(14, 16, 6.2, 4, 0, 0, 7); x.clip();
+      x.fillStyle = '#00209f'; x.fillRect(7, 11, 14, 5.4); x.fillStyle = '#d21034'; x.fillRect(7, 16.4, 14, 5); x.restore();
+      // el plato: arroz con frijol rojo, platano frito y ensalada picosita
+      ball(24, 20, 5, '#ffffff', '#e0e0e0', '#9e9e9e');
+      ell('#8d4b3a', 23, 19.6, 3, 2.6); for (let i = 0; i < 16; i++) ell('#5a1f1a', 21 + (i * 7) % 5 + 0.3, 18 + (i * 3) % 4, 0.35, 0.25);
+      for (let i = 0; i < 3; i++) ell('#f4b942', 25.6 + i * 0.4, 22 - i * 1.3, 1.2, 0.6, 0.5);
+      ell('#e53935', 26.5, 18.2, 0.9, 0.7); ell('#ff8a65', 25.6, 17.3, 0.8, 0.6);
+      // cabeza con gorro de chef esponjado
+      ball(14, 12, 2.9, '#5d4037', '#3e2723');
+      for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; ball(14 + Math.cos(a) * 2.3, 11 + Math.sin(a) * 2.3, 2, '#ffffff', '#cfd8dc'); }
+      ball(14, 11, 2.4, '#ffffff', '#e0e0e0');
+    },
+    visa(x0) { // visa laser tirada en el asfalto, con su foto, banda y un billete asomando
+      ell('rgba(0,0,0,0.28)', 17.5, 18, 11.5, 8);
+      x.save(); x.translate(16, 16); x.rotate(-0.25);
+      x.fillStyle = '#e8f1f5'; x.beginPath(); x.roundRect(-11, -7, 22, 14, 1.4); x.fill();
+      x.strokeStyle = '#90a4ae'; x.lineWidth = 0.35; x.stroke();
+      x.fillStyle = '#1565c0'; x.fillRect(-11, -7, 22, 2.6); x.fillStyle = '#c62828'; x.fillRect(-11, -4.4, 22, 0.6);
+      x.fillStyle = '#fff'; x.font = 'bold 2px sans-serif'; x.textAlign = 'center'; x.fillText('VISA', -5, -5);
+      x.fillStyle = '#bcaaa4'; x.fillRect(-9.6, -2.8, 6, 7.6); ball(-6.6, -0.4, 1.8, '#d7a983', '#a1785a'); ell('#3e2723', -6.6, -1.6, 1.9, 0.8); ell('#546e7a', -6.6, 4, 2.6, 1.6);
+      for (let i = 0; i < 4; i++) { x.fillStyle = '#90a4ae'; x.fillRect(-2, -2.2 + i * 1.7, 11 - (i % 2) * 3, 0.6); }
+      for (let i = 0; i < 9; i++) ell(i % 2 ? '#ffd54f' : '#80deea', 4 + i * 0.7, 5 - Math.sin(i) * 0.4, 0.5, 0.5); // holograma
+      x.restore();
+      x.save(); x.translate(24, 24.5); x.rotate(0.35); x.fillStyle = '#a5d6a7'; x.fillRect(-4, -1.8, 8, 3.6); x.strokeStyle = '#2e7d32'; x.lineWidth = 0.25; x.strokeRect(-4, -1.8, 8, 3.6);
+      x.fillStyle = '#2e7d32'; x.font = 'bold 2.2px sans-serif'; x.textAlign = 'center'; x.fillText('$', 0, 0.8); x.restore();
+    },
+    nortec(x0) { // DJ con audifonos frente a su mesa: dos tornamesas y un acordeon arriba de la mesa
+      shadow(16, 18, 13, 11);
+      // mesa con dos tornamesas y el mezclador
+      x.fillStyle = '#263238'; x.beginPath(); x.roundRect(3, 3, 26, 11, 1.2); x.fill(); x.strokeStyle = '#000'; x.lineWidth = 0.3; x.stroke();
+      for (const cx of [8.5, 23.5]) {
+        ball(cx, 8.5, 4.2, '#424242', '#111'); for (const r of [3.4, 2.6, 1.8]) { x.strokeStyle = 'rgba(255,255,255,0.12)'; x.lineWidth = 0.2; x.beginPath(); x.arc(cx, 8.5, r, 0, 7); x.stroke(); }
+        ell(cx === 8.5 ? '#00e5ff' : '#ff4081', cx, 8.5, 1.2, 1.2); ell('#eee', cx, 8.5, 0.25, 0.25);
+        line('#bdbdbd', 0.4, [[cx + 3.8, 4.6], [cx + 2, 7.6]]);
+      }
+      x.fillStyle = '#37474f'; x.fillRect(13.6, 4.4, 4.8, 8.4); for (let i = 0; i < 3; i++) { ell('#76ff03', 15 + i * 1, 6 + i * 2, 0.4, 0.4); line('#90a4ae', 0.35, [[14.4, 10.8], [17.6, 10.8]]); }
+      // brazos sobre las tornamesas y sudadera
+      ell('#3949ab', 9, 15, 1.5, 3, -0.6); ell('#3949ab', 23, 15, 1.5, 3, 0.6);
+      shoulders(16, 19.5, '#5c6bc0', '#283593', 6.2, 4);
+      // cabeza con gorra al reves y audifonos grandes
+      ball(16, 18, 3, '#6d4c41', '#3e2723');
+      x.fillStyle = '#212121'; x.beginPath(); x.arc(16, 18, 3.1, 0, Math.PI); x.fill(); x.fillRect(14.3, 20.6, 3.4, 1.6); // gorra con la visera para atras
+      x.strokeStyle = '#eceff1'; x.lineWidth = 0.6; x.beginPath(); x.arc(16, 18, 3.4, Math.PI * 1.05, Math.PI * 1.95); x.stroke();
+      ball(12.5, 18, 1.3, '#ff4081', '#880e4f'); ball(19.5, 18, 1.3, '#ff4081', '#880e4f');
+      // notas en el aire
+      x.fillStyle = 'rgba(255,255,255,0.85)'; x.font = 'bold 3px sans-serif'; x.textAlign = 'center'; x.fillText('♪', 5, 22); x.fillText('♫', 27, 24);
+    },
+    chamarra(x0) { // senora con chamarra esponjada y gorro, termo de cafe, entre la neblina del mar
+      for (let i = 0; i < 6; i++) ell('rgba(220,228,235,0.35)', 4 + i * 5, 6 + (i % 3) * 9, 7, 3.5);
+      shadow(15, 17, 11, 11);
+      // brazos esponjados, uno con el termo
+      ell('#c62828', 8, 17, 2, 3.4, 0.35); ell('#c62828', 21.5, 14.5, 2, 3.4, -0.8);
+      ball(24, 12.6, 1.8, '#90a4ae', '#455a64', '#263238'); ell('rgba(255,255,255,0.55)', 25.5, 10.8, 1.3, 0.8); ell('rgba(255,255,255,0.35)', 26.8, 9.4, 1.6, 0.9); // vapor
+      // chamarra con costuras de esponjado
+      shoulders(14.5, 16.5, '#ef5350', '#b71c1c', 6.6, 4.4);
+      for (let i = -1; i <= 1; i++) { x.strokeStyle = 'rgba(80,0,0,0.45)'; x.lineWidth = 0.3; x.beginPath(); x.ellipse(14.5, 16.5, 6.6 - Math.abs(i) * 0, 4.4, 0, i * 0.5 + 0.6, i * 0.5 + 2.5); x.stroke(); }
+      line('#9e9e9e', 0.3, [[14.5, 12.2], [14.5, 20.8]]);
+      // gorro tejido con borla
+      ball(14.5, 13, 3.1, '#fdd835', '#f57f17', 'rgba(0,0,0,0.35)');
+      for (let i = 0; i < 5; i++) line('rgba(140,80,0,0.45)', 0.25, [[12.2 + i * 1.15, 11], [12.2 + i * 1.15, 15]]);
+      ball(14.5, 12.4, 1.1, '#ffffff', '#e0e0e0');
+    },
+    coyote(x0) { // coyote flaco visto desde arriba, volteando, en tierra de cañon con matorral
+      ell('#d7c29b', 16, 16, 14, 12); for (let i = 0; i < 12; i++) ell('rgba(140,110,70,0.35)', 4 + (i * 9) % 24, 6 + (i * 7) % 20, 0.6, 0.5);
+      for (const [cx, cy] of [[5, 7], [27, 25]]) for (let k = 0; k < 5; k++) ell(k % 2 ? '#6b7d3a' : '#8a9a52', cx + Math.cos(k * 1.3) * 1.6, cy + Math.sin(k * 1.3) * 1.4, 1.6, 1.3);
+      shadow(16, 17, 6, 12);
+      for (const [px, py, s] of [[13, 10, -1], [19, 10, 1], [13.4, 21, -1], [18.6, 21, 1]]) line('#7a6248', 1, [[px, py], [px + s * 1.4, py + 1.4]]);
+      // cola esponjada con la punta negra
+      x.fillStyle = rad(17, 26, 4, '#b39b78', '#7a6248'); x.beginPath(); x.ellipse(17.6, 26.6, 1.8, 3.8, -0.25, 0, 7); x.fill(); ell('#2b2118', 18.4, 29.6, 1.1, 1);
+      // cuerpo gris pardo con el lomo mas oscuro
+      x.fillStyle = rad(16, 16, 8, '#c2ab88', '#8a7356'); x.beginPath(); x.ellipse(16, 16.5, 4.2, 8, 0, 0, 7); x.fill();
+      ell('rgba(70,55,40,0.45)', 16, 16, 1.4, 6.5);
+      // cabeza volteando a verte, orejas paradas y hocico
+      x.save(); x.translate(15.4, 7); x.rotate(-0.45);
+      ball(0, 0, 2.6, '#cdb894', '#8a7356'); ell('#b8a07c', 0, -2.8, 1.2, 1.8); ell('#2b2118', 0, -4.4, 0.5, 0.4);
+      x.fillStyle = '#9b8466'; for (const s of [-1, 1]) { x.beginPath(); x.moveTo(s * 1, 0.4); x.lineTo(s * 2.8, 2.6); x.lineTo(s * 2.4, -0.6); x.closePath(); x.fill(); }
+      ell('#ffca28', -1, -0.9, 0.35, 0.3); ell('#ffca28', 1, -0.9, 0.35, 0.3);
+      x.restore();
+      x.save(); x.translate(24, 15); x.rotate(-0.3); x.fillStyle = '#a5d6a7'; x.fillRect(-3, -1.4, 6, 2.8); x.strokeStyle = '#2e7d32'; x.lineWidth = 0.25; x.strokeRect(-3, -1.4, 6, 2.8); x.restore();
+    },
+    mona(x0) { // escultor con martillo y cincel junto a su maqueta de concreto con puertita y ventanas
+      shadow(16, 17, 13, 12);
+      // la maqueta: bloque de concreto con puerta, ventanitas y polvo alrededor
+      for (let i = 0; i < 10; i++) ell('rgba(200,200,200,0.5)', 18 + (i * 7) % 12, 4 + (i * 5) % 12, 0.6, 0.5);
+      x.fillStyle = rad(23, 10, 9, '#e0ddd5', '#9e9a90'); x.beginPath(); x.roundRect(17, 3, 12, 13, 2); x.fill();
+      x.strokeStyle = 'rgba(0,0,0,0.4)'; x.lineWidth = 0.35; x.stroke();
+      x.fillStyle = '#6d4c41'; x.fillRect(21.6, 12.6, 2.8, 3.4); ell('#ffd54f', 24, 14.4, 0.25, 0.25);
+      for (const [wx, wy] of [[19, 5], [25.6, 5], [19, 9], [25.6, 9]]) { x.fillStyle = '#4fc3f7'; x.fillRect(wx, wy, 2.2, 2); x.strokeStyle = '#fff'; x.lineWidth = 0.2; x.strokeRect(wx, wy, 2.2, 2); }
+      // escultor: overol, brazos con martillo y cincel
+      ell('#c99a6b', 9, 13, 1.4, 3, -0.7); ell('#c99a6b', 13.8, 11.6, 1.4, 3, 0.9);
+      line('#78909c', 0.6, [[11, 10], [15.6, 8.6]]); x.fillStyle = '#546e7a'; x.fillRect(14.4, 7.4, 2.6, 2.2); // martillo
+      line('#b0bec5', 0.5, [[7.6, 10.6], [9.6, 7.2]]); // cincel
+      shoulders(11, 17, '#5c7cfa', '#364fc7', 5.6, 3.8);
+      line('#364fc7', 0.6, [[8.8, 14], [9.4, 20]]); line('#364fc7', 0.6, [[13.2, 14], [12.6, 20]]);
+      // cabeza con pelo blanco y lentes, llena de polvo de cemento
+      ball(11, 15.6, 2.8, '#f5f5f5', '#bdbdbd', 'rgba(0,0,0,0.35)'); ell('#c99a6b', 11, 13.4, 1.6, 0.9);
+      for (let i = 0; i < 6; i++) ell('rgba(255,255,255,0.7)', 8 + i * 1.3, 18 + (i % 3) * 1.4, 0.4, 0.3);
+    },
+    topografo(x0) { // topografo de sombrero y saco, con su teodolito en tripie y el plano del pueblo extendido
+      shadow(15, 17, 12, 12);
+      // plano en el suelo: el rio y las calles del pueblito, con sus diagonales
+      x.save(); x.translate(9, 24); x.rotate(-0.15);
+      x.fillStyle = '#f3e5c0'; x.fillRect(-7, -4.5, 14, 9); x.strokeStyle = '#a1887f'; x.lineWidth = 0.3; x.strokeRect(-7, -4.5, 14, 9);
+      line('#4a90c2', 0.5, [[-7, 3.5], [-2, 1], [3, 2.5], [7, 0.5]]);
+      for (let i = -5; i <= 5; i += 2.5) line('#6d4c41', 0.2, [[i, -4], [i, 0.5]]); for (let j = -3.5; j <= 0; j += 1.5) line('#6d4c41', 0.2, [[-6, j], [6, j]]);
+      line('#6d4c41', 0.25, [[-5, -4], [0, -1.5], [5, -4]]);
+      x.fillStyle = '#5d4037'; x.font = 'bold 1.3px serif'; x.textAlign = 'center'; x.fillText('1889', 4.6, 3.6);
+      x.restore();
+      ell('#c8a26a', 2.6, 24, 0.9, 4.8); // el rollo
+      // tripie con el teodolito de laton
+      for (const a of [0.3, 2.4, 4.4]) line('#6d4c41', 0.7, [[23, 9], [23 + Math.cos(a) * 6, 9 + Math.sin(a) * 6]]);
+      ball(23, 9, 2.2, '#ffe082', '#b8860b', '#7a5a10'); x.fillStyle = '#5d4037'; x.fillRect(21, 8.4, 4, 1.2); ell('#90caf9', 25, 9, 0.5, 0.5);
+      // brazo hacia el aparato y saco cafe de la epoca
+      ell('#5d4037', 19, 11.6, 1.5, 3, -1.1); ell('#5d4037', 9.4, 15.6, 1.5, 3, 0.4);
+      shoulders(14, 15, '#795548', '#3e2723', 6, 3.9);
+      line('#fafafa', 0.6, [[13, 12], [14, 14], [15, 12]]); // cuello de camisa
+      // sombrero de ala con cinta
+      ball(14, 13, 5, '#a1887f', '#5d4037', 'rgba(0,0,0,0.4)'); ball(14, 13, 2.8, '#8d6e63', '#4e342e');
+      x.strokeStyle = '#212121'; x.lineWidth = 0.5; x.beginPath(); x.arc(14, 13, 3, 0, 7); x.stroke();
+    },
   };
   for (const k in draw) {
     const t = scene.textures.createCanvas('egg_' + k, 160, 160);
@@ -7931,7 +8108,7 @@ class Main extends Phaser.Scene {
       if (e.got || dist(e.x, e.y, f.x, f.y) > 45 || sp > 90) continue;
       e.got = true; state.money += e.pay; save(); bigSound = true; updateStats();
       const n = EGGS.filter(q => q.got).length;
-      toast('🥚 ' + e.name + ' (+$' + e.pay + ')', e.say + (n === EGGS.length ? '  ¡Encontraste todos los secretos de Tijuana!' : '  Secreto ' + n + ' de ' + EGGS.length + '.'), 6);
+      toast('🥚 ' + e.name + ' (+$' + e.pay + ')', e.say + (n === EGGS.length ? '  ¡Encontraste todos los secretos de Tijuana!' : '  Secreto ' + n + ' de ' + EGGS.length + '.'), Math.max(6, e.say.length / 22));
       this.tweens.add({ targets: e.icon, alpha: 0, scale: 1.2, duration: 900, delay: 1500, onComplete: () => e.icon.setVisible(false) });
     }
     for (const c of chinas) {
