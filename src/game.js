@@ -2394,7 +2394,7 @@ const COYOTE_OFERTA = [
 const COYOTE_PAGO = ['Simón. Espérame aquí, voy por la camioneta.', 'Trato hecho. No te muevas, ahorita vengo por ti.',
   'Ya estás. Nomás voy por los papeles a la vuelta.'];
 const COYOTE_ESTAFA = ['Dijo que iba por la camioneta. Sigues esperando en la esquina.',
-  'La "visa láser" que te dejó es una credencial del Calimax con tu foto pegada.',
+  'La "visa láser" que te dejó es una credencial del súper con tu foto pegada.',
   'El mapa del "túnel" que te dio es el menú de una taquería.',
   'Su "primo en la garita" no existe. Él tampoco contesta.',
   'Te dio una cita para cruzar... el 30 de febrero.'];
@@ -2409,7 +2409,7 @@ const FRASES_ROBO = [
 ];
 const FRASES_ATROPELLO = [
   '¡Ay, mi espalda!', '¡Fíjate, compa!', '¡Aguas!', '¡No soy de hule, perro!', '¡No seas gacho!',
-  '¡Iba por unas tortillas nomás!', '¡Me tumbaste el elote!', '¡Ni el Uber me había atropellado tan feo!',
+  '¡Iba por unas tortillas nomás!', '¡Me tumbaste el elote!', '¡Ni el taxi de ruta me había atropellado tan feo!',
   '¡Ya llegué tarde a la maquila, gracias!', '¡Te voy a quemar en el Face!', '¡Le voy a decir a mi mamá!', '¡Estaba en la banqueta, menso!',
   '¡Ya me tocaba vacaciones, gracias!', '¡No vi el semáforo... porque no hay!', '¡Me arruinaste los tenis nuevos!',
   '¡Uy, eso va a dejar marca!', '¡Ese carro ni frenó, oiga!', '¡Me debes un tejuino!',
@@ -2564,7 +2564,7 @@ const FRASES = {
     'No dejes nada a la vista en el carro, ni el cargador del cel.',
     'Aquí cuando te dicen "cuídate" no es despedida, es consejo.',
     'Aquí el que no tiene alarma tiene perro, y el que no tiene perro, reza.',
-    'Si te ofrecen un iPhone en 500 pesos en la Sexta, no es oferta, es examen de ética.',
+    'Si te ofrecen un celular de los caros en 500 pesos en la Sexta, no es oferta, es examen de ética.',
     'Mi carro tiene volante con candado, alarma, GPS y una estampita de San Judas. Por si acaso.',
     'Aquí le pones el seguro a la puerta antes que el cinturón.',
     'Mi vecino tiene tres perros, dos cámaras y una suegra en la ventana. Nadie se le acerca.',
@@ -2651,7 +2651,7 @@ const FRASES = {
     'Mi carro conoce la línea mejor que yo. Ya se apaga solo cuando llegamos.',
     'Por el CBX cruzas a pie al aeropuerto. Es como teletransportarse, pero cobrando.',
     'En la fila de Otay conocí a mi novia. Veníamos en el carril de al lado durante dos horas.',
-    'El oficial me preguntó a qué iba. Le dije "a Costco". Me dejó pasar con respeto.',
+    'El oficial me preguntó a qué iba. Le dije "a comprar papel de baño al mayoreo". Me dejó pasar con respeto.',
     'La Ready Lane no es ready. Es "ya casi". Igual que todo en la vida.',
     'Vivo aquí, trabajo allá, pago la gasolina en dos monedas. Soy un experto en tipo de cambio.',
     'Hay gente que cruza diario a estudiar. Para mí ya eso cuenta como doctorado.',
