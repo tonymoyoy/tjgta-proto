@@ -2801,7 +2801,7 @@ const FRASES_ROBADO = [
 ];
 // lo que dicen los personajes de la calle (ver TIPOS_CALLE)
 const FRASES_TIPO = {
-  elotero: ['"¡Elotes, esquites! ¿Con todo, joven?"', '"Con mayonesa, queso y chile del que pica. Así se come aquí."', '"Llevo veinte años en esta esquina. La esquina ya es mía."', '"¿Elote o vaso? El vaso no se te cae en la camisa."'],
+  elotero: ['"¡Elotes, elote en vaso! ¿Con todo, joven?"', '"Con mayonesa, queso y chile del que pica. Así se come aquí."', '"Llevo veinte años en esta esquina. La esquina ya es mía."', '"¿Elote o vaso? El vaso no se te cae en la camisa."'],
   paletero: ['"¡Paletas de fresa, de mango con chile, de nuez!"', '"Si oyes la campanita, ya llegué."', '"En verano soy el señor más querido de la colonia."', '"La de arroz con leche se acaba primero. Apúrate."'],
   turista: ['"Excuse me... ¿dónde queda la Avenida Revolución?"', '"My friend dice que los tacos de aquí son los mejores del mundo. Tiene razón."', '"Crucé la línea nomás por un taco. Valió la pena."', '"¿Cuánto por la foto con el burro cebra?"'],
   albanil: ['"Ahí nomás, una losa más y nos vamos."', '"El patrón dice que para el viernes. ¿Cuál viernes? No dijo."', '"Esta cubeta tiene más años que tú."', '"Echa la mezcla, que se seca."'],
