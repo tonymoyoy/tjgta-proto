@@ -56,7 +56,7 @@ const COL = {
 // 6 vivienda, 7 agua, 8 arena (las trampas del golf)
 const AREA_COL = ['#5f8a3f', '#6a9a48', '#c9bc9f', '#a39a82', '#9b927d', '#a08c66', '#958e7a', '#2f5f7f', '#dcc89a'];
 const AREA_PLAZA = 2, AREA_AGUA = 7, AREA_ARENA = 8;
-const TEX_CANAL = 'canal', TEX_SENDERO = 'sendero', TEX_BANQUETA = 'banqueta', TEX_ASFALTO = 'asfalto', TEX_TIERRA = 'tierra', TEX_TECHO = 'techo'; // los andadores (clase 9) no son area, pero usan su propia textura
+const TEX_CANAL = 'canal', TEX_SENDERO = 'sendero', TEX_BANQUETA = 'banqueta', TEX_ASFALTO = 'asfalto', TEX_TIERRA = 'tierra', TEX_TECHO = 'techo', TEX_ACCESO = 'acceso'; // los andadores (clase 9) no son area, pero usan su propia textura
 const ROOFS = ['#b9a98c', '#c9b89c', '#a39483', '#8f8a84', '#c3a27b', '#d2c5ae', '#9d7c64', '#7f8a90',
   '#b07d62', '#a8a8a0', '#c7b18a', '#8d9a86', '#bfa99a', '#d6cfc0'];
 
@@ -1537,12 +1537,12 @@ function techoTile() {
 let TEXTURAS = null; const PATRONES = {};
 // relleno para un tipo de area (o null si va de color parejo); el patron se escala para medir TEX px del mundo
 const SIN_TEXTURAS = (() => { try { return localStorage.getItem('tjrush-texturas') === 'no'; } catch (e) { return false; } })();
-const PLANO = { [TEX_CANAL]: '#b2ab9e', [TEX_SENDERO]: COL.footway, [TEX_BANQUETA]: COL.sidewalk, [TEX_ASFALTO]: COL.asphalt, [TEX_TIERRA]: COL.ground };
+const PLANO = { [TEX_ACCESO]: '#5d5a55', [TEX_CANAL]: '#b2ab9e', [TEX_SENDERO]: COL.footway, [TEX_BANQUETA]: COL.sidewalk, [TEX_ASFALTO]: COL.asphalt, [TEX_TIERRA]: COL.ground };
 function areaFill(ctx, k) {
   if (SIN_TEXTURAS) return PLANO[k] || AREA_COL[k];
   if (!TEXTURAS) TEXTURAS = { 0: grassTile(AREA_COL[0]), 1: grassTile(AREA_COL[1]), [AREA_AGUA]: waterTile(COL.water), [AREA_ARENA]: sandTile(AREA_COL[AREA_ARENA]),
     [AREA_PLAZA]: plazaTile(AREA_COL[AREA_PLAZA]), [TEX_SENDERO]: senderoTile(COL.footway),
-    [TEX_BANQUETA]: banquetaTile(COL.sidewalk), [TEX_ASFALTO]: asfaltoTile(COL.asphalt),
+    [TEX_BANQUETA]: banquetaTile(COL.sidewalk), [TEX_ASFALTO]: asfaltoTile(COL.asphalt), [TEX_ACCESO]: asfaltoTile('#5d5a55'),
     [TEX_TIERRA]: tierraTile(COL.ground), [TEX_CANAL]: canalTile('#b2ab9e'), [TEX_TECHO]: techoTile(), 3: tierraTile(AREA_COL[3]), 4: tierraTile(AREA_COL[4]), 5: tierraTile(AREA_COL[5]), 6: tierraTile(AREA_COL[6]) };
   const t = TEXTURAS[k]; if (!t) return AREA_COL[k];
   // un patron por textura, hecho una sola vez y compartido por todos los trozos (un patron sirve en cualquier lienzo)
@@ -2131,11 +2131,13 @@ function* chunkSteps(cx, cy) {
     pass(list, r => (r.w + BANQ[r.c] * 2 + 0.5) * M, COL.curb, r => r.c <= 6);
     const banq = areaFill(ctx, TEX_BANQUETA);
     pass(list, r => (r.w + BANQ[r.c] * 2) * M, banq, r => r.c <= 6);
-    // los accesos, estacionamientos y callejones (clase 7) van por debajo de las calles, sin banqueta y de concreto
-    // mas claro: se distinguen de las calles de verdad (el trafico no entra ahi) y no parecen calles que no llevan a nada
-    pass(list, r => (r.w + 0.6) * M, '#77715f', r => r.c === 7);
-    pass(list, r => r.w * M - 2, asfalto, r => r.c === 7);
-    pass(list, r => r.w * M - 2, 'rgba(225,215,190,0.2)', r => r.c === 7);
+    // los accesos, estacionamientos y callejones (clase 7) van por debajo de las calles, sin banqueta y de asfalto
+    // mas claro: se distinguen de las calles de verdad (el trafico no entra ahi) y no parecen calles que no llevan a nada.
+    // Su orilla: una raya oscura y la guarnicion de concreto. Todo de color solido (con uno transparente, donde se
+    // enciman dos pedazos se veia mas claro)
+    pass(list, r => (r.w + 1.4) * M, '#46423a', r => r.c === 7);
+    pass(list, r => (r.w + 1) * M, '#a39b8a', r => r.c === 7);
+    pass(list, r => r.w * M - 2, areaFill(ctx, TEX_ACCESO), r => r.c === 7);
     // orilla polvosa junto a la banqueta; el asfalto limpio de los cruces la tapa
     pass(list, r => r.w * M, '#4b4842', r => r.c <= 6);
     pass(list, r => r.w * M - 9, asfalto, r => r.c <= 6);
