@@ -517,7 +517,9 @@ window.TJ_REG = (k, txt) => {
     const casa = tipo === 1 || (tipo !== 2 && h < 8 && bb[2] - bb[0] < 90 && bb[3] - bb[1] < 90);
     const techos = casa ? TECHOS_CASITA : tipo === 2 ? TECHOS_PLAZA : ROOFS;
     // id: el orden de dibujo dentro de un trozo no depende de que region cargo primero
-    r.b.push({ id: base + i, reg: k, h, p, sh, bb, sbb: bbox(p, Math.max(sh, EXTRA_UP) + 2), col: techos[hc % techos.length], casita: tipo === 1, casa });
+    const b = { id: base + i, reg: k, h, p, sh, bb, sbb: bbox(p, Math.max(sh, EXTRA_UP) + 2), col: techos[hc % techos.length], casita: tipo === 1, casa };
+    if (esDomo(b)) { const R = (bb[2] - bb[0] + bb[3] - bb[1]) / 4; b.esfera = R; b.casa = false; b.sh = R * 0.4; b.L = EXTRA_UP; b.sbb = bbox(p, R * 2.4 + 4); if (!DOMOS.some(o => o.id === b.id)) DOMOS.push(b); }
+    r.b.push(b);
   });
   for (const b of r.b) { gridAdd(chunkBlds, b, b.sbb, CHUNK); gridAdd(bldGrid, b, b.bb, BCELL); }
   for (const e of r.est) gridAdd(chunkEst, e, e.bb, CHUNK);
@@ -1217,7 +1219,7 @@ function arbolVa(i) {
       const q = A.ORD[j], x = A.X[q], y = A.Y[q];
       let libre = true;
       for (let d = 0; d <= 48 && libre; d += 8) if (inBuilding(x, y + d) || inBuilding(x - 12, y + d) || inBuilding(x + 12, y + d)) libre = false;
-      if (libre && (enEstacionamiento(x, y, 12) || enCancha(x, y, 10))) libre = false;
+      if (libre && (enEstacionamiento(x, y, 12) || enCancha(x, y, 10) || trasDomo(x, y, 14))) libre = false;
       if (libre) { A.OK[g] = q; break; }
     }
   }
@@ -1662,11 +1664,56 @@ function pintarCalentador(g, x, y) {
   g.fillStyle = '#e9e9e6'; g.fillRect(x - 0.3, y, CAL_W + 0.6, 2.8); // el tanque
   g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(x - 0.3, y + 1.9, CAL_W + 0.6, 0.9);
 }
+// La Bola del CECUT: el domo del cine es una esfera color arena (Ramirez Vazquez y Rosen, 1982). En el mapa viene
+// como un edificio redondo y chaparro; se reconoce por su lugar y su forma y se pinta como esfera (ver pintarEsfera)
+const DOMO_CECUT = [55437, 19301], DOMOS = [];
+function esDomo(b) {
+  const w = b.bb[2] - b.bb[0], h = b.bb[3] - b.bb[1];
+  return b.p.length >= 32 && Math.abs(w - h) < w * 0.1 && Math.hypot((b.bb[0] + b.bb[2]) / 2 - DOMO_CECUT[0], (b.bb[1] + b.bb[3]) / 2 - DOMO_CECUT[1]) < 60;
+}
+// la esfera vista como los edificios (lo alto se corre hacia arriba y un poco a la derecha): queda un ovalo un poco mas
+// alto que ancho, apoyado en su base. Por encima: sombreado con luz del noroeste y las juntas de los paneles
+// (paralelos y meridianos) en la mitad que se ve
+function siluetaDomo(b) {
+  const R = b.esfera * 0.78, gx = (b.bb[0] + b.bb[2]) / 2, gy = (b.bb[1] + b.bb[3]) / 2;
+  return { R, gx, gy, cx: gx + R * LEAN, cy: gy - R * 0.8, K: 1.12 };
+}
+// ¿(x, y) queda detras de la esfera? (ahi no van arboles: su copa saldria encima de la esfera)
+const trasDomo = (x, y, m) => DOMOS.some(b => { const { R, cx, cy, K } = siluetaDomo(b); return ((x - cx) / (R + m)) ** 2 + ((y - cy) / (R * K + m)) ** 2 < 1; });
+function pintarEsfera(ctx, b) {
+  // (el poligono del mapa incluye la base redonda: la esfera es un poco mas chica que el)
+  const { R, gx, gy, cx, cy, K } = siluetaDomo(b);
+  // la base de concreto y la sombra en el piso
+  trace(ctx, b.p, true); ctx.fillStyle = '#b3a892'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(60,50,35,0.45)'; ctx.stroke();
+  ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.beginPath(); ctx.ellipse(gx + R * 0.4, gy + R * 0.05, R * 0.95, R * 0.6, 0, 0, 7); ctx.fill();
+  ctx.save(); ctx.translate(cx, cy);
+  ctx.save(); ctx.scale(1, K);
+  const g = ctx.createRadialGradient(-R * 0.38, -R * 0.42, R * 0.05, -R * 0.1, -R * 0.1, R * 1.2);
+  g.addColorStop(0, '#f3e6c6'); g.addColorStop(0.4, '#dcc08c'); g.addColorStop(0.78, '#b8955f'); g.addColorStop(1, '#7a613b');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, R, 0, 7); ctx.fill();
+  ctx.restore();
+  // juntas de los paneles: un punto (X, Y, Z) de la esfera cae en (X, 0.5 Y - Z) y se ve si Y + 0.5 Z > 0
+  const pr = (la, lo) => { const X = R * Math.cos(la) * Math.cos(lo), Y = R * Math.cos(la) * Math.sin(lo), Z = R * Math.sin(la); return [X, 0.5 * Y - Z, Y + 0.5 * Z > 0]; };
+  const linea = (f, n) => { let pen = false; for (let i = 0; i <= n; i++) { const [x, y, v] = f(i / n); if (v) { if (pen) ctx.lineTo(x, y); else ctx.moveTo(x, y); pen = true; } else pen = false; } };
+  ctx.beginPath();
+  for (let la = -40; la <= 80; la += 10) linea(t => pr(la * Math.PI / 180, t * 6.283), 96);
+  for (let lo = 0; lo < 360; lo += 12) linea(t => pr((-90 + t * 180) * Math.PI / 180, lo * Math.PI / 180), 60);
+  ctx.lineWidth = 0.9; ctx.strokeStyle = 'rgba(95,70,40,0.32)'; ctx.stroke();
+  ctx.save(); ctx.translate(-0.5, -0.5); ctx.lineWidth = 0.5; ctx.strokeStyle = 'rgba(255,248,225,0.22)'; ctx.stroke(); ctx.restore();
+  // brillo y orilla
+  ctx.save(); ctx.scale(1, K);
+  const br = ctx.createRadialGradient(-R * 0.42, -R * 0.48, 0, -R * 0.42, -R * 0.48, R * 0.45);
+  br.addColorStop(0, 'rgba(255,252,240,0.45)'); br.addColorStop(1, 'rgba(255,252,240,0)');
+  ctx.fillStyle = br; ctx.beginPath(); ctx.arc(0, 0, R, 0, 7); ctx.fill();
+  ctx.lineWidth = 1.4 / K; ctx.strokeStyle = 'rgba(60,45,25,0.55)'; ctx.stroke();
+  ctx.restore();
+  ctx.restore();
+}
 function* drawBuildings(ctx, bl, rs, cx, cy) {
   const g = bRoof.getContext('2d');
   let lo = 0;
   for (const [hmax, L] of LIFTS) {
-    const group = bl.filter(b => b.h >= lo && b.h < hmax); lo = hmax;
+    const group = bl.filter(b => b.h >= lo && b.h < hmax && !b.esfera); lo = hmax;
     if (!group.length) continue;
     // solo se trabaja en el rectangulo que ocupan los edificios del grupo (en pixeles de la capa)
     let rx0 = 1e9, ry0 = 1e9, rx1 = -1e9, ry1 = -1e9;
@@ -1762,6 +1809,7 @@ function* drawBuildings(ctx, bl, rs, cx, cy) {
     ctx.restore();
     yield;
   }
+  for (const b of bl) if (b.esfera) pintarEsfera(ctx, b);
 }
 // ¿lo tapa un edificio? Las paredes y el techo se elevan hacia el norte (capa k: k px arriba y k*LEAN a la derecha),
 // asi que lo que esta en la banqueta o la calle detras (al norte) de un edificio queda debajo de su dibujo: un punto
