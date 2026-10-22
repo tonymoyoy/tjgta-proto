@@ -121,6 +121,8 @@ const ANCHO_UN_SENTIDO = [12, 12, 11, 11, 8];
 const roadW = (c, f) => (f & 2) && c < ANCHO_UN_SENTIDO.length ? ANCHO_UN_SENTIDO[c] : ROAD_W[c];
 const roads = D.roads.map(([c, n, f, co], i) => { const p = ptsD(co), w = roadW(c, f); return { i, c, n, f, p, w, bb: bbox(p, (w / 2 + 3) * M), curvy: curviness(p) > 0.0024 }; });
 const areas = D.areas.map(([k, co]) => { const p = ptsD(co); return { k, p, bb: bbox(p, 0) }; });
+// los datos crudos ya no se usan (las lineas quedaron en Float32Array): se sueltan para no tenerlos dos veces
+D.roads = D.areas = null;
 // la linea fronteriza: puntos de oeste a este; borderY da su altura en cualquier x (entre puntos, en linea recta)
 const B = pts(D.border);
 function borderY(x) {
@@ -196,24 +198,42 @@ const EGGS = [
 });
 
 // ---------- indices espaciales ----------
-// Rejilla densa: un arreglo con todas las celdas del rectangulo que se usa (O: donde empieza cada celda) y los
-// numeros seguidos (V). Se arma en dos pasadas sin Map ni ordenar (con un millon de celdas, el Map y el ordenado
-// tardaban mas de un segundo y pesaban decenas de MB). enumera(emit) llama emit(cx, cy, i) por cada celda de cada
-// elemento, en orden; el mismo i seguido en la misma celda cuenta una vez. get(k) da los numeros de la celda
-// k = GK(cx, cy) (un Int32Array: sirve con for...of y forEach, pero .map da otro Int32Array) o undefined.
+// Rejilla compacta: los numeros de cada celda seguidos en V, y O dice donde empieza cada celda que tiene algo. Las
+// celdas vacias no ocupan: un bit por celda dice si tiene algo, y para saber cual es se cuentan los bits prendidos
+// antes de ella (rank: la cuenta hasta cada palabra de 32 bits + los bits de la palabra). Antes O tenia un numero por
+// cada celda del rectangulo y, con toda la ciudad, las rejillas finas (calles, rio, baches) pesaban decenas de MB casi
+// todo en celdas vacias. Se arma en dos pasadas sin Map ni ordenar. enumera(emit) llama emit(cx, cy, i) por cada
+// celda de cada elemento, en orden; el mismo i seguido en la misma celda cuenta una vez. celda(cx, cy) da el numero de
+// la celda (para O[c] y O[c + 1]) o -1 si esta vacia o fuera. get(k) da los numeros de la celda k = GK(cx, cy) (un
+// Int32Array: sirve con for...of y forEach, pero .map da otro Int32Array) o undefined.
+const bits1 = (x) => { x -= (x >>> 1) & 0x55555555; x = (x & 0x33333333) + ((x >>> 2) & 0x33333333); return Math.imul((x + (x >>> 4)) & 0x0F0F0F0F, 0x01010101) >>> 24; };
 function rejillaDensa(enumera) {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   enumera((cx, cy) => { if (cx < x0) x0 = cx; if (cx > x1) x1 = cx; if (cy < y0) y0 = cy; if (cy > y1) y1 = cy; });
   if (x0 > x1) return { O: new Int32Array(1), V: new Int32Array(0), celda: () => -1, get: () => undefined };
-  const W = x1 - x0 + 1, N = W * (y1 - y0 + 1), O = new Int32Array(N + 1), ult = new Int32Array(N).fill(-1);
-  enumera((cx, cy, i) => { const c = (cy - y0) * W + cx - x0; if (ult[c] !== i) { ult[c] = i; O[c + 1]++; } });
-  for (let c = 0; c < N; c++) O[c + 1] += O[c];
-  const V = new Int32Array(O[N]), pos = O.slice(0, N); ult.fill(-1);
-  enumera((cx, cy, i) => { const c = (cy - y0) * W + cx - x0; if (ult[c] !== i) { ult[c] = i; V[pos[c]++] = i; } });
-  const celda = (cx, cy) => (cx < x0 || cx > x1 || cy < y0 || cy > y1 ? -1 : (cy - y0) * W + cx - x0);
+  const W = x1 - x0 + 1, N = W * (y1 - y0 + 1);
+  // primera pasada: cuantos hay en cada celda (arreglos de todo el rectangulo, pero solo mientras se arma)
+  let cnt = new Int32Array(N), ult = new Int32Array(N).fill(-1);
+  enumera((cx, cy, i) => { const c = (cy - y0) * W + cx - x0; if (ult[c] !== i) { ult[c] = i; cnt[c]++; } });
+  const NW = (N + 31) >>> 5, bits = new Uint32Array(NW), rank = new Int32Array(NW);
+  let M = 0;
+  for (let w = 0; w < NW; w++) {
+    rank[w] = M; let b = 0;
+    for (let c = w << 5, e = Math.min(N, c + 32), k = 0; c < e; c++, k++) if (cnt[c]) { b |= 1 << k; M++; }
+    bits[w] = b;
+  }
+  const O = new Int32Array(M + 1);
+  for (let c = 0, m = 0; c < N; c++) if (cnt[c]) { O[m + 1] = O[m] + cnt[c]; m++; }
+  cnt = null;
+  const idx = (c) => { const w = c >>> 5, k = c & 31, b = bits[w]; return (b >>> k) & 1 ? rank[w] + bits1(b & ((1 << k) - 1)) : -1; };
+  // segunda pasada: los numeros en su lugar
+  const V = new Int32Array(O[M]), pos = O.slice(0, M); ult.fill(-1);
+  enumera((cx, cy, i) => { const c = (cy - y0) * W + cx - x0; if (ult[c] !== i) { ult[c] = i; V[pos[idx(c)]++] = i; } });
+  ult = null;
+  const celda = (cx, cy) => (cx < x0 || cx > x1 || cy < y0 || cy > y1 ? -1 : idx((cy - y0) * W + cx - x0));
   return {
     O, V, celda,
-    get(k) { const cx = Math.round(k / 1048576), c = celda(cx, k - cx * 1048576); return c < 0 || O[c] === O[c + 1] ? undefined : V.subarray(O[c], O[c + 1]); },
+    get(k) { const cx = Math.round(k / 1048576), c = celda(cx, k - cx * 1048576); return c < 0 ? undefined : V.subarray(O[c], O[c + 1]); },
   };
 }
 function gridIndex(items, cell, bbKey, pad) {
@@ -762,7 +782,8 @@ function buildGraph(filter, oneways) {
       for (let q = 2; q < ep.length; q += 2) cum.push(cum[cum.length - 1] + Math.hypot(ep[q] - ep[q - 2], ep[q + 1] - ep[q - 1]));
       const len = cum[cum.length - 1];
       if (len > 2) {
-        const e = { p: ep, cum, len, a: node(ep[0], ep[1]), b: node(ep[ep.length - 2], ep[ep.length - 1]),
+        // (cum en Float32Array: la mitad de memoria que el arreglo normal)
+        const e = { p: ep, cum: Float32Array.from(cum), len, a: node(ep[0], ep[1]), b: node(ep[ep.length - 2], ep[ep.length - 1]),
           one: oneways && (r.f & 2) !== 0, puente: (r.f & 1) !== 0, w: r.w * M, c: r.c, n: r.n, id: edges.length };
         edges.push(e);
         adj[e.a].push({ e, dir: 1 });
