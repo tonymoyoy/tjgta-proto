@@ -2836,7 +2836,7 @@ const FRASES_MOTO = [
   '¡Ojalá te toque cliente que no baja por el pedido!', '¡Ahí adentro va el pastel de cumpleaños de una abuelita!',
 ];
 const PEDIDOS = [
-  '3 tacos de adobada y un tejuino', 'una pizza con piña y chiles en vinagre', '12 donas y un Pepto-Bismol',
+  '3 tacos de adobada y un tejuino', 'una pizza con piña y chiles en vinagre', '12 donas y un té de manzanilla para la panza',
   'un caldo de res a las 40 grados', 'una birria para un perro con depresión', 'una ensalada César, de donde nació',
   'unos churros y una mantita para el frío', 'un café de olla para un influencer', 'una torta de jamón sin jamón',
   'un elote con todo y un abrazo', 'unos tamales para la junta del condominio', 'sushi empanizado con queso',
