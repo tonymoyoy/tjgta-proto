@@ -8,7 +8,7 @@ const S = M / 10;       // pixeles por decimetro (unidad de los datos)
 const WORLD_W = Math.ceil(D.w * M), WORLD_H = Math.ceil(D.h * M);
 // trozos chicos: cada uno se dibuja rapido y no se nota el tiron al irlos creando
 const CHUNK = 256;
-const EXTRA_UP = 84; // lo mas que se eleva un techo (px)
+const EXTRA_UP = 100; // lo mas que se eleva un techo (px)
 // nitidez: el lienzo usa los pixeles reales de la pantalla (hasta 3 por punto en celulares) y los trozos
 // del mapa y los textos se pintan a mas resolucion, porque la camara los amplia
 // calidad grafica (Opciones): alta es lo de siempre; media y baja bajan la resolucion del lienzo, del mapa y de
@@ -1496,8 +1496,10 @@ function roadMarks(ctx, k) {
 // banquetas (para que coincida con donde se puede pasar) y se apila varias veces hacia arriba en un
 // tono mas oscuro: eso forma las paredes del frente. Se hace una sola vez por trozo del mapa,
 // asi que no cuesta nada mientras se juega.
-// una planta (3-4 m) 10 px, dos plantas 22, y de ahi crece con los pisos hasta las torres (de 36 m para arriba)
-const LIFTS = [[4.5, 10], [8, 22], [12, 30], [16, 38], [24, 50], [36, 62], [1e9, 82]]; // (elevacion - 2 multiplo de 4: ver la pila de paredes) // [altura maxima en m, elevacion del techo en px]
+// cada piso mide PISO px de pared (unos 3 m, como el resto del mapa) y un edificio muestra pisos completos: una
+// planta, dos plantas... y las torres se quedan en 6 (si no, taparian media pantalla)
+const PISO = 16, PISOS = [[4.5, 1], [8, 2], [13, 3], [18, 4], [26, 5], [1e9, 6]];
+const LIFTS = PISOS.map(([hm, f]) => [hm, f * PISO + 2]); // [altura maxima en m, elevacion del techo en px] (elevacion - 2 multiplo de PISO: ver la pila de paredes)
 const bRoof = document.createElement('canvas'), bWall = document.createElement('canvas'), bWall2 = document.createElement('canvas'), bWin = document.createElement('canvas'), bStack = document.createElement('canvas');
 // las capas son EXTRA_UP px mas altas que el trozo: los techos de abajo se elevan y entran a este trozo
 // y LEAN_PAD px mas anchas a la izquierda: los techos se recargan un poco a la derecha (se ve la pared oeste)
@@ -1507,8 +1509,8 @@ const LEAN = 0.25, LEAN_PAD = Math.ceil(EXTRA_UP * LEAN) + 2;
 const BW = CHUNK + 2 + LEAN_PAD, BH = CHUNK + 2 + EXTRA_UP;
 for (const c of [bRoof, bWall, bWall2, bWin, bStack]) { c.width = BW * RES; c.height = BH * RES; c.getContext('2d', CTX2D).setTransform(RES, 0, 0, RES, 0, 0); }
 const blit = (dst, src, sx, sy, sw, sh, dx, dy, dw, dh) => dst.drawImage(src, sx * RES, sy * RES, sw * RES, sh * RES, dx, dy, dw, dh);
-// cada piso de la pared son 4 capas: linea de entrepiso, dos de ventanas y pared
-const wallLayer = (k) => { const m = k % 4; return m === 0 ? bWall2 : m === 3 ? bWall : bWin; };
+// cada piso de la pared son PISO capas (de abajo para arriba): la losa del entrepiso, pared, las ventanas y pared
+const wallLayer = (k) => { const m = k % PISO; return m < 2 ? bWall2 : m < 5 || m > 11 ? bWall : bWin; };
 // donde va el tinaco de un edificio (en su planta), o null si no tiene
 function tinaco(b) {
   const bw = b.bb[2] - b.bb[0], bh = b.bb[3] - b.bb[1], hh = hash(b.p.length * 31 + (b.bb[0] | 0));
@@ -1607,19 +1609,19 @@ function* drawBuildings(ctx, bl, rs, cx, cy) {
       w.globalCompositeOperation = 'source-over';
     }
     yield;
-    // apilar la pared L veces: se arman 4 capas y se duplica la pila sobre si misma (4, 8, 16...)
+    // apilar la pared L veces: se arma un piso (PISO capas) y se duplica la pila sobre si misma (1, 2, 4 pisos...)
     // en vez de pintar capa por capa; las que sobran se pintan una por una
     const st = bStack.getContext('2d');
-    // (el patron se repite cada 4 capas y 4*LEAN es entero, asi que duplicar la pila lo conserva)
+    // (el patron se repite cada PISO capas y PISO*LEAN es entero, asi que duplicar la pila lo conserva)
     const lx = (k) => Math.round(k * LEAN);
-    const top = L - 2, base = Math.min(top, 4);
+    const top = L - 2, base = Math.min(top, PISO);
     st.clearRect(0, Math.max(0, ry0 - L - 1), BW, rh + L + 2); cp(st, bWall2, 0, 0);
     for (let k = 1; k < base; k++) cp(st, wallLayer(k), lx(k), -k);
     // al duplicar, la pila ya mide n capas: se copia el rectangulo crecido hacia arriba
     const cps = (dx, dy, n) => blit(st, bStack, rx0, ry0 - n, rw + lx(n), rh + n, rx0 + dx, ry0 - n + dy, rw + lx(n), rh + n);
     let n = base;
     while (n * 2 <= top) { cps(lx(n), -n, n); n *= 2; }
-    if (n < top) cps(lx(top - n), n - top, n); // lo que falta: la misma pila corrida (top - n es multiplo de 4)
+    if (n < top) cps(lx(top - n), n - top, n); // lo que falta: la misma pila corrida (top - n es multiplo de PISO)
     cp(st, bWall, lx(top), -top); cp(st, bWall2, lx(top + 1), -top - 1); // cornisa clara arriba
     yield;
     ctx.save(); ctx.setTransform(RES, 0, 0, RES, 0, 0);
