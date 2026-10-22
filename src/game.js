@@ -2874,6 +2874,7 @@ const FRASES_PAN_CANCION = [
   '♪ ¡El pa-na-de-ro con el pan! ♪ (se traba la grabación) ♪ ...con el pan, con el pan, con el pan ♪',
   '♪ ¡El panadero con el pan! ♪ (todos los perros de la cuadra le contestan)',
 ];
+const ZONAS_SIN_PAN = new Set(['Zona Centro', 'Zona Norte', 'Zona Río']);
 const FRASES_PAN = [
   '¡Lleve su pan! ¡Conchas, cuernitos, orejas, bolillo calientito!',
   '¡Salga, señito, que ya pasó el pan! ¡Hay pan dulce y hay pan de sal!',
@@ -6294,8 +6295,8 @@ class Main extends Phaser.Scene {
       const otro = moto || poli || deportiva;
       const urbano = !otro && e.c <= 4 && Math.random() < 0.25 && this.cars.filter(c => c.T === VT_URBANO).length < 4;
       const gas = !otro && !urbano && Math.random() < 0.1 && this.cars.filter(c => c.gas).length < 2;
-      // el carro del pan nomas en las calles de las colonias, y uno a la vez
-      const pan = !otro && !urbano && !gas && (e.c === 5 || e.c === 6) && Math.random() < 0.12 && !this.cars.some(c => c.pan);
+      // el carro del pan nomas en las calles de las colonias (no en el Centro, la Zona Norte ni la Zona Rio), uno a la vez
+      const pan = !otro && !urbano && !gas && (e.c === 5 || e.c === 6) && Math.random() < 0.12 && !this.cars.some(c => c.pan) && !ZONAS_SIN_PAN.has(zonaDe(q.x, q.y));
       const spec = this.carSpec({ moto, poli, deportiva, urbano, gas, pan });
       if (this.cars.some(c => dist(c.x, c.y, q.x, q.y) < 26 + c.hl + spec.T.L / 2)) continue;
       const car = this.makeCar(q.x, q.y, q.a, spec);
