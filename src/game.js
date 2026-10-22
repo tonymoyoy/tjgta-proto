@@ -3308,6 +3308,18 @@ const VTYPES = [
 const VT_TAXI = { name: 'Taxi libre', L: 37, W: 16, top: 230, acc: 115, steer: 2.6, hp: 100 };
 const VT_MOTO = { name: 'Moto de reparto', L: 19, W: 9.2, top: 210, acc: 150, steer: 3.4, hp: 60 };
 // moto deportiva: la mas rapida de todas, pero al primer choque se hace pedazos (fragil); sale poco en el trafico
+// bicis y patinetas: raras, estacionadas en la banqueta sin candado. No se rompen, no hacen ruido, la poli no les
+// hace caso y van mas rapido que caminando (62) pero un poco mas lento que corriendo (112). Ver makeBicis y poneBici
+const VT_BICI = {
+  ruta: { name: 'Bici de ruta', bici: 'ruta', L: 18, W: 6, top: 104, acc: 95, steer: 3.6, hp: 100 },
+  montana: { name: 'Bici de montaña', bici: 'montana', L: 18, W: 7, top: 96, acc: 105, steer: 3.9, hp: 100 },
+  patineta: { name: 'Patineta', bici: 'patineta', L: 14, W: 7, top: 88, acc: 80, steer: 4.2, hp: 100 },
+};
+const BICI_AVISO = {
+  ruta: ['🚲 ¡Bici de ruta!', 'Delgadita y rápida. No se rompe, no hace ruido y la poli ni te pela.'],
+  montana: ['🚵 ¡Bici de montaña!', 'Llantas gordas, aguanta baches y banquetas. No se rompe y la poli ni te pela.'],
+  patineta: ['🛹 ¡Patineta!', 'Más lenta que correr, pero no te cansas. No se rompe y la poli ni te pela.'],
+};
 const VT_DEPORTIVA = { name: 'Moto deportiva', L: 22, W: 9, top: 370, acc: 240, steer: 3.3, hp: 50, fragil: true };
 const DEPORTIVA_COLS = [['#d10a0a', '#f4f4f4'], ['#7ed321', '#151515'], ['#1f5fbf', '#f4f4f4']]; // carenado y franja
 // premios: la troca de tacos (los 32 tacos) y el burro cebra dorado (todo completo, no se rompe)
@@ -3796,7 +3808,7 @@ function drawPlayer(x, sw) {
   x.restore();
 }
 function makeTextures(scene) {
-  makeLights(scene); makeFiesta(scene); makeMoto(scene); makeDeportiva(scene); makeEscolta(scene); makePerro(scene); makePerros(scene); makeGatos(scene); makeLandmarkIcons(scene); makeTrocaTacos(scene); makeZonkey(scene); makeTaxi(scene); makePolice(scene); makeUrbano(scene); makePipaGas(scene); makePanadero(scene); makeExplosiones(scene); makeTacoStands(scene); makeCafes(scene); makePinesComida(scene); makeChinas(scene); makeYonke(scene); makeEggs(scene); makeScorch(scene);
+  makeLights(scene); makeFiesta(scene); makeMoto(scene); makeDeportiva(scene); makeEscolta(scene); makePerro(scene); makePerros(scene); makeGatos(scene); makeLandmarkIcons(scene); makeTrocaTacos(scene); makeZonkey(scene); makeTaxi(scene); makePolice(scene); makeUrbano(scene); makePipaGas(scene); makePanadero(scene); makeBicis(scene); makeExplosiones(scene); makeTacoStands(scene); makeCafes(scene); makePinesComida(scene); makeChinas(scene); makeYonke(scene); makeEggs(scene); makeScorch(scene);
   // personas vistas desde arriba, mirando a la derecha; 8 cuadros de caminata (el cuadro 0 es parado).
   // Una textura por variante de PED_VARIANTS ('ped0'...) y la del jugador ('pedP'); ver drawPerson.
   // Se dibujan a SPR veces la resolucion y el sprite se muestra a escala 1 / SPR para que se vean nitidas.
@@ -4240,6 +4252,56 @@ function makeUrbano(scene) {
     x.strokeStyle = 'rgba(0,0,0,0.45)'; x.lineWidth = 0.6; x.beginPath(); x.roundRect(0, 0, L, W, 3); x.stroke();
     t.refresh();
   });
+}
+// bicis y patinetas vistas desde arriba, de frente hacia +x: 'bici_k' sola (estacionada) y 'bici_k_r' con quien la
+// maneja (casco, playera y brazos al manubrio; en la patineta, parado de lado). Lienzo 26 x 14 con el centro en (13, 7)
+function makeBicis(scene) {
+  for (const k in VT_BICI) for (const r of [false, true]) {
+    const t = scene.textures.createCanvas('bici_' + k + (r ? '_r' : ''), 26 * SPR, 14 * SPR), x = t.getContext();
+    x.scale(SPR, SPR); x.translate(13, 7); x.lineCap = 'round';
+    const ln = (c, w, pts) => { x.strokeStyle = c; x.lineWidth = w; x.beginPath(); pts.forEach(([a, b], i) => i ? x.lineTo(a, b) : x.moveTo(a, b)); x.stroke(); };
+    const el = (c, cx, cy, rx, ry, a) => { x.fillStyle = c; x.beginPath(); x.ellipse(cx, cy, rx, ry, a || 0, 0, 7); x.fill(); };
+    el('rgba(0,0,0,0.28)', 1, 1, k === 'patineta' ? 8.5 : 10.5, r ? 4.4 : 2.4);
+    if (k === 'patineta') {
+      // tabla con lija negra, puntas levantadas y las cuatro ruedas asomando
+      for (const ex of [-5, 5]) for (const ey of [-2.6, 2.6]) el('#f4e04d', ex, ey, 1, 0.7);
+      x.fillStyle = '#6d4c41'; x.beginPath(); x.roundRect(-8, -2.4, 16, 4.8, 2.4); x.fill();
+      x.fillStyle = '#212121'; x.beginPath(); x.roundRect(-7.2, -1.9, 14.4, 3.8, 1.9); x.fill();
+      x.fillStyle = '#e53935'; x.fillRect(-1.5, -1.9, 3, 3.8); // calcomania
+      for (let i = 0; i < 4; i++) ln('#9e9e9e', 0.25, [[-5.6 + (i % 2) * 11.2, -1.2], [-5.6 + (i % 2) * 11.2, 1.2]]);
+      if (r) { // parado de lado: un pie en cada truck, hombros a lo largo de la tabla y brazos para equilibrar
+        el('#1e1e1e', -4.6, 0, 1.6, 1.1); el('#1e1e1e', 4.4, 0.4, 1.6, 1.1, 0.4);
+        ln('#2e5c8a', 2.2, [[-4, 0], [-1, 0.6]]); ln('#2e5c8a', 2.2, [[4, 0.3], [1, 0.6]]);
+        ln('#d7a07a', 1.1, [[-4.6, -1.6], [-8.2, -3.6]]); ln('#d7a07a', 1.1, [[4.6, -1.6], [8, -0.6]]);
+        el('#f57c00', 0, 0, 5, 2.8); el('#ffa040', -0.6, -0.5, 3.6, 1.8);
+        el('#3e2723', 0.4, 0, 2.2, 2.2); el('#1565c0', 0.8, 0, 2.3, 2.3); el('#1e88e5', 1.6, 0, 1.2, 2.1); // gorra al frente
+      }
+    } else {
+      const ruta = k === 'ruta', col = ruta ? '#d32f2f' : '#2e7d32', lt = ruta ? '#ff7961' : '#60ad5e';
+      // llantas: delgadas las de ruta, gordas y con taquetes las de montaña
+      for (const ex of [-6, 6]) {
+        x.fillStyle = '#151515'; x.beginPath(); x.roundRect(ex - 3.6, ruta ? -0.55 : -0.95, 7.2, ruta ? 1.1 : 1.9, 0.9); x.fill();
+        if (!ruta) for (let q = -3; q <= 3; q += 1) el('#3a3a3a', ex + q, 0, 0.2, 1.1);
+      }
+      ln(col, 1.1, [[-6, 0], [-1.6, 0], [3.6, 0], [6, 0]]); ln(lt, 0.4, [[-5, -0.2], [3.4, -0.2]]); // cuadro
+      if (!ruta) { ln('#757575', 0.9, [[4.2, -0.9], [6, -0.9]]); ln('#757575', 0.9, [[4.2, 0.9], [6, 0.9]]); } // suspension
+      el('#212121', -1.8, 0, 1.6, 0.8); // asiento
+      if (ruta) { ln('#212121', 0.8, [[3.4, -2.6], [4.4, -2.8], [5, -2.2]]); ln('#212121', 0.8, [[3.4, 2.6], [4.4, 2.8], [5, 2.2]]); ln('#424242', 0.8, [[3.6, -2.6], [3.6, 2.6]]); }
+      else { ln('#424242', 0.8, [[3.8, -4], [3.8, 4]]); el('#111', 3.8, -4, 0.6, 0.9); el('#111', 3.8, 4, 0.6, 0.9); }
+      el('#9e9e9e', 0.6, 0.7, 0.9, 0.9); // pedales
+      if (r) { // ciclista: piernas a los pedales, espalda, brazos al manubrio y casco
+        ln('#263238', 1.4, [[-1.4, -1.4], [0.8, -1.6]]); ln('#263238', 1.4, [[-1.4, 1.4], [0.2, 1.8]]);
+        const bx = ruta ? 3.6 : 3.8, by = ruta ? 2.6 : 3.6;
+        ln('#d7a07a', 1.1, [[-0.4, -2.4], [bx, -by]]); ln('#d7a07a', 1.1, [[-0.4, 2.4], [bx, by]]);
+        el(ruta ? '#fdd835' : '#5d4037', -1.4, 0, 2.6, 3.4); // jersey o mochila
+        if (ruta) ln('#1e88e5', 0.6, [[-3.6, 0], [0.8, 0]]);
+        el('#d7a07a', 0.9, 0, 1.6, 1.6);
+        el(ruta ? '#ffffff' : '#ff6f00', 0.8, 0, 2, 1.8); // casco
+        for (const v of [-0.9, 0, 0.9]) ln(ruta ? '#9e9e9e' : '#bf360c', 0.3, [[-0.6, v], [2.2, v]]);
+      }
+    }
+    t.refresh();
+  }
 }
 // pipa de gas LP: cabina roja adelante y el tanque blanco (un cilindro visto desde arriba) con su franja y el
 // letrero de GAS; va despacio vendiendo por las colonias. Dos golpes y explota (ver golpeGas).
@@ -6228,7 +6290,7 @@ class Main extends Phaser.Scene {
     if (pos) {
       const car = this.makeCar(pos.x, pos.y, pos.a, INICIO.v || { taxi: true });
       if (INICIO.hp != null) car.hp = Math.max(1, Math.min(car.maxHp, INICIO.hp));
-      if (INICIO.dentro) { this.inCar = car; this.player.sprite.setVisible(false); } else this.parked.push(car);
+      if (INICIO.dentro) { this.inCar = car; this.player.sprite.setVisible(false); if (car.bici) car.sprite.setTexture('bici_' + car.bici + '_r'); } else this.parked.push(car);
       this.ultimoCarro = car;
     }
     this.cameras.main.startFollow((this.inCar || this.player).sprite, true, 0.15, 0.15);
@@ -6258,7 +6320,7 @@ class Main extends Phaser.Scene {
     const P = this.inCar || this.player, r = { p: m(P.x, P.y, P.a) };
     const car = this.inCar || this.ultimoCarro;
     const v = car && (car.moto ? { moto: true } : car.T === VT_DEPORTIVA ? { deportiva: true } : car.T === VT_TAXI ? { taxi: true } :
-      car.T === VT_URBANO ? { urbano: true } : car.gas ? { gas: true } : car.pan ? { pan: true } : car.v && !car.special ? car.v : null);
+      car.T === VT_URBANO ? { urbano: true } : car.gas ? { gas: true } : car.pan ? { pan: true } : car.bici ? { bici: car.bici } : car.v && !car.special ? car.v : null);
     if (v && car.hp > 0 && !car.wrecked && (car === this.inCar || (this.parked.includes(car) && dist(car.x, car.y, P.x, P.y) < 400)))
       r.c = { p: m(car.x, car.y, car.a), v, hp: Math.round(car.hp), dentro: car === this.inCar };
     return r;
@@ -6288,6 +6350,7 @@ class Main extends Phaser.Scene {
     if (o.zonkey) return { T: VT_ZONKEY, key: 'zonkey', ox: (VT_ZONKEY.L / 2 + 3) / (VT_ZONKEY.L + 6), oy: 0.5, dirty: false };
     if (o.escolta) return { T: VT_ESCOLTA, key: 'escolta0', ox: (VT_ESCOLTA.L / 2 + 1) / (VT_ESCOLTA.L + 5), oy: (VT_ESCOLTA.W / 2 + 1) / (VT_ESCOLTA.W + 5), dirty: false };
     if (o.urbano) return { T: VT_URBANO, key: 'urbano' + ((Math.random() * URBANO_COLS.length) | 0), ox: (VT_URBANO.L / 2 + 1) / (VT_URBANO.L + 5), oy: (VT_URBANO.W / 2 + 1) / (VT_URBANO.W + 5), dirty: false };
+    if (o.bici && VT_BICI[o.bici]) return { T: VT_BICI[o.bici], key: 'bici_' + o.bici, ox: 0.5, oy: 0.5, dirty: false };
     if (o.pan) return { T: VT_PAN, key: 'panadero', ox: (VT_PAN.L / 2 + 1) / (VT_PAN.L + 5), oy: (VT_PAN.W / 2 + 1) / (VT_PAN.W + 5), dirty: false };
     if (o.gas) return { T: VT_GAS, key: 'pipa', ox: (VT_GAS.L / 2 + 1) / (VT_GAS.L + 5), oy: (VT_GAS.W / 2 + 1) / (VT_GAS.W + 5), dirty: false };
     if (o.poli) return { T: VT_POLI, key: 'poli0', ox: (VT_POLI.L / 2 + 1) / (VT_POLI.L + 5), oy: (VT_POLI.W / 2 + 1) / (VT_POLI.W + 5), dirty: false };
@@ -6297,7 +6360,7 @@ class Main extends Phaser.Scene {
   }
   makeCar(x, y, a, o) {
     const sp = o && o.T ? o : this.carSpec(o), T = sp.T, f = sp.dirty ? 0.7 : 1;
-    return { x, y, a, vx: 0, vy: 0, T, dirty: sp.dirty, moto: T === VT_MOTO, dosRuedas: T === VT_MOTO || T === VT_DEPORTIVA, poli: T === VT_POLI, gas: T === VT_GAS, pan: T === VT_PAN, hp: Math.round(T.hp * f), maxHp: Math.round(T.hp * f),
+    return { x, y, a, vx: 0, vy: 0, T, dirty: sp.dirty, moto: T === VT_MOTO, dosRuedas: T === VT_MOTO || T === VT_DEPORTIVA || !!T.bici, bici: T.bici, poli: T === VT_POLI, gas: T === VT_GAS, pan: T === VT_PAN, hp: Math.round(T.hp * f), maxHp: Math.round(T.hp * f),
       top: T.top * (sp.dirty ? 0.92 : 1), acc: T.acc * (sp.dirty ? 0.9 : 1), hl: T.L / 2 - 1, hw: T.W / 2 - 1, v: sp.v,
       sprite: this.add.image(x, y, sp.key).setOrigin(sp.ox, sp.oy).setRotation(a).setDepth(10).setScale(1 / SPR) };
   }
@@ -6507,11 +6570,38 @@ class Main extends Phaser.Scene {
       if (g && !this.gatos.some(o => o.b === g.b)) { this.gatos.push(this.gatoSprite(g)); this.gatoProx = now + rnd(8000, 20000); }
       else this.gatoProx = now + 2000;
     }
+    this.poneBici(p, R, initial, inView);
     const far = R + 520;
+    this.parked = this.parked.filter(c => { if (!c.bici || c === this.ultimoCarro || dist(c.x, c.y, p.x, p.y) < far * 2) return true; c.sprite.destroy(); return false; });
     this.gatos = this.gatos.filter(c => { if (dist(c.x, c.y, p.x, p.y) > far) { c.sprite.destroy(); if (this.bubble.ped === c) this.bubble.t = 0; this.gatoProx = Math.max(this.gatoProx, now + rnd(10000, 25000)); return false; } return true; });
     this.perros = this.perros.filter(c => { if (dist(c.x, c.y, p.x, p.y) > far) { c.sprite.destroy(); return false; } return true; });
     this.cars = this.cars.filter(c => { if (!c.escena && dist(c.x, c.y, p.x, p.y) > far) { c.sprite.destroy(); return false; } return true; });
     this.peds = this.peds.filter(c => { if (dist(c.x, c.y, p.x, p.y) > far) { c.sprite.destroy(); return false; } return true; });
+  }
+  // bicis y patinetas: de vez en cuando una sin candado en la banqueta, viendo a lo largo de la calle (raras: una cada
+  // minuto o dos, y nunca si ya hay otra suelta cerca). Al pasar junto a ella a pie, un aviso para que la veas
+  poneBici(p, R, initial, inView) {
+    const now = this.time.now;
+    if (!this.inCar) for (const c of this.parked) if (c.suelta && !c.vista && dist(c.x, c.y, p.x, p.y) < 110) {
+      c.vista = true;
+      toast('🚲 ' + (c.bici === 'patineta' ? 'Una patineta' : 'Una ' + c.T.name.toLowerCase()) + ' sin candado', 'Alguien la dejó aquí. ' + (document.body.classList.contains('touch') ? 'Toca SUBIR' : 'Presiona E') + ' para usarla.', 3);
+    }
+    if (this.biciProx === undefined) this.biciProx = now + rnd(15000, 40000);
+    if (now < this.biciProx) return;
+    if (this.parked.some(c => c.suelta && dist(c.x, c.y, p.x, p.y) < R * 3)) { this.biciProx = now + 10000; return; }
+    for (let n = 0; n < 6; n++) {
+      const e = randomEdgeNear(traffic, p.x, p.y, initial ? 120 : R + 40, R + 300); if (!e) break;
+      if (e.c > 6 || e.trampa || e.puente) continue;
+      const lado = Math.random() < 0.5 ? 1 : -1, q = edgePos(e, rnd(0.2, 0.8) * e.len, 1, lado * (e.w / 2 + SIDEWALK * M * 0.45), {});
+      if (blocked(q.x, q.y) || arbolEn(q.x, q.y, 6) || enComida(q.x, q.y, 6) || !regionesListas(q.x, q.y, q.x, q.y) || (!initial && inView(q.x, q.y))) continue;
+      if (this.parked.some(c => dist(c.x, c.y, q.x, q.y) < 30)) continue;
+      const k = pick(['ruta', 'ruta', 'montana', 'montana', 'montana', 'patineta', 'patineta']);
+      const car = this.makeCar(q.x, q.y, q.a + (Math.random() < 0.5 ? Math.PI : 0), this.carSpec({ bici: k }));
+      car.suelta = true; this.parked.push(car);
+      this.biciProx = now + rnd(60000, 120000);
+      return;
+    }
+    this.biciProx = now + 3000;
   }
   focus() { return this.inCar || this.player; }
 
@@ -6551,7 +6641,7 @@ class Main extends Phaser.Scene {
     const z = this.baseZoom() * (this.inCar ? 1 - Math.min(sp / 320, 1) * 0.15 : 1.1) * (this.fiesta && this.fiesta.on ? 0.72 : 1); // la fiesta se ve de mas lejos
     cam.setZoom(cam.zoom + (z - cam.zoom) * Math.min(1, dt * 2));
     // al manejar, la camara se adelanta en la direccion del auto para ver lo que viene
-    if (window.SND) { let near = 0; for (const o of this.cars) if (Math.abs(o.x - f.x) < 350 && Math.abs(o.y - f.y) < 350) near++; SND.update(!!this.inCar, sp, near); }
+    if (window.SND) { let near = 0; for (const o of this.cars) if (Math.abs(o.x - f.x) < 350 && Math.abs(o.y - f.y) < 350) near++; SND.update(!!this.inCar && !this.inCar.bici, sp, near); }
     const look = this.inCar ? 0.45 : 0, tx = -(this.inCar ? this.inCar.vx : 0) * look, ty = -(this.inCar ? this.inCar.vy : 0) * look;
     cam.followOffset.x += (tx - cam.followOffset.x) * Math.min(1, dt * 2.5);
     cam.followOffset.y += (ty - cam.followOffset.y) * Math.min(1, dt * 2.5);
@@ -6619,6 +6709,7 @@ class Main extends Phaser.Scene {
   }
 
   driveCar(car, c, dt) {
+    if (car.bici) car.hp = car.maxHp;
     const fx = Math.cos(car.a), fy = Math.sin(car.a);
     let fwd = car.vx * fx + car.vy * fy;
     let lat = -car.vx * fy + car.vy * fx;
@@ -6706,11 +6797,11 @@ class Main extends Phaser.Scene {
       if (inB && car.bache !== inB) {
         const sp = Math.hypot(car.vx, car.vy);
         if (sp > 30) {
-          const dmg = (car.dosRuedas ? 1.5 : 1) * (inB.r / 9) * (4 + sp / 18);
+          const dmg = car.bici ? 0 : (car.dosRuedas ? 1.5 : 1) * (inB.r / 9) * (4 + sp / 18);
           car.hp -= dmg; car.vx *= 0.8; car.vy *= 0.8;
           this.jolt(160, Math.min(0.012, sp / 20000));
           if (window.SND) SND.play('crash', 0.35);
-          toast(pick(sp > 140 ? REACCION_BACHE_FUERTE : REACCION_BACHE) + ' ' + pick(FRASES_BACHE), 'Tu auto: -' + Math.round(dmg) + ' de vida', 2);
+          toast(pick(sp > 140 ? REACCION_BACHE_FUERTE : REACCION_BACHE) + ' ' + pick(FRASES_BACHE), car.bici ? 'Brincaste, pero la ' + (car.bici === 'patineta' ? 'patineta' : 'bici') + ' ni se inmutó.' : 'Tu auto: -' + Math.round(dmg) + ' de vida', 2);
           if (car.hp <= 0 && !broken) { this.wreck(car); toast('¡Auto deshuesado!', 'El bache ganó. Bájate con E y roba otro.'); }
         }
       }
@@ -6724,6 +6815,7 @@ class Main extends Phaser.Scene {
   // auto destruido: explota, queda chamuscado y abollado, y se quema un rato (luego solo humea).
   // k = tamaño de la explosion (1 un carro, mas grande la pipa de gas)
   wreck(car, k = 1) {
+    if (car.bici) { car.hp = car.maxHp; return; } // las bicis y patinetas no se rompen
     if (car.wrecked) return;
     if (car.gas && !car.boom) { this.explotarGas(car); return; }
     car.wrecked = true;
@@ -6994,6 +7086,7 @@ class Main extends Phaser.Scene {
 
   // multa por chocar una patrulla (con unos segundos de gracia entre multas)
   hitPoli(sp) {
+    if (this.inCar && this.inCar.bici) return; // en bici o patineta la poli ni te pela
     if (sp < 40 || this.time.now < (this.poliT || 0)) return;
     this.poliT = this.time.now + 5000;
     const fine = Math.min(state.money, Math.round(rnd(150, 400) * Math.min(2, sp / 120) / 10) * 10);
@@ -7035,6 +7128,7 @@ class Main extends Phaser.Scene {
       if (!ex) { toast('No puedes bajarte aquí', ''); return; }
       car.vx = car.vy = 0;
       this.parked.push(car); this.inCar = null; this.ultimoCarro = car;
+      if (car.bici) car.sprite.setTexture('bici_' + car.bici);
       this.player.x = ex[0]; this.player.y = ex[1];
       this.player.sprite.setVisible(true).setPosition(ex[0], ex[1]);
       this.cameras.main.startFollow(this.player.sprite, true, 0.15, 0.15);
@@ -7076,6 +7170,7 @@ class Main extends Phaser.Scene {
     } else this.parked.splice(this.parked.indexOf(best), 1);
     best.vx = best.vy = 0;
     this.inCar = best; this.staminaBar.clear(); this.stamina = STAMINA; this.tired = false; // manejando descansas
+    if (best.bici) { best.sprite.setTexture('bici_' + best.bici + '_r'); if (best.suelta) { best.suelta = false; toast(...BICI_AVISO[best.bici], 3.5); } }
     this.player.sprite.setVisible(false);
     this.cameras.main.startFollow(best.sprite, true, 0.15, 0.15);
     this.setObjective();
@@ -7195,7 +7290,7 @@ class Main extends Phaser.Scene {
     const car = this.inCar, csp = car ? Math.hypot(car.vx, car.vy) : 0, f = this.focus(), tmp = this.tmp, now = this.time.now;
     for (const d of this.perros) {
       // atropellado
-      if (car && csp > 40 && d.st !== 'flee' && d.st !== 'vete' && axisDist(d.x, d.y, car) < car.hw + 2) { this.atropellaPerro(d, car); continue; }
+      if (car && !car.bici && csp > 40 && d.st !== 'flee' && d.st !== 'vete' && axisDist(d.x, d.y, car) < car.hw + 2) { this.atropellaPerro(d, car); continue; }
       if (d.st === 'flee' || d.st === 'vete' || d.st === 'jauria') {
         // corriendo en linea recta (rodeando lo que estorbe): huyendo de ti o persiguiendote
         d.t -= dt;
@@ -8453,6 +8548,7 @@ class Main extends Phaser.Scene {
   }
   startTaxi() {
     if (!this.inCar) { toast('Necesitas un auto', 'Roba uno con E y luego presiona T.'); return; }
+    if (this.inCar.bici) { toast('En ' + (this.inCar.bici === 'patineta' ? 'patineta' : 'bici') + ' no caben pasajeros', 'Bueno, en los diablitos de atrás sí, pero no. Roba un auto para hacer taxi.'); return; }
     if (this.inCar.dosRuedas) { toast('En moto no caben pasajeros', 'A menos que sea tu compadre. Roba un auto para hacer taxi.'); return; }
     if (this.taxi) { this.endTaxi(false, 'Dejaste de trabajar de taxista.'); return; }
     if (this.inCar.hp <= 0) return;
