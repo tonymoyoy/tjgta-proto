@@ -8461,7 +8461,7 @@ function drawActa() {
   x.save(); x.globalCompositeOperation = 'destination-over'; x.fillStyle = bg; x.fillRect(0, 0, W, H); x.restore();
   const txt = (s, y, font, c, al = 'center', xx = W / 2) => { x.font = font; x.fillStyle = c; x.textAlign = al; x.textBaseline = 'alphabetic'; x.fillText(s, xx, y); };
   txt('ACTA DE TIJUANENSE', 250, 'bold 92px Georgia, serif', '#7b1f2b');
-  txt('ZONA CENTRO · ZONA RÍO · TIJUANA, BAJA CALIFORNIA', 300, 'bold 26px sans-serif', '#7a5a2a');
+  txt('TIJUANA, BAJA CALIFORNIA', 300, 'bold 26px sans-serif', '#7a5a2a');
   txt('Se hace constar que', 380, 'italic 36px Georgia, serif', '#3b2a17');
   txt(name, 470, 'bold 76px Georgia, serif', '#1a237e');
   x.strokeStyle = '#7a5a2a'; x.lineWidth = 2; x.beginPath(); x.moveTo(380, 492); x.lineTo(W - 380, 492); x.stroke();
