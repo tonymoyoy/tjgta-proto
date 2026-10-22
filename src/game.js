@@ -1636,7 +1636,9 @@ const wallLayer = (k) => { const m = k % PISO; return m < 2 ? bWall2 : m < 5 || 
 function tinaco(b) {
   const bw = b.bb[2] - b.bb[0], bh = b.bb[3] - b.bb[1], hh = hash(b.p.length * 31 + (b.bb[0] | 0));
   if (!(bw > 22 && bh > 22 && hh % 5 < (b.casa ? 4 : 2))) return null;
-  return [b.bb[0] + bw * (0.3 + (hh >> 4) % 40 / 100), b.bb[1] + bh * (0.3 + (hh >> 10) % 40 / 100)];
+  const x = b.bb[0] + bw * (0.3 + (hh >> 4) % 40 / 100), y = b.bb[1] + bh * (0.3 + (hh >> 10) % 40 / 100);
+  // en una casa en L el punto puede caer fuera de la azotea: ahi no va
+  return [[0, 0], [4, 0], [-4, 0], [0, 4], [0, -4]].every(([dx, dy]) => pip(x + dx, y + dy, b.p)) ? [x, y] : null;
 }
 // calentador solar en algunas casas: el tanque blanco arriba (al norte) y los tubos de vidrio viendo al sur.
 // Va en la mitad de la azotea que no tiene el tinaco; devuelve su esquina de arriba a la izquierda o null
@@ -1686,15 +1688,6 @@ function* drawBuildings(ctx, bl, rs, cx, cy) {
       }
       g.lineWidth = 2.5; g.strokeStyle = 'rgba(0,0,0,0.3)'; g.stroke();
       g.lineWidth = 1; g.strokeStyle = 'rgba(255,255,255,0.16)'; g.stroke(); // pretil
-      // tinacos negros en las azoteas, de rigor
-      const tq = tinaco(b);
-      if (tq) {
-        const [tx, ty] = tq;
-        g.fillStyle = 'rgba(0,0,0,0.35)'; g.beginPath(); g.arc(tx + 1.5, ty + 1.5, 3.4, 0, 7); g.fill();
-        g.fillStyle = '#1c1c1c'; g.beginPath(); g.arc(tx, ty, 3.4, 0, 7); g.fill();
-        g.fillStyle = '#3a3a3a'; g.beginPath(); g.arc(tx - 0.8, ty - 0.8, 1.6, 0, 7); g.fill();
-      }
-      const cs = calentador(b); if (cs) pintarCalentador(g, cs[0], cs[1]);
       if (b.h >= 7 && b.bb[2] - b.bb[0] > 30 && b.bb[3] - b.bb[1] > 30) {
         const mx = (b.bb[0] + b.bb[2]) / 2, my = (b.bb[1] + b.bb[3]) / 2;
         g.save(); g.translate(mx, my); g.scale(0.8, 0.8); g.translate(-mx, -my);
@@ -1749,6 +1742,21 @@ function* drawBuildings(ctx, bl, rs, cx, cy) {
     const sy0 = Math.max(0, ry0 - L - 1), sw = Math.min(BW - rx0, rw + lx(L) + 1);
     blit(ctx, bStack, rx0, sy0, sw, ry1 - sy0, rx0 - LEAN_PAD, sy0, sw, ry1 - sy0);
     blit(ctx, bRoof, rx0, ry0, rw, rh, rx0 + lx(L) - LEAN_PAD, ry0 - L, rw, rh);
+    ctx.restore();
+    // tinacos negros (de rigor) y calentadores solares: ya sobre el techo elevado. Si fueran en la capa del techo
+    // se apilarian con las paredes y saldrian como columnas negras al frente de la casa. Donde el techo quedo
+    // borrado por una calle o banqueta (ver arriba) tampoco van
+    ctx.save(); ctx.translate(lx(L), -L);
+    for (const b of group) {
+      const tq = tinaco(b);
+      if (tq && ![[0, 0], [3.5, 0], [-3.5, 0], [0, 3.5], [0, -3.5]].some(([dx, dy]) => onRoad(tq[0] + dx, tq[1] + dy))) {
+        const [tx, ty] = tq;
+        ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.arc(tx + 1.5, ty + 1.5, 3.4, 0, 7); ctx.fill();
+        ctx.fillStyle = '#1c1c1c'; ctx.beginPath(); ctx.arc(tx, ty, 3.4, 0, 7); ctx.fill();
+        ctx.fillStyle = '#3a3a3a'; ctx.beginPath(); ctx.arc(tx - 0.8, ty - 0.8, 1.6, 0, 7); ctx.fill();
+      }
+      const cs = calentador(b); if (cs && !onRoad(cs[0], cs[1]) && !onRoad(cs[0] + CAL_W, cs[1] + CAL_H) && !onRoad(cs[0], cs[1] + CAL_H) && !onRoad(cs[0] + CAL_W, cs[1])) pintarCalentador(ctx, cs[0], cs[1]);
+    }
     ctx.restore();
   }
 }
