@@ -2373,8 +2373,10 @@ const FRASES_POLI = [
   '¿Y la placa? ¿Y el seguro? ¿Y la vergüenza?',
 ];
 // cuando se te acaba el aire de tanto correr
-const FRASES_CANSADO = ['¡Te bofeaste!', 'Mucho taco y poco ejercicio.', 'Se te salió un pulmón, compa.', 'Así no llegas ni a la fila de la garita.',
-  'Pa\'l otra, mejor te subes a la calafia.', 'Échate un aguita, campeón.', 'Ya no das ni un paso más, ¿verdad?', 'Te faltó el aire, viejo lobo.'];
+const FRASES_CANSADO = ['¡Te bofeaste!', 'Mucho taco y poco ejercicio.', 'Te cansaste más rápido que un semáforo de la Revu en amarillo.', 'Ni subiendo la Cuesta Blanca se acaba uno tan rápido.',
+  'Pa\'l otra, mejor te subes a la calafia.', 'Échate un aguita, campeón.', 'Ya no das ni un paso más, ¿verdad?', 'Te faltó el aire, viejo lobo.',
+  'Andas jadeando como perrito en agosto.', 'Con esa condición ni a la Calle Segunda llegas.', 'Respira, que el Cerro Colorado no se va a ir a ningún lado.',
+  'Hasta el viento de Santa Ana corre más que tú.', 'Ya párale, que te va a dar el soponcio.'];
 const STAMINA = 5; // segundos que aguantas corriendo
 const FIESTA_SECS = 32;  // lo que dura la fiesta de la Plaza Santa Cecilia
 const MARI_SWAY = 333;   // mecerse al compas del vals (un tiempo a 180 bpm)
