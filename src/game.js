@@ -2436,13 +2436,13 @@ const FRASES_GATO = {
 // al caer en un bache
 const FRASES_BACHE = ['¡Ese bache tenía su propio código postal!', 'Ahí se fue la suspensión, compa.', 'Bache tijuanense: si lo tapan, lo extrañan.',
   '¡Uy! Ese ya hasta paga predial.', 'Gracias, Ayuntamiento.', '¿Bache o alberca? Ni el gobierno sabe.', 'Se te cayó hasta la placa.',
-  'Ese bache tiene más años que la Revu.', 'Directo a la llantera.', 'Ni el Mimo Moy se hace que no lo vio.',
-  'Ahí vive una familia de tlacuaches.', 'Ese bache ya sale en los mapas.',
-  '¡Ese no era bache, era cráter!', 'Se me desacomodaron hasta los recuerdos.', 'Ya tiene nombre: le dicen «El Abuelo».',
+  'Ese bache ya estaba ahí cuando tu abuelo aprendió a manejar.', 'Directo a la llantera.', 'Ese bache se ve desde el avión.',
+  'Ahí cabe un carro chiquito estacionado.', 'Ese bache ya sale en los mapas.',
+  '¡Ese no era bache, era cráter!', 'Se me desacomodaron hasta los recuerdos.', 'Le diste tan duro que te tronó la espalda.',
   '¡Cayó la llanta y regresó sola!', 'Ese bache ya está en el escudo de la colonia.', 'Mañana le ponen una cruz y unas flores.',
-  'Los de la llantera te mandan saludos.', '¡Ahí se quedó el tapón!', 'Con ese bache ya no necesitas topes.',
+  'Los de la llantera te mandan saludos.', 'Ese bache ya tiene su propio club de fans.', 'Con ese bache ya no necesitas topes.',
   'Un poquito más hondo y salías en Ensenada.', '¡Hasta el aromatizante se cayó!',
-  'Dicen que si lo ves de noche te jala.', 'Ese bache tiene doble nacionalidad.', 'Rellénalo con frijoles y hazle tamales.',
+  'Dicen que si lo ves de noche te jala.', 'Ese bache tiene doble nacionalidad.', 'Tu llanta acaba de conocer el centro de la Tierra.',
   'Bache nuevo, el de ayer ya se lo llevó la lluvia.', 'Ahí iba a ser un pozo de agua, pero se quedó en bache.',
   '¡Se te salió el alma por la ventana!', 'El amortiguador pidió su liquidación.', 'Ya lo reportaste tres veces. Sigue ahí.'];
 // la reaccion que va antes de la frase (las fuertes cuando caes rapido)
