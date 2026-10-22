@@ -8,7 +8,7 @@ const S = M / 10;       // pixeles por decimetro (unidad de los datos)
 const WORLD_W = Math.ceil(D.w * M), WORLD_H = Math.ceil(D.h * M);
 // trozos chicos: cada uno se dibuja rapido y no se nota el tiron al irlos creando
 const CHUNK = 256;
-const EXTRA_UP = 44; // lo mas que se eleva un techo (px)
+const EXTRA_UP = 84; // lo mas que se eleva un techo (px)
 // nitidez: el lienzo usa los pixeles reales de la pantalla (hasta 3 por punto en celulares) y los trozos
 // del mapa y los textos se pintan a mas resolucion, porque la camara los amplia
 // calidad grafica (Opciones): alta es lo de siempre; media y baja bajan la resolucion del lienzo, del mapa y de
@@ -259,8 +259,10 @@ const gridAdd = (g, it, b, cell) => {
 const regGrid = new Map();
 for (const r of regiones.values()) gridAdd(regGrid, r, r.bb, REG_PX);
 const chunkBlds = new Map(), bldGrid = new Map(), chunkEst = new Map(), chunkSuelo = new Map();
-// techos de las casitas de las colonias (concreto, impermeabilizante rojo o blanco, lamina) y de las plazas comerciales
-const TECHOS_CASITA = ['#a9a397', '#b8b2a6', '#9c5a46', '#a8664f', '#d3cdbf', '#8e9399', '#c4a484', '#7d8a8c', '#b9b0a0', '#a33f32'];
+// techos de las casas (las casitas de las colonias y las casas chicas del mapa): casi todas con impermeabilizante
+// blanco o rojo (terracota), y una que otra de concreto pelon o lamina. Y los de las plazas comerciales
+const TECHOS_CASITA = ['#e4e1d8', '#d9d5ca', '#ece9e1', '#cfcabd', '#e0dcd0', '#b4533d', '#a8473a', '#c0644a', '#9e4134', '#b85a44',
+  '#c96f52', '#a9a397', '#9a948a', '#8e9399'];
 const TECHOS_PLAZA = ['#c9c6bf', '#b5b8bb', '#d6d2c8', '#bdb6a8'];
 // Un estacionamiento (de tools/rellenar.py): rectangulo con el frente a la calle (p0 -> p1) y el fondo hacia p3.
 // Adentro van filas dobles de cajones con su pasillo en medio, y entre una fila doble y otra una
@@ -419,9 +421,12 @@ window.TJ_REG = (k, txt) => {
       const ax = vx / lv * d, ay = vy / lv * d;
       r.suelo.push(suelo('patio', [p[6], p[7], p[4], p[5], p[4] + ax, p[5] + ay, p[6] + ax, p[7] + ay], base + i, k));
     }
-    const sh = Math.min(h * 0.45, 22) * M / 5 * 1.6, hc = hash(co[0] * 7 + co[1]), techos = tipo === 1 ? TECHOS_CASITA : tipo === 2 ? TECHOS_PLAZA : ROOFS;
+    const bb = bbox(p, 0), sh = Math.min(h * 0.45, 30) * M / 5 * 1.6, hc = hash(co[0] * 7 + co[1]);
+    // una casa: las casitas de rellenar.py y los edificios chicos de una o dos plantas del mapa (de hasta 18 m de lado)
+    const casa = tipo === 1 || (tipo !== 2 && h < 8 && bb[2] - bb[0] < 90 && bb[3] - bb[1] < 90);
+    const techos = casa ? TECHOS_CASITA : tipo === 2 ? TECHOS_PLAZA : ROOFS;
     // id: el orden de dibujo dentro de un trozo no depende de que region cargo primero
-    r.b.push({ id: base + i, reg: k, h, p, sh, bb: bbox(p, 0), sbb: bbox(p, Math.max(sh, EXTRA_UP) + 2), col: techos[hc % techos.length], casita: tipo === 1 });
+    r.b.push({ id: base + i, reg: k, h, p, sh, bb, sbb: bbox(p, Math.max(sh, EXTRA_UP) + 2), col: techos[hc % techos.length], casita: tipo === 1, casa });
   });
   for (const b of r.b) { gridAdd(chunkBlds, b, b.sbb, CHUNK); gridAdd(bldGrid, b, b.bb, BCELL); }
   for (const e of r.est) gridAdd(chunkEst, e, e.bb, CHUNK);
@@ -1491,7 +1496,8 @@ function roadMarks(ctx, k) {
 // banquetas (para que coincida con donde se puede pasar) y se apila varias veces hacia arriba en un
 // tono mas oscuro: eso forma las paredes del frente. Se hace una sola vez por trozo del mapa,
 // asi que no cuesta nada mientras se juega.
-const LIFTS = [[5, 10], [9, 18], [16, 26], [1e9, 42]]; // (elevacion - 2 multiplo de 4: ver la pila de paredes) // [altura maxima en m, elevacion del techo en px]
+// una planta (3-4 m) 10 px, dos plantas 22, y de ahi crece con los pisos hasta las torres (de 36 m para arriba)
+const LIFTS = [[4.5, 10], [8, 22], [12, 30], [16, 38], [24, 50], [36, 62], [1e9, 82]]; // (elevacion - 2 multiplo de 4: ver la pila de paredes) // [altura maxima en m, elevacion del techo en px]
 const bRoof = document.createElement('canvas'), bWall = document.createElement('canvas'), bWall2 = document.createElement('canvas'), bWin = document.createElement('canvas'), bStack = document.createElement('canvas');
 // las capas son EXTRA_UP px mas altas que el trozo: los techos de abajo se elevan y entran a este trozo
 // y LEAN_PAD px mas anchas a la izquierda: los techos se recargan un poco a la derecha (se ve la pared oeste)
@@ -1506,8 +1512,30 @@ const wallLayer = (k) => { const m = k % 4; return m === 0 ? bWall2 : m === 3 ? 
 // donde va el tinaco de un edificio (en su planta), o null si no tiene
 function tinaco(b) {
   const bw = b.bb[2] - b.bb[0], bh = b.bb[3] - b.bb[1], hh = hash(b.p.length * 31 + (b.bb[0] | 0));
-  if (!(bw > 22 && bh > 22 && hh % 5 < (b.casita ? 4 : 2))) return null;
+  if (!(bw > 22 && bh > 22 && hh % 5 < (b.casa ? 4 : 2))) return null;
   return [b.bb[0] + bw * (0.3 + (hh >> 4) % 40 / 100), b.bb[1] + bh * (0.3 + (hh >> 10) % 40 / 100)];
+}
+// calentador solar en algunas casas: el tanque blanco arriba (al norte) y los tubos de vidrio viendo al sur.
+// Va en la mitad de la azotea que no tiene el tinaco; devuelve su esquina de arriba a la izquierda o null
+const CAL_W = 11, CAL_H = 10;
+function calentador(b) {
+  if (!b.casa) return null;
+  const bw = b.bb[2] - b.bb[0], bh = b.bb[3] - b.bb[1], hh = hash(b.p.length * 17 + (b.bb[1] | 0) * 3);
+  if (bw < 30 || bh < 26 || hh % 10 >= 3) return null;
+  const tq = tinaco(b), izq = tq ? tq[0] > b.bb[0] + bw / 2 : hh & 32;
+  const x = izq ? b.bb[0] + bw * 0.12 : b.bb[2] - bw * 0.12 - CAL_W, y = b.bb[1] + bh * (0.15 + (hh >> 6) % 30 / 100);
+  // que quede todo adentro de la azotea
+  for (const [px, py] of [[x, y], [x + CAL_W, y], [x, y + CAL_H], [x + CAL_W, y + CAL_H]]) if (!pip(px, py, b.p)) return null;
+  return [x, y];
+}
+function pintarCalentador(g, x, y) {
+  g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(x + 1.5, y + 1.5, CAL_W, CAL_H); // sombra
+  g.fillStyle = '#7d8086'; g.fillRect(x, y + 2.6, CAL_W, CAL_H - 2.6); // el marco de aluminio
+  g.fillStyle = '#1d2a44'; g.fillRect(x + 0.6, y + 3.1, CAL_W - 1.2, CAL_H - 3.7); // los tubos
+  g.fillStyle = 'rgba(150,180,215,0.55)';
+  for (let tx = x + 1.1; tx < x + CAL_W - 0.8; tx += 1.2) g.fillRect(tx, y + 3.1, 0.45, CAL_H - 3.7); // el brillo de cada tubo
+  g.fillStyle = '#e9e9e6'; g.fillRect(x - 0.3, y, CAL_W + 0.6, 2.8); // el tanque
+  g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(x - 0.3, y + 1.9, CAL_W + 0.6, 0.9);
 }
 function* drawBuildings(ctx, bl, rs, cx, cy) {
   const g = bRoof.getContext('2d');
@@ -1543,6 +1571,7 @@ function* drawBuildings(ctx, bl, rs, cx, cy) {
         g.fillStyle = '#1c1c1c'; g.beginPath(); g.arc(tx, ty, 3.4, 0, 7); g.fill();
         g.fillStyle = '#3a3a3a'; g.beginPath(); g.arc(tx - 0.8, ty - 0.8, 1.6, 0, 7); g.fill();
       }
+      const cs = calentador(b); if (cs) pintarCalentador(g, cs[0], cs[1]);
       if (b.h >= 7 && b.bb[2] - b.bb[0] > 30 && b.bb[3] - b.bb[1] > 30) {
         const mx = (b.bb[0] + b.bb[2]) / 2, my = (b.bb[1] + b.bb[3]) / 2;
         g.save(); g.translate(mx, my); g.scale(0.8, 0.8); g.translate(-mx, -my);
@@ -6560,6 +6589,7 @@ class Main extends Phaser.Scene {
       for (let m = 0; m < 6; m++) {
         const fx = rnd(b.bb[0] + 6, b.bb[2] - 6), fy = rnd(b.bb[1] + 6, b.bb[3] - 6);
         const tq = tinaco(b); if (tq && dist(fx, fy, tq[0], tq[1]) < 11) continue;
+        const cs = calentador(b); if (cs && fx > cs[0] - 6 && fx < cs[0] + CAL_W + 6 && fy > cs[1] - 6 && fy < cs[1] + CAL_H + 6) continue;
         if (![[0, 0], [6, 0], [-6, 0], [0, 6], [0, -6]].every(([ox, oy]) => pip(fx + ox, fy + oy, b.p) && !onRoad(fx + ox, fy + oy))) continue;
         const x = fx + lx, y = fy - L;
         if ((inView && inView(x, y)) || !regionesListas(x, y, x, y) || arbolEn(x, y, 14) || this.tapaOtro(x, y, b)) continue;
