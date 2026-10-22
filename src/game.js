@@ -2437,7 +2437,7 @@ const FRASES_GATO = {
 const FRASES_BACHE = ['¡Ese bache tenía su propio código postal!', 'Ahí se fue la suspensión, compa.', 'Bache tijuanense: si lo tapan, lo extrañan.',
   '¡Uy! Ese ya hasta paga predial.', 'Gracias, Ayuntamiento.', '¿Bache o alberca? Ni el gobierno sabe.', 'Se te cayó hasta la placa.',
   'Ese bache tiene más años que la Revu.', 'Directo a la llantera.', 'Ni el Mimo Moy se hace que no lo vio.',
-  'Ahí vive una familia de tlacuaches.', 'Ese bache sale en Google Maps.',
+  'Ahí vive una familia de tlacuaches.', 'Ese bache ya sale en los mapas.',
   '¡Ese no era bache, era cráter!', 'Se me desacomodaron hasta los recuerdos.', 'Ya tiene nombre: le dicen «El Abuelo».',
   '¡Cayó la llanta y regresó sola!', 'Ese bache ya está en el escudo de la colonia.', 'Mañana le ponen una cruz y unas flores.',
   'Los de la llantera te mandan saludos.', '¡Ahí se quedó el tapón!', 'Con ese bache ya no necesitas topes.',
