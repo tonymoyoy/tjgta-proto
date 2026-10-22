@@ -657,11 +657,23 @@ for (const a of waterAreas) {
   for (const a of waterAreas) if (a.lago) { const k = a.bb.map(Math.round).join() + ',' + a.p.length; if (vistos.has(k)) a.lago.dup = true; vistos.add(k); } }
 const WCELL = 256; // celdas grandes: los poligonos de agua son pocos pero enormes
 const waterGrid = gridIndex(waterAreas, WCELL, 'bb');
-// los rios y arroyos (lineas de clase 11): sus tramos en un arreglo (x0 y0 x1 y1) y en una rejilla densa, como las calles
+// los arroyos chicos (lineas de clase 11 que van casi todo fuera de las areas de agua) se omiten: no se pintan ni
+// estorban. En el mapa pasaban por debajo de las calles y salian por encima en partes, tapaban el paso y quedaban
+// edificios encima del agua. Se quedan las lineas del rio grande (el Rio Tijuana por la Zona Rio y desde la presa, el
+// Alamar), que van sobre todo dentro de su canalizacion
+const enAreaAgua = (x, y) => { const c = waterGrid.get(GK(Math.floor(x / WCELL), Math.floor(y / WCELL)));
+  return !!c && c.some(i => { const w = waterAreas[i]; return x >= w.bb[0] && x <= w.bb[2] && y >= w.bb[1] && y <= w.bb[3] && pip(x, y, w.p); }); };
+for (const r of roads) if (r.c === 11) {
+  let L = 0, dentro = 0; const p = r.p;
+  for (let q = 0; q < p.length - 2; q += 2) { const l = Math.hypot(p[q + 2] - p[q], p[q + 3] - p[q + 1]); L += l; if (enAreaAgua((p[q] + p[q + 2]) / 2, (p[q + 1] + p[q + 3]) / 2)) dentro += l; }
+  r.rio = dentro >= L * 0.5;
+}
+const esRio = (r) => r.c === 11 && r.rio;
+// los rios (lineas de clase 11): sus tramos en un arreglo (x0 y0 x1 y1) y en una rejilla densa, como las calles
 const RIO_W = ROAD_W[11] / 2 * M;
 const RIO = (() => {
   const o = [];
-  for (const r of roads) if (r.c === 11) for (let q = 0; q < r.p.length - 2; q += 2) o.push(r.p[q], r.p[q + 1], r.p[q + 2], r.p[q + 3]);
+  for (const r of roads) if (esRio(r)) for (let q = 0; q < r.p.length - 2; q += 2) o.push(r.p[q], r.p[q + 1], r.p[q + 2], r.p[q + 3]);
   return new Float32Array(o);
 })();
 const riverSegGrid = rejillaDensa((emit) => {
@@ -2172,7 +2184,7 @@ function* chunkSteps(cx, cy) {
   const lagos = []; ar.forEach((a, n) => { if (a.lago && !a.lago.dup) { const c = caminoOrilla(a, X0, Y0, X1, Y1); lagos.push([a, ia[n], c]); } });
   for (const [a, , c] of lagos) if (c) haloLago(ctx, a, c);
   // los arroyos entubados antes que el agua: donde llegan a un lago o a un canal, el agua los tapa
-  for (const r of chunkRoads.get(k) || []) if (roads[r].c === 11) pintarArroyo(ctx, roads[r]);
+  for (const r of chunkRoads.get(k) || []) if (esRio(roads[r])) pintarArroyo(ctx, roads[r]);
   for (const [a] of lagos) { ctx.fillStyle = areaFill(ctx, a.k); trace(ctx, a.p, true); ctx.fill(); }
   for (const [a, i, c] of lagos) if (c) pintarLago(ctx, a, i, c, X0, Y0, X1, Y1);
   for (const a of canales) pintarCanal(ctx, a);
@@ -2294,7 +2306,7 @@ function pintarCuadro(tx, ty, cv, capa) {
   // las calles se salen un poco de su caja (el grueso minimo): tambien las de junto
   for (const i of [...R].sort((a, b) => a - b)) {
     const r = roads[i];
-    if (r.c > 9) { if (r.c === 11) { c.strokeStyle = COL.water; c.lineWidth = 60; trace(c, r.p); c.stroke(); } continue; }
+    if (r.c > 9) { if (esRio(r)) { c.strokeStyle = COL.water; c.lineWidth = 60; trace(c, r.p); c.stroke(); } continue; }
     c.strokeStyle = r.c <= 2 ? '#f2d16b' : r.c <= 6 ? '#2e2e33' : r.c === 7 ? '#55555a' : '#c8bda4';
     c.lineWidth = Math.max(r.w * M, r.c <= 6 ? 50 : 25); trace(c, r.p); c.stroke();
   }
@@ -8251,7 +8263,7 @@ function renderBig(detail) {
     c.lineCap = 'round'; c.lineJoin = 'round';
     const rs = [...R].map(i => roads[i]).sort((a, b) => b.c - a.c); // las grandes encima
     for (const r of rs) {
-      if (r.c > 9) { if (r.c === 11) { c.strokeStyle = COL.water; c.lineWidth = ROAD_W[11] * M; trace(c, r.p); c.stroke(); } continue; }
+      if (r.c > 9) { if (esRio(r)) { c.strokeStyle = COL.water; c.lineWidth = ROAD_W[11] * M; trace(c, r.p); c.stroke(); } continue; }
       c.strokeStyle = r.c <= 2 ? '#f2d16b' : r.c <= 6 ? '#2e2e33' : r.c === 7 ? '#55555a' : '#c8bda4';
       c.lineWidth = Math.max(r.w * M, (r.c <= 2 ? 5 : r.c <= 6 ? 3.5 : 2) / s); trace(c, r.p); c.stroke();
     }
