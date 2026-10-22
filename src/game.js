@@ -5681,12 +5681,43 @@ const filaSlots = [], chunkFila = new Map(), NADA = [];
     }
     G.x = n0 ? sx / n0 : gx; G.y = n0 ? sy / n0 : gy; G.n = 0; G.tramos = [];
     if (!n0) { console.warn('garita sin carriles', G.k); continue; }
+    // el ultimo tramo, hasta la linea: las calles que llegan a la caseta quedan fuera del trafico (ver inMx), asi que
+    // los carriles de la fila acaban unos 70 m antes. Desde donde acaba cada carril se sigue la calle de verdad
+    // (hasta 4 pedazos) y se corta a unos metros de la linea; queda como un tramo mas de la fila, sin nodos
+    for (const e of [...cola]) {
+      if (traffic.adj[e.b].length) continue;
+      let x = e.p[e.p.length - 2], y = e.p[e.p.length - 1], w = e.w, c = e.c; const pts = [x, y], usadas = new Set();
+      for (let paso = 0; paso < 4 && y - borderY(x) > 14; paso++) {
+        let sig = null, rev = false;
+        for (const ri of chunkRoads.get(GK(Math.floor(x / CHUNK), Math.floor(y / CHUNK))) || NADA) {
+          const r = roads[ri];
+          if (r.c > 6 || usadas.has(r) || inMx(r) || r.bb[0] > x || r.bb[2] < x || r.bb[1] > y || r.bb[3] < y) continue;
+          const n = r.p.length;
+          if (Math.hypot(r.p[0] - x, r.p[1] - y) < 4) { sig = r; rev = false; break; }
+          if (!(r.f & 2) && Math.hypot(r.p[n - 2] - x, r.p[n - 1] - y) < 4) { sig = r; rev = true; break; }
+        }
+        if (!sig) break;
+        usadas.add(sig); w = sig.w * M; c = sig.c;
+        const q = sig.p, n = q.length / 2;
+        for (let i = 1; i < n; i++) {
+          const j = rev ? n - 1 - i : i, nx = q[j * 2], ny = q[j * 2 + 1], db = ny - borderY(nx);
+          if (db <= 14) { const da = y - borderY(x), f = (da - 14) / ((da - db) || 1); x += (nx - x) * f; y += (ny - y) * f; pts.push(x, y); break; }
+          x = nx; y = ny; pts.push(x, y);
+        }
+      }
+      if (pts.length < 4) continue;
+      const cum = [0];
+      for (let q = 2; q < pts.length; q += 2) cum.push(cum[cum.length - 1] + Math.hypot(pts[q] - pts[q - 2], pts[q + 1] - pts[q - 1]));
+      if (cum[cum.length - 1] < 20) continue;
+      const pe = { p: new Float32Array(pts), cum: Float32Array.from(cum), len: cum[cum.length - 1], w, c, one: true, puente: false, n: -1, id: 900000 + e.id, a: null, b: null, final: true };
+      e.sigue = true; fila.set(pe, 0);
+    }
     for (let i = 0; i < cola.length; i++) {
       const e = cola[i], d1 = fila.get(e) + e.len;
       if (d1 < G.largo) for (const o of entra.get(e.a) || []) if (o.trampa && !o.cerrada && !fila.has(o)) { fila.set(o, d1); cola.push(o); }
     }
     // en cada punta, lo que hay que dejar libre: el ancho de las calles que cruzan o salen de ahi
-    const libreEn = (n) => { let w = 0; for (const o of toca.get(n)) if (!fila.has(o)) w = Math.max(w, o.w / 2 + 3 * M); return w; };
+    const libreEn = (n) => { let w = 0; for (const o of toca.get(n) || NADA) if (!fila.has(o)) w = Math.max(w, o.w / 2 + 3 * M); return w; };
     // y donde la cruza otra calle sin tocarla en un nodo (si no es un puente que pasa por arriba, ni otra calle que
     // va encimada a lo largo del carril)
     const cruce = (x, y, a, e) => {
@@ -5702,7 +5733,9 @@ const filaSlots = [], chunkFila = new Map(), NADA = [];
     for (const [e, d0] of fila) {
       const rr = mulberry(e.id * 131 + 7), ta = libreEn(e.a), tb = libreEn(e.b), tramo = { e, t0: Infinity, t1: -Infinity, G };
       for (const k of e.c <= MAJOR ? [0, 1, 2] : [0]) {
-        let t = e.len - tb - (d0 || tb ? rr() * 6 : 4 * M + rr() * 10); // la cabeza de la fila, un poco antes de la caseta
+        // la cabeza de la fila, un poco antes de la caseta (en el tramo final, ya junto a la linea; y donde el carril sigue
+        // hacia la linea, sin hueco)
+        let t = e.len - tb - (d0 || tb || e.sigue || e.final ? rr() * 6 : 4 * M + rr() * 10);
         for (;;) {
           const ti = G.tipos[(rr() * G.tipos.length) | 0], T = VTYPES[ti];
           t -= T.L / 2;
