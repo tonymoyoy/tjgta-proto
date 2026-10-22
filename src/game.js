@@ -2702,6 +2702,28 @@ const FRASES = {
     'En Santa Fe somos tantos que vamos en primera y segunda sección. Cualquier día pedimos ser municipio.',
     'Santa Fe queda lejos del centro, pero a un brinco del mar. Los domingos de playa son nomás nuestros.',
   ],
+  // los que se dan cuenta de que el mapa no es igualito a Tijuana: se esta mejorando, pero para que corra en un
+  // celular hay que recortar, y unos edificios no salen como son. Ni modo
+  mapa: [
+    '¿Ese edificio? En la vida real es otro. Pero aquí es el que hay, ni modo.',
+    'Mi casa en la realidad es de dos pisos y verde. Aquí me tocó gris y de uno. Ni modo.',
+    'Si buscas tu casa y no está, no te sientas mal: la mía tampoco.',
+    'Dicen que están mejorando el mapa. Yo llevo años esperando que me pongan banqueta.',
+    'Esa calle en la vida real sí tiene salida. Aquí, nomás si tienes fe.',
+    'Para que el juego corra en tu celular le quitaron detalles a la ciudad. Como a mi peinado.',
+    'Hay edificios que en la realidad son más altos. Aquí les recortaron pisos para que no se trabe el juego.',
+    'Si ves algo raro en el mapa no es error, es arte moderno. Bueno, sí es error.',
+    'Optimizar es quitarle cosas a la ciudad hasta que quepa en tu bolsillo.',
+    'En la vida real esa esquina tiene su puesto de tacos. Aquí tiene un poste. Qué tristeza.',
+    'El programador dice que el mapa es "casi" Tijuana. Ese "casi" pesa.',
+    'Mi colonia aquí es más plana que en la realidad. Por fin no hay que subir cerros. ¡Qué descanso!',
+    'Si un edificio aparece donde no va, hazte el que no lo viste. Yo así le hago.',
+    'Cada actualización cambian algo. Ayer mi casa no tenía jardín y hoy sí. Ni me avisaron.',
+    'La Bola del CECUT antes era un tambo chaparro. Ya la arreglaron. Ve a verla, quedó bonita.',
+    'No todas las casas, tiendas y árboles están donde van. Eso sí, el tráfico quedó igualito.',
+    'Los datos del mapa los hicieron voluntarios. Si algo está chueco, la culpa es repartida.',
+    'Aquí todas las azoteas son planitas. En la vida real hay unas que ni el arquitecto entiende.',
+  ],
 };
 // lo que te dicen en la fiesta de la Plaza Santa Cecilia (al completar todo)
 const FRASES_FIESTA = () => [
