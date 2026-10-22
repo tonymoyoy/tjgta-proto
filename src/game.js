@@ -2915,8 +2915,11 @@ const PEDIDOS = [
   'un caldo de res a las 40 grados', 'una birria para un perro con depresión', 'una ensalada César, de donde nació',
   'unos churros y una mantita para el frío', 'un café de olla para un influencer', 'una torta de jamón sin jamón',
   'un elote con todo y un abrazo', 'unos tamales para la junta del condominio', 'sushi empanizado con queso',
-  'unos raspados en pleno diciembre', 'una sopa Maruchan "gourmet"', 'un pozole tamaño piscina',
+  'unos raspados en pleno diciembre', 'una sopa instantánea "gourmet"', 'un pozole tamaño piscina',
   'un pay de queso para disculparse con la suegra', 'unas papas locas y pañuelos desechables',
+  'un pastel de tres leches que ya va en dos leches', 'unas tostadas de ceviche sin que se rompa ninguna',
+  'un champurrado para la junta de vecinos', 'unos hot dogs con tocino del carrito de la esquina',
+  'unas flautas para el ensayo de la banda', 'un pan de elote para la maestra', 'unos tamales de elote con crema y un atole',
 ];
 const CLIENTES = [
   '"¿Y la salsa?" Así nomás te recibió.', 'Te pagó con monedas de 50 centavos, una por una.',
@@ -2924,6 +2927,55 @@ const CLIENTES = [
   '"Pedí esto hace tres semanas", pero igual se lo comió.', 'Te pidió que le cambiaras un foco ya que ibas a estar ahí.',
   '"Déjalo en la puerta", dijo el señor desde la puerta.',
   'Te ofreció la mitad de su pedido. Era tuyo de todas formas.', 'Te dio de propina un boleto de la rifa de la parroquia.',
+  'Te recibió un niño de seis años con los billetes contados: "quédese con el cambio, señor".',
+  '"¿Tú eres el de la moto?" "Sí." "Ah, pensé que eras más alto."', 'Te dio las gracias y una bolsa de limones de su árbol.',
+  'La señora te hizo esperar para darte un tóper de frijoles "pa\' que no andes con hambre".',
+  'Te recibió toda la familia en la puerta, como si regresaras de la guerra.', 'Te calificó con cinco estrellas. La reseña dice: "llegó".',
+  'Te pagó con dólares, pesos y un vale de despensa. Sacaste la calculadora.', 'Te pagó y te mandó saludos para su primo que también reparte. No lo conoces.',
+];
+// clientes especiales: a veces quien te espera en la banqueta es alguien muy particular, con su propio pedido, su
+// dibujo (egg_ + k, ver makeEggs) y lo que dice al recibir (dice) o si se cancela (mal)
+const CLIENTES_RAROS = [
+  { k: 'cholo', quien: 'un cholo buena onda',
+    pedidos: ['unos tacos de cabeza para la carne asada del barrio', 'un champurrado para su jefita', 'unas conchas para el desayuno de su abuelita', 'un pastel de cumpleaños para su jefita'],
+    dice: ['"Gracias, carnal. Cualquier cosa, aquí en el barrio estamos pa\' servirte." Te dio propina y un saludo de puño.',
+      '"Simón, justo a tiempo. Es pa\' la familia." Te invitó a la carne asada del domingo.',
+      '"Ese, qué buena onda que llegaste rápido. Cuídate en la bajada, que está bien empinada."',
+      '"Ni te preocupes por el cambio, homie. En el barrio todo es con respeto."'],
+    mal: '"No pasa nada, carnal, otro día será." Igual se canceló el pedido, pero te dio un saludo de puño.' },
+  { k: 'robot', quien: 'un robot',
+    pedidos: ['un litro de aceite de cocina, para él', 'unos tornillos con chile y limón', 'una pila de 9 volts y un tamal de rajas', 'un taco de adobada "para probar qué es eso"'],
+    dice: ['"PEDIDO RECIBIDO. CALIFICACIÓN: CINCO ESTRELLAS. SATISFACCIÓN: 87%. FALTÓ SALSA."',
+      '"BIP. ESTO NO ES ACEITE DE MOTOR. ES ACEITE DE COCINA. ...LO ACEPTO." Te pagó con las monedas exactas.',
+      'Te escaneó de arriba abajo con un láser rojo: "HUMANO PUNTUAL. QUÉ RARO." Y te dio propina.',
+      '"PROCESANDO GRATITUD... GRACIAS, CARNAL." Alguien le está enseñando a hablar como de aquí.'],
+    mal: '"TIEMPO DE ESPERA EXCEDIDO. ME APAGO DE TRISTEZA." Y se quedó parado con los ojitos en rojo.' },
+  { k: 'otaku', quien: 'un otaku disfrazado',
+    pedidos: ['un ramen con huevo, como en el anime', 'unos onigiris de machaca', 'un té de burbujas con chamoy', 'unos dangos y un café de olla'],
+    dice: ['"¡Arigató, repartidor-san!" Te hizo una reverencia con todo y espada de foami.',
+      'Venía disfrazado de héroe de anime, con peluca de picos amarillos. Dice que su poder especial es llegar tarde a todos lados.',
+      '"Es para la convención: me falta el capítulo final del disfraz." Te pagó con billetes doblados como grullitas.',
+      'Te pagó y gritó el nombre de su ataque especial. Los vecinos ya ni voltean.'],
+    mal: '"Mi personaje nunca se rinde... pero yo sí, ya me dio hambre." Y cerró la puerta muy dramático.' },
+  { k: 'xolofan', quien: 'un fan de los Xolos con su xolo',
+    pedidos: ['unas alitas para ver el partido', 'una hielera de aguas frescas para el estadio', 'unos tacos de birria pa\'l medio tiempo', 'unos churros para festejar el gol'],
+    dice: ['"¡Xolos, Xolos! ¡Llegaste justo para el medio tiempo!" Te pintó una raya roja en el cachete.',
+      '"Si ganamos hoy te doy doble propina. Si perdemos, también, pa\' que no se diga."',
+      'Su xolo pelón traía la playera del equipo. Los dos te ladraron de emoción (él también).',
+      '"¿Tú le vas a los Xolos? ¿No? Bueno, aquí está tu propina... pero piénsalo."'],
+    mal: '"Ya terminó el partido y perdimos, y para acabarla, sin alitas." Su xolo te vio feo.' },
+  { k: 'luchador', quien: 'un luchador enmascarado',
+    pedidos: ['un licuado de plátano con avena y dos conchas', 'una docena de huevos para su desayuno de campeón', 'un caldo de pollo para la lesión'],
+    dice: ['"¡Gracias, amigo! Hoy lucho en la arena y necesito energía." Te firmó un autógrafo en el ticket.',
+      'Te abrió la puerta con la máscara puesta. Dice que nadie, ni su mamá, le ha visto la cara.',
+      'Te dio una llave de cariño y te soltó con propina. Dolió poquito.'],
+    mal: '"Llegaste tarde y ya me fui a entrenar." La nota estaba pegada en la puerta, firmada con una máscara.' },
+  { k: 'abuegamer', quien: 'una abuelita gamer',
+    pedidos: ['unos tamales y pilas para el control', 'un té de canela para la desvelada', 'unas galletas de animalito y un café para el torneo'],
+    dice: ['"Pásale, mijo, nomás termino esta partida." Ganó. Te pagó sin quitarse los audífonos.',
+      '"Los chamacos del otro lado del mundo no me pueden ganar." Te dio propina y una galleta.',
+      'Tenía un control en cada mano y te firmó con la nariz. Es leyenda en el barrio.'],
+    mal: '"Ay, mijo, ya me agarró el sueño. Mañana te la gano, eh." Y se metió con todo y control.' },
 ];
 // cuando el que recibe es el perro (la birria del perro deprimido o, a veces, al azar)
 const PERRO_PEDIDO = 'una birria para un perro con depresión';
@@ -2939,6 +2991,8 @@ const CANCELADOS = [
   'Se enfrió el pedido. Te lo comiste en un semáforo, para que no se desperdiciara.',
   'El cliente ya se había dormido. Tocaste y salió su abuela con la chancla.', 'La app dice que entregaste. La app miente.',
   'Llegaste a la dirección y era un lote baldío con un perro muy enojado.',
+  'El cliente puso mal la dirección: vive en Tecate.', 'Te abrió un señor que nunca pidió nada, pero se quedó con el pedido "por si acaso".',
+  'Al cliente se le acabó la pila y ya no contestó. A ti se te acabó la paciencia.',
 ];
 // paros: gente de las colonias (lejos de los lugares tipicos) que te pide que le lleves algo a alguien.
 // quien te lo pide, su icono, lo que dice, lo que llevas, a donde, como termina (fin) o si tardas (mal);
@@ -5714,6 +5768,88 @@ function makeEggs(scene) {
       ball(14, 13, 5, '#a1887f', '#5d4037', 'rgba(0,0,0,0.4)'); ball(14, 13, 2.8, '#8d6e63', '#4e342e');
       x.strokeStyle = '#212121'; x.lineWidth = 0.5; x.beginPath(); x.arc(14, 13, 3, 0, 7); x.stroke();
     },
+    // ----- clientes especiales de las entregas (CLIENTES_RAROS): personas paradas viendo hacia abajo (+y) -----
+    cholo(x0) { // camisa de cuadros abotonada hasta arriba, cabeza rapada, lentes oscuros y saludando de paz
+      shadow(16, 16, 9, 7);
+      ell('#c99a6b', 8.4, 18, 1.5, 3, 0.3); ell('#c99a6b', 23.6, 18.4, 1.5, 3, -0.3);
+      line('#c99a6b', 0.6, [[24.4, 21], [24.8, 23]]); line('#c99a6b', 0.6, [[25.2, 21], [26.2, 22.8]]); // la paz
+      x.save(); x.beginPath(); x.ellipse(16, 16, 7, 4.4, 0, 0, 7); x.clip();
+      x.fillStyle = '#5c6f86'; x.fillRect(8, 11, 16, 10);
+      for (let i = 0; i < 8; i++) { x.fillStyle = 'rgba(30,40,55,0.55)'; x.fillRect(8.6 + i * 2, 11, 0.8, 10); x.fillRect(8, 12 + i * 1.3, 16, 0.5); }
+      x.restore(); x.strokeStyle = 'rgba(0,0,0,0.5)'; x.lineWidth = 0.35; x.beginPath(); x.ellipse(16, 16, 7, 4.4, 0, 0, 7); x.stroke();
+      ball(16, 16, 3.3, '#a07a55', '#6d4c33'); // cabeza rapada
+      for (let i = 0; i < 16; i++) ell('rgba(30,20,15,0.45)', 13.6 + (i * 7) % 5, 13.6 + (i * 3) % 4, 0.25, 0.25);
+      x.fillStyle = '#0d0d0d'; x.beginPath(); x.roundRect(13.3, 18, 5.4, 1.3, 0.5); x.fill(); // lentes
+      ell('rgba(255,255,255,0.4)', 14.4, 18.4, 0.6, 0.25);
+    },
+    robot(x0) { // robot cuadrado de lamina con antena de foquito, visor azul y brazos de manguera
+      shadow(16, 16, 9, 7);
+      for (const s of [-1, 1]) { line('#78909c', 1.2, [[16 + s * 6.4, 15], [16 + s * 8.4, 18], [16 + s * 7.8, 21]]); ball(16 + s * 7.8, 21.6, 1.2, '#cfd8dc', '#607d8b', '#37474f'); }
+      x.fillStyle = rad(16, 15, 9, '#eceff1', '#90a4ae'); x.beginPath(); x.roundRect(9.4, 10.6, 13.2, 9.4, 1.6); x.fill();
+      x.strokeStyle = '#455a64'; x.lineWidth = 0.4; x.stroke();
+      for (const [a, b] of [[10.4, 11.6], [21.6, 11.6], [10.4, 19], [21.6, 19]]) ell('#607d8b', a, b, 0.35, 0.35); // remaches
+      x.fillStyle = '#b0bec5'; x.beginPath(); x.roundRect(12, 12, 8, 6.8, 1); x.fill(); x.strokeStyle = '#546e7a'; x.lineWidth = 0.3; x.stroke(); // cabeza
+      x.fillStyle = '#0d47a1'; x.fillRect(12.6, 17, 6.8, 1.6); ell('#4fc3f7', 14.4, 17.8, 0.7, 0.45); ell('#4fc3f7', 17.6, 17.8, 0.7, 0.45);
+      line('#455a64', 0.4, [[16, 12], [16, 8.6]]); ball(16, 8, 1, '#ff8a80', '#d50000');
+      ell('rgba(255,82,82,0.25)', 16, 8, 2.2, 2.2);
+    },
+    otaku(x0) { // disfrazado de heroe de anime: peluca de picos amarillos, traje naranja con azul y espada de foami
+      shadow(16, 16, 10, 8);
+      x.save(); x.translate(23.5, 18); x.rotate(0.5); // espada de foami
+      x.fillStyle = '#e0e0e0'; x.fillRect(-0.9, -1, 1.8, 11); x.strokeStyle = '#9e9e9e'; x.lineWidth = 0.3; x.strokeRect(-0.9, -1, 1.8, 11);
+      x.fillStyle = '#8d6e63'; x.fillRect(-2.2, -1.8, 4.4, 1); x.fillStyle = '#5d4037'; x.fillRect(-0.6, -5, 1.2, 3.2); x.restore();
+      ell('#ff9800', 8.4, 17.6, 1.6, 3, 0.3); ell('#ff9800', 22.6, 16.6, 1.6, 3, -0.6);
+      shoulders(16, 16, '#ffb74d', '#ef6c00', 6.6, 4.2);
+      x.fillStyle = '#1565c0'; x.fillRect(13, 12.2, 6, 7.6); // chaleco azul
+      ell('#c62828', 16, 19.8, 3, 0.7); // la bandita roja
+      // peluca de picos
+      x.fillStyle = '#ffd600'; x.beginPath();
+      for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2, r = i % 2 ? 2.4 : 5.4; const px = 16 + Math.cos(a) * r, py = 15.4 + Math.sin(a) * r; i ? x.lineTo(px, py) : x.moveTo(px, py); }
+      x.closePath(); x.fill(); x.strokeStyle = '#f57f17'; x.lineWidth = 0.35; x.stroke();
+      ball(16, 15.4, 2.4, '#fff59d', '#fbc02d');
+    },
+    xolofan(x0) { // aficionado con la playera rojinegra, bufanda y cara pintada, con su xolo pelon a un lado
+      shadow(13, 15, 9, 7); shadow(24, 23, 4, 6);
+      // el xolo: gris pelon con su playerita y orejotas
+      ell('#5d5d63', 24, 24.5, 2.6, 4.2); x.save(); x.beginPath(); x.ellipse(24, 24.5, 2.6, 4.2, 0, 0, 7); x.clip();
+      for (let i = 0; i < 4; i++) { x.fillStyle = i % 2 ? '#111' : '#c62828'; x.fillRect(21, 21.5 + i * 1.3, 6, 1.3); } x.restore();
+      line('#4a4a50', 0.5, [[24, 28.6], [25.6, 30.4]]);
+      ball(24, 20.2, 1.8, '#6b6b72', '#3f3f45');
+      x.fillStyle = '#4a4a50'; for (const s of [-1, 1]) { x.beginPath(); x.moveTo(24 + s * 0.8, 19.4); x.lineTo(24 + s * 2.8, 17); x.lineTo(24 + s * 2, 20); x.closePath(); x.fill(); }
+      // el aficionado: brazos arriba con la bufanda estirada
+      ell('#c99a6b', 6.4, 12.6, 1.4, 3, -0.6); ell('#c99a6b', 19.6, 12.6, 1.4, 3, 0.6);
+      x.save(); x.translate(13, 9); for (let i = 0; i < 9; i++) { x.fillStyle = i % 2 ? '#111' : '#d32f2f'; x.fillRect(-9 + i * 2, -1, 2, 2); } x.restore();
+      x.save(); x.beginPath(); x.ellipse(13, 15, 6.6, 4.2, 0, 0, 7); x.clip();
+      for (let i = 0; i < 7; i++) { x.fillStyle = i % 2 ? '#111' : '#d32f2f'; x.fillRect(6 + i * 2, 10, 2, 10); } x.restore();
+      x.strokeStyle = 'rgba(0,0,0,0.5)'; x.lineWidth = 0.35; x.beginPath(); x.ellipse(13, 15, 6.6, 4.2, 0, 0, 7); x.stroke();
+      ball(13, 15, 3, '#c99a6b', '#8d6e4a'); x.fillStyle = '#2b1d14'; x.beginPath(); x.arc(13, 15, 3, Math.PI * 1.05, Math.PI * 1.95); x.fill();
+      line('#d32f2f', 0.7, [[11.4, 16.4], [11.4, 17.6]]); line('#111', 0.7, [[14.6, 16.4], [14.6, 17.6]]); // cachetes pintados
+    },
+    luchador(x0) { // luchador con mascara de colores, capa brillante y cinturon de campeon
+      shadow(16, 16, 11, 8);
+      x.fillStyle = rad(16, 12, 10, '#ffeb3b', '#c49000'); x.beginPath(); x.moveTo(8, 14); x.quadraticCurveTo(16, 2, 24, 14); x.lineTo(22, 11); x.quadraticCurveTo(16, 6, 10, 11); x.closePath(); x.fill(); // capa
+      ell('#d7a07a', 7.4, 17, 2, 3.4, 0.3); ell('#d7a07a', 24.6, 17, 2, 3.4, -0.3);
+      shoulders(16, 16, '#e0b08a', '#b07d58', 7.4, 4.6);
+      x.fillStyle = '#ffca28'; x.fillRect(11, 19, 10, 1.5); ell('#fff59d', 16, 19.7, 1.6, 1); // cinturon
+      // mascara: azul con flamas plateadas y ojos blancos
+      ball(16, 15.4, 3.6, '#2979ff', '#0d47a1', '#0a2a6b');
+      x.fillStyle = '#e0e0e0'; x.beginPath(); x.moveTo(16, 11.8); x.lineTo(14.6, 14.6); x.lineTo(16, 13.8); x.lineTo(17.4, 14.6); x.closePath(); x.fill();
+      ell('#fff', 14.6, 17, 1, 0.6, -0.3); ell('#fff', 17.4, 17, 1, 0.6, 0.3); ell('#111', 14.6, 17.1, 0.4, 0.3); ell('#111', 17.4, 17.1, 0.4, 0.3);
+      line('#ff1744', 0.4, [[13, 14], [12.6, 16.6]]); line('#ff1744', 0.4, [[19, 14], [19.4, 16.6]]);
+    },
+    abuegamer(x0) { // abuelita de chongo con audifonos de diadema y un control en las manos, con su chal tejido
+      shadow(16, 16, 9, 7);
+      ell('#e1bfa0', 11.6, 20, 1.5, 2.6, 0.6); ell('#e1bfa0', 20.4, 20, 1.5, 2.6, -0.6);
+      x.fillStyle = '#37474f'; x.beginPath(); x.roundRect(12, 20.6, 8, 3.2, 1.4); x.fill(); // control
+      ell('#ff5252', 18.4, 21.8, 0.45, 0.45); ell('#69f0ae', 17.4, 22.6, 0.45, 0.45); x.fillStyle = '#90a4ae'; x.fillRect(13.2, 21.8, 2, 0.6); x.fillRect(13.9, 21.1, 0.6, 2);
+      shoulders(16, 16, '#b39ddb', '#7e57c2', 6.4, 4.2);
+      for (let i = 0; i < 6; i++) ell('rgba(255,255,255,0.35)', 11.5 + i * 1.8, 18.6 - Math.abs(i - 2.5) * 0.5, 0.5, 0.5); // chal tejido
+      ball(16, 15, 3, '#eeeeee', '#9e9e9e', 'rgba(0,0,0,0.3)'); ball(16, 12.6, 1.5, '#f5f5f5', '#a0a0a0'); // canas y chongo
+      ell('#e1bfa0', 16, 17.4, 1.7, 0.9);
+      x.strokeStyle = '#212121'; x.lineWidth = 0.7; x.beginPath(); x.arc(16, 15, 3.4, Math.PI * 0.95, Math.PI * 0.05, false); x.stroke();
+      ball(12.5, 15.4, 1.3, '#00e5ff', '#006064'); ball(19.5, 15.4, 1.3, '#00e5ff', '#006064');
+      line('#ffd54f', 0.35, [[13.7, 17.6], [18.3, 17.6]]); // lentes de cadenita
+    },
   };
   for (const k in draw) {
     const t = scene.textures.createCanvas('egg_' + k, 160, 160);
@@ -8281,18 +8417,23 @@ class Main extends Phaser.Scene {
     }
     if (!spot) return;
     const d = dist(spot.x, spot.y, f.x, f.y), street = streetAt(spot.x, spot.y) || 'una calle de Tijuana';
-    const order = pick(PEDIDOS), dog = order === PERRO_PEDIDO || Math.random() < 0.15;
+    let order = pick(PEDIDOS);
+    const dog = order === PERRO_PEDIDO || Math.random() < 0.15, raro = !dog && Math.random() < 0.3 ? pick(CLIENTES_RAROS) : null;
+    if (raro) order = pick(raro.pedidos);
     // quien recibe espera en la banqueta viendo hacia la calle
     const face = Math.atan2(mid.y - spot.y, mid.x - spot.x);
     let who;
     if (dog) {
       who = this.add.sprite(spot.x, spot.y, 'perro', 0).setDepth(6).setScale(1 / SPR).setRotation(face).play('cola');
+    } else if (raro) { // (los dibujos ven hacia abajo, +y)
+      who = this.add.image(spot.x, spot.y, 'egg_' + raro.k).setDepth(6).setScale(0.2).setRotation(face - Math.PI / 2);
+      this.tweens.add({ targets: who, angle: who.angle + 6, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
     } else {
       who = this.add.sprite(spot.x, spot.y, 'ped' + pedVariant(), 0).setDepth(6).setScale(1 / SPR).setRotation(face);
       this.tweens.add({ targets: who, angle: who.angle + 8, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
     }
-    this.delivery = { x: spot.x, y: spot.y, street, order, time: d / 85 + 20, d, dog, who };
-    toast(pick(FRASES_MOTO), 'Pedido: ' + this.delivery.order + '. Llévalo a ' + street + '.', 4.5);
+    this.delivery = { x: spot.x, y: spot.y, street, order, time: d / 85 + 20, d, dog, raro, who };
+    toast(pick(FRASES_MOTO), 'Pedido: ' + this.delivery.order + '. Llévalo a ' + street + (raro ? '. Lo recibe ' + raro.quien : '') + '.', 4.5);
     this.setObjective();
   }
   endDelivery(ok) {
@@ -8301,12 +8442,12 @@ class Main extends Phaser.Scene {
       const pay = Math.round(50 + dl.d / 10 + dl.time * 2), tip = Math.random() < 0.5 ? Math.round(rnd(5, 60)) : 0;
       state.deliveries++;
       state.money += pay + tip; save(); updateStats();
-      const msg = dl.order === PERRO_PEDIDO ? CLIENTES_PERRO_BIRRIA : pick(dl.dog ? CLIENTES_PERRO : CLIENTES);
-      toast('¡Pedido entregado!', msg + ' (+$' + pay + (tip ? ' y $' + tip + ' de propina' : '') + ')', 4.5);
-    } else toast('Pedido cancelado', pick(CANCELADOS), 4);
+      const msg = dl.raro ? pick(dl.raro.dice) : dl.order === PERRO_PEDIDO ? CLIENTES_PERRO_BIRRIA : pick(dl.dog ? CLIENTES_PERRO : CLIENTES);
+      toast('¡Pedido entregado!', msg + ' (+$' + pay + (tip ? ' y $' + tip + ' de propina' : '') + ')', dl.raro ? 6 : 4.5);
+    } else toast('Pedido cancelado', dl.raro ? dl.raro.mal : pick(CANCELADOS), dl.raro ? 5 : 4);
     // el que recibio da un saltito de gusto y se mete; si se cancelo, nomas se mete
     const w = dl.who; this.tweens.killTweensOf(w);
-    if (ok) this.tweens.add({ targets: w, scale: 1.4 / SPR, duration: 160, yoyo: true, repeat: 1 });
+    if (ok) this.tweens.add({ targets: w, scale: w.scale * 1.4, duration: 160, yoyo: true, repeat: 1 });
     this.tweens.add({ targets: w, alpha: 0, delay: ok ? 1200 : 0, duration: 600, onComplete: () => w.destroy() });
     this.setObjective();
   }
