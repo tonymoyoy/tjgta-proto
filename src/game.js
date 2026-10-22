@@ -313,6 +313,87 @@ function suelo(tipo, p, id, reg) {
 }
 const PISO_PATIO = ['#b3ab9b', '#9c8f76', '#8f9064', '#b88f72', '#a7a49c'];   // concreto, tierra, pasto seco, loseta, cemento
 const ROPA = ['#d9443a', '#3b7fd1', '#f2f2f2', '#f0c23b', '#4fae5c', '#e27fb0', '#7a5bb5', '#2e2e2e'];
+// ---------- jardines de las casas ----------
+// pasto corto de varios tipos (regado, kikuyo, seco, amarillento y con calvas de tierra) en manchones de orilla
+// irregular, y plantas de las que hay en las casas de Tijuana: arbustos, bugambilias, magueyes, nopales y rosales.
+// Todo va pintado en el piso del trozo (no estorba el paso).
+const TONOS_PASTO = ['rgba(80,140,40,0.2)', 'rgba(35,75,20,0.22)', 'rgba(205,185,105,0.42)', 'rgba(170,160,70,0.3)', 'rgba(110,150,60,0.12)'];
+function manchonPasto(ctx, x, y, rad, rnd) {
+  const tono = (rnd() * TONOS_PASTO.length) | 0, n = 4 + ((rnd() * 4) | 0), bolas = [];
+  for (let i = 0; i < n; i++) { const a = rnd() * 6.283, d = rad * rnd() * 0.6; bolas.push([x + Math.cos(a) * d, y + Math.sin(a) * d, rad * (0.35 + rnd() * 0.35)]); }
+  ctx.beginPath(); for (const [a, b, r] of bolas) { ctx.moveTo(a + r, b); ctx.arc(a, b, r, 0, 7); }
+  ctx.fillStyle = areaFill(ctx, 0); ctx.fill(); ctx.fillStyle = TONOS_PASTO[tono]; ctx.fill();
+  // calvas de tierra en el seco y el amarillento
+  if (tono >= 2 && tono <= 3) { ctx.fillStyle = 'rgba(140,125,95,0.55)'; ctx.beginPath(); for (let i = 0; i < 3; i++) { const [a, b, r] = bolas[(rnd() * n) | 0], q = r * 0.3 * rnd() + 0.6; ctx.moveTo(a + q, b); ctx.arc(a, b, q, 0, 7); } ctx.fill(); }
+  // la orilla: hojitas que se salen para que no sea un circulo
+  const o = new Path2D(), c = new Path2D();
+  for (const [a, b, r] of bolas) for (let k = 0; k < r * 3; k++) {
+    const q = rnd() * 6.283, l = 0.5 + rnd() * 0.9, px = a + Math.cos(q) * r * 0.97, py = b + Math.sin(q) * r * 0.97, d = q + (rnd() - 0.5) * 1.2;
+    (k % 2 ? o : c).moveTo(px, py); (k % 2 ? o : c).lineTo(px + Math.cos(d) * l, py + Math.sin(d) * l);
+  }
+  ctx.lineCap = 'round'; ctx.lineWidth = 0.5;
+  ctx.strokeStyle = tono === 2 ? 'rgba(150,130,70,0.45)' : 'rgba(40,70,20,0.4)'; ctx.stroke(o);
+  ctx.strokeStyle = tono === 2 ? 'rgba(215,200,130,0.45)' : 'rgba(140,180,80,0.4)'; ctx.stroke(c);
+}
+const PLANTAS = ['arbusto', 'bugambilia', 'maguey', 'nopal', 'rosal', 'arbusto', 'bugambilia'];
+function planta(ctx, x, y, que, rnd) {
+  const bola = (a, b, r, col) => { ctx.fillStyle = col; ctx.beginPath(); ctx.arc(a, b, r, 0, 7); ctx.fill(); };
+  if (que === 'maguey' || que === 'nopal') {
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(x + 1.5, y + 1.8, 3.2, 2.6, 0, 0, 7); ctx.fill();
+  }
+  if (que === 'maguey') { // pencas puntiagudas en estrella, azul grisaceo
+    const n = 9 + ((rnd() * 4) | 0), L = 3 + rnd() * 2, a0 = rnd() * 6.3;
+    for (let i = 0; i < n; i++) {
+      const a = a0 + i / n * 6.283, l = L * (0.7 + rnd() * 0.35), w = 0.32;
+      ctx.fillStyle = i % 2 ? '#7d9a90' : '#9bb5a8'; ctx.beginPath(); ctx.moveTo(x + Math.cos(a - w) * 0.8, y + Math.sin(a - w) * 0.8);
+      ctx.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); ctx.lineTo(x + Math.cos(a + w) * 0.8, y + Math.sin(a + w) * 0.8); ctx.fill();
+    }
+    bola(x, y, 0.8, '#6f8a80');
+  } else if (que === 'nopal') { // pencas ovaladas verdes con sus espinitas
+    for (let i = 0; i < 4 + rnd() * 3; i++) {
+      const a = rnd() * 6.283, d = rnd() * 2.2, px = x + Math.cos(a) * d, py = y + Math.sin(a) * d;
+      ctx.fillStyle = i % 2 ? '#4f7f34' : '#649a42'; ctx.beginPath(); ctx.ellipse(px, py, 1.9, 1.2, rnd() * 3, 0, 7); ctx.fill();
+      ctx.fillStyle = 'rgba(230,230,200,0.7)'; ctx.fillRect(px - 0.5, py - 0.3, 0.3, 0.3); ctx.fillRect(px + 0.4, py + 0.2, 0.3, 0.3);
+    }
+    if (rnd() < 0.4) bola(x + 1.2, y - 1.5, 0.6, '#c2304a'); // una tuna
+  } else { // arbustos: bolitas oscuras con luz, y flores segun el tipo
+    const r = que === 'rosal' ? 1.6 + rnd() : 2 + rnd() * 1.6, bs = [];
+    for (let i = 0; i < 4; i++) { const a = rnd() * 6.283, d = r * 0.5 * rnd(); bs.push([x + Math.cos(a) * d, y + Math.sin(a) * d, r * (0.55 + rnd() * 0.3)]); }
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); for (const [a, b, q] of bs) { ctx.moveTo(a + 1.4 + q, b + 1.6); ctx.arc(a + 1.4, b + 1.6, q, 0, 7); } ctx.fill();
+    ctx.fillStyle = que === 'bugambilia' ? '#3d5a2a' : '#2f5526'; ctx.beginPath(); for (const [a, b, q] of bs) { ctx.moveTo(a + q, b); ctx.arc(a, b, q, 0, 7); } ctx.fill();
+    for (const [a, b, q] of bs) bola(a - q * 0.25, b - q * 0.25, q * 0.6, '#4f7a38');
+    const flor = que === 'bugambilia' ? ['#d0257a', '#e0459a', '#b81c66'][(rnd() * 3) | 0] : que === 'rosal' ? ['#d6303a', '#f2d24a', '#f4f0e8', '#e98fb0'][(rnd() * 4) | 0] : null;
+    if (flor) { ctx.fillStyle = flor; const n = que === 'bugambilia' ? 14 : 6; for (let i = 0; i < n; i++) { const [a, b, q] = bs[(rnd() * bs.length) | 0], t = rnd() * 6.283, d = rnd() * q; ctx.beginPath(); ctx.arc(a + Math.cos(t) * d, b + Math.sin(t) * d, 0.55 + rnd() * 0.35, 0, 7); ctx.fill(); } }
+  }
+}
+// arbolito de patio (limonero, naranjo o aguacate) pintado en el piso, con su sombra
+function arbolPatio(ctx, x, y, rnd) {
+  const que = (rnd() * 3) | 0, R = que === 2 ? 4.5 + rnd() * 1.5 : 3.2 + rnd() * 1.2;
+  ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.arc(x + R * 0.4, y + R * 0.45, R, 0, 7); ctx.fill();
+  const bs = []; for (let i = 0; i < 5; i++) { const a = i / 5 * 6.283 + rnd(), d = R * 0.4; bs.push([x + Math.cos(a) * d, y + Math.sin(a) * d, R * (0.5 + rnd() * 0.15)]); }
+  ctx.fillStyle = que === 2 ? '#24401f' : '#2d5124'; ctx.beginPath(); ctx.arc(x, y, R * 0.6, 0, 7); for (const [a, b, q] of bs) { ctx.moveTo(a + q, b); ctx.arc(a, b, q, 0, 7); } ctx.fill();
+  ctx.fillStyle = que === 2 ? '#3b6130' : '#4a7a36'; for (const [a, b, q] of bs) { ctx.beginPath(); ctx.arc(a - q * 0.25, b - q * 0.25, q * 0.6, 0, 7); ctx.fill(); }
+  if (que < 2) { ctx.fillStyle = que ? '#f0a020' : '#e8d43a'; for (let i = 0; i < 7; i++) { const [a, b, q] = bs[i % 5], t = rnd() * 6.283; ctx.beginPath(); ctx.arc(a + Math.cos(t) * q * 0.7, b + Math.sin(t) * q * 0.7, 0.6, 0, 7); ctx.fill(); } }
+}
+// jardincitos alrededor de las casas: manchones de pasto y plantas pegados a la casa, por fuera (lo que caiga en la
+// calle o la banqueta lo tapan despues; lo que caiga bajo la casa, la casa). No en zonas de comercio o industria
+function pintarJardines(ctx, bl, ar) {
+  const zonas = ar.filter(a => a.k === 4 || a.k === 5); let hay = 0;
+  for (const b of bl) {
+    if (!b.casa && !(b.h < 12 && hash(b.id * 7 + 1) % 4 === 0)) continue;
+    const rnd = mulberry(b.id * 31 + 7); if (rnd() > 0.85) continue;
+    const mx = (b.bb[0] + b.bb[2]) / 2, my = (b.bb[1] + b.bb[3]) / 2;
+    if (zonas.length && zonas.some(a => mx >= a.bb[0] && mx <= a.bb[2] && my >= a.bb[1] && my <= a.bb[3] && pip(mx, my, a.p))) continue;
+    const orilla = (o) => { const lado = (rnd() * 4) | 0, t = rnd(), w = b.bb[2] - b.bb[0], h = b.bb[3] - b.bb[1];
+      return lado === 0 ? [b.bb[0] + w * t, b.bb[1] - o] : lado === 1 ? [b.bb[2] + o, b.bb[1] + h * t] : lado === 2 ? [b.bb[0] + w * t, b.bb[3] + o] : [b.bb[0] - o, b.bb[1] + h * t]; };
+    const n = 2 + ((rnd() * 4) | 0);
+    for (let i = 0; i < n; i++) { const [x, y] = orilla(1 + rnd() * 8); manchonPasto(ctx, x, y, 6 + rnd() * 9, rnd); }
+    const m = (rnd() * 4) | 0;
+    for (let i = 0; i < m; i++) { const [x, y] = orilla(1.5 + rnd() * 3); planta(ctx, x, y, PLANTAS[(rnd() * PLANTAS.length) | 0], rnd); }
+    hay++;
+  }
+  return hay;
+}
 function pintarSuelo(ctx, e) {
   const { P, lu, lv } = e, r = mulberry(e.id * 2654435761);
   const caja = (s0, t0, s1, t1) => { ctx.beginPath(); for (const [s, t] of [[s0, t0], [s1, t0], [s1, t1], [s0, t1]]) ctx.lineTo(...P(s, t)); ctx.closePath(); };
@@ -320,10 +401,20 @@ function pintarSuelo(ctx, e) {
   const rot = Math.atan2(e.U[1], e.U[0]);
   if (e.tipo === 'patio') {
     // piso, barda alrededor (menos del lado de la casa) y las cosas del patio
-    caja(0, 0, lu, lv); ctx.fillStyle = PISO_PATIO[e.id % PISO_PATIO.length]; ctx.fill();
+    // la mitad de los patios son de pasto (regado, kikuyo, seco...), los demas de concreto, tierra o loseta
+    const verde = e.id % 10 < 5;
+    caja(0, 0, lu, lv);
+    if (verde) { ctx.fillStyle = areaFill(ctx, 0); ctx.fill(); ctx.fillStyle = TONOS_PASTO[e.id % TONOS_PASTO.length]; ctx.fill(); }
+    else { ctx.fillStyle = PISO_PATIO[e.id % PISO_PATIO.length]; ctx.fill(); }
     ctx.lineCap = 'butt';
     const barda = (w, col, o) => { ctx.strokeStyle = col; ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(...P(o, 0)); ctx.lineTo(...P(o, lv - o)); ctx.lineTo(...P(lu - o, lv - o)); ctx.lineTo(...P(lu - o, 0)); ctx.stroke(); };
     barda(3.4, 'rgba(0,0,0,0.25)', 0.2); barda(2.2, '#cfc6b3', 1.1);
+    // plantas pegadas a la barda y, en algunos, un limonero, naranjo o aguacate
+    if (lu > 12 && lv > 10) {
+      const np = (verde ? 2 : 0) + ((r() * 3) | 0);
+      for (let k = 0; k < np; k++) { const enS = r() < 0.5, [x, y] = enS ? P(4 + r() * (lu - 8), lv - 4) : P(r() < 0.5 ? 4 : lu - 4, 4 + r() * (lv - 8)); planta(ctx, x, y, PLANTAS[(r() * PLANTAS.length) | 0], r); }
+      if (lu > 20 && lv > 16 && r() < (verde ? 0.45 : 0.2)) { const [x, y] = P(lu * (0.25 + r() * 0.5), lv * (0.35 + r() * 0.4)); arbolPatio(ctx, x, y, r); }
+    }
     const n = 2 + (r() * 3 | 0), puestos = [];
     for (let k = 0; k < n; k++) {
       const que = (r() * 8) | 0, s = 5 + r() * (lu - 10), t = 4 + r() * (lv - 8);
@@ -1047,8 +1138,9 @@ const chunkBaches = gridIndex(baches, CHUNK, 'bb');
 // manejando) y para los carros (ver arbolEn y arbolEnCaja).
 // Los edificios se cargan por regiones, asi que lo de no quedar dentro o detras de uno se revisa al pintar el
 // trozo: en cada cuadrito de 30 px se queda el primer candidato (en orden) que no choca con un edificio.
-// tipos: 0 laurel de la India, 1 palma, 2 jacaranda, 3 pirul. (localStorage tjrush-arboles = 'no' los quita)
-const ARB_LAURO = 0, ARB_PALMA = 1, ARB_JACA = 2, ARB_PIRUL = 3, ARB_VAR = 5, ARB_SZ = 80;
+// tipos: 0 laurel de la India, 1 palma, 2 jacaranda, 3 pirul, 4 eucalipto, 5 pino (los de la region).
+// (localStorage tjrush-arboles = 'no' los quita)
+const ARB_LAURO = 0, ARB_PALMA = 1, ARB_JACA = 2, ARB_PIRUL = 3, ARB_EUCA = 4, ARB_PINO = 5, ARB_TIPOS = 6, ARB_VAR = 5, ARB_SZ = 80;
 // Los candidatos van en arreglos (con toda la ciudad son cientos de miles: como objetos pesaban decenas de MB):
 // posicion, tipo, variante y la celda de 30 px (llave GK). Despues se agrupan por celda, en orden.
 const ARB = (() => {
@@ -1065,18 +1157,20 @@ const ARB = (() => {
     if (onAsfalto(x, y, M) || inWater(x, y) || enArea(x, y, AREA_ARENA)) return;
     X.push(x); Y.push(y); T.push(t); V.push((rnd() * ARB_VAR) | 0); C.push(c);
   };
-  const tipo = (rnd, palma, jaca, pirul) => { const q = rnd(); return q < palma ? ARB_PALMA : q < palma + jaca ? ARB_JACA : q < palma + jaca + pirul ? ARB_PIRUL : ARB_LAURO; };
+  const tipo = (rnd, palma, jaca, pirul, euca = 0, pino = 0) => { const q = rnd(); let a = palma; if (q < a) return ARB_PALMA; if (q < (a += jaca)) return ARB_JACA;
+    if (q < (a += pirul)) return ARB_PIRUL; if (q < (a += euca)) return ARB_EUCA; return q < a + pino ? ARB_PINO : ARB_LAURO; };
   // en la banqueta, a la orilla de afuera; las avenidas llevan mas palmas
   for (const r of roads) {
     if (r.c < 1 || r.c > 6 || (r.f & 1)) continue;
-    const rnd = mulberry(r.i * 7919 + 5), prob = hash(r.i * 13 + 7) % 10 < 3 ? 0.4 : 0.04;
+    // en las calles de colonia (c 5 y 6) un poco mas: la gente siembra su arbolito afuera de la casa
+    const rnd = mulberry(r.i * 7919 + 5), prob = hash(r.i * 13 + 7) % 10 < 3 ? 0.4 : r.c >= 5 ? 0.09 : 0.04;
     const off = (r.w / 2 + SIDEWALK * 0.6) * M, p = r.p;
     for (let q = 0; q < p.length - 2; q += 2) {
       const dx = p[q + 2] - p[q], dy = p[q + 3] - p[q + 1], len = Math.hypot(dx, dy); if (len < 1) continue;
       const nx = -dy / len, ny = dx / len;
       for (let t = 6 * M; t < len - 6 * M; t += 11 * M) for (const lado of [-1, 1]) {
         if (rnd() >= prob) continue;
-        poner(p[q] + dx * t / len + nx * off * lado, p[q + 1] + dy * t / len + ny * off * lado, tipo(rnd, r.c <= 3 ? 0.55 : 0.08, 0.12, 0.15), rnd);
+        poner(p[q] + dx * t / len + nx * off * lado, p[q + 1] + dy * t / len + ny * off * lado, tipo(rnd, r.c <= 3 ? 0.55 : 0.08, 0.12, 0.15, 0.08, 0.06), rnd);
       }
     }
   }
@@ -1086,14 +1180,15 @@ const ARB = (() => {
     for (let y = Math.ceil(y0 / paso) * paso; y < y1; y += paso) for (let x = Math.ceil(x0 / paso) * paso; x < x1; x += paso)
       fn(x + (rnd() - 0.5) * paso * 0.8, y + (rnd() - 0.5) * paso * 0.8, rnd);
   };
-  const POR_AREA = { 0: [14, 0.45, 0.2, 0.1, 0.1], [AREA_PLAZA]: [16, 0.1, 0.7, 0.1, 0], 3: [20, 0.08, 0.2, 0.1, 0.3], 6: [22, 0.04, 0.2, 0.1, 0.3] };
+  // [paso en m, probabilidad, palma, jacaranda, pirul, eucalipto, pino]; en la vivienda bastantes mas que antes
+  const POR_AREA = { 0: [14, 0.45, 0.2, 0.1, 0.1, 0.15, 0.1], [AREA_PLAZA]: [16, 0.1, 0.7, 0.1, 0], 3: [20, 0.08, 0.2, 0.1, 0.3, 0.15, 0.1], 6: [16, 0.13, 0.12, 0.12, 0.2, 0.12, 0.12] };
   areas.forEach((a, i) => {
     const c = POR_AREA[a.k]; if (!c) return;
     rejilla(a.bb[0], a.bb[1], a.bb[2], a.bb[3], c[0] * M, i * 104729 + 3, (x, y, rnd) => {
-      if (rnd() < c[1] && pip(x, y, a.p)) poner(x, y, tipo(rnd, c[2], c[3], c[4]), rnd);
+      if (rnd() < c[1] && pip(x, y, a.p)) poner(x, y, tipo(rnd, c[2], c[3], c[4], c[5], c[6]), rnd);
     });
   });
-  rejilla(0, 0, WORLD_W, WORLD_H, 24 * M, 4242, (x, y, rnd) => { if (rnd() < 0.05 && !enArea(x, y, -1)) poner(x, y, tipo(rnd, 0.1, 0.05, 0.6), rnd); });
+  rejilla(0, 0, WORLD_W, WORLD_H, 24 * M, 4242, (x, y, rnd) => { if (rnd() < 0.08 && !enArea(x, y, -1)) poner(x, y, tipo(rnd, 0.1, 0.05, 0.35, 0.25, 0.1), rnd); });
   return { X, Y, T, V, C };
 })();
 const arboles = (() => {
@@ -1130,7 +1225,7 @@ function arbolVa(i) {
 }
 // choques con los arboles: radio de lo solido por tipo (la palma solo el tronco). En el trozo de un punto vienen
 // todos los arboles a menos de ARB_SZ / 2, y eso alcanza para un carro (el camion mide 58 de largo)
-const ARB_R = [2.2 * M, 1.3 * M, 2.2 * M, 1.8 * M];
+const ARB_R = [2.2 * M, 1.3 * M, 2.2 * M, 1.8 * M, 1.6 * M, 1.8 * M];
 const arbolSirve = (i, x, y) => regionesListas(x, y, x, y) && arbolVa(i); // sin los edificios cargados aun no se sabe
 function arbolEn(x, y, r) {
   const L = chunkArboles.get(GK(Math.floor(x / CHUNK), Math.floor(y / CHUNK))); if (!L) return false;
@@ -1174,6 +1269,32 @@ function arbolSprite(t, v, parte) {
     x.strokeStyle = 'rgba(45,65,20,0.7)'; x.lineWidth = 0.6;
     for (let i = 0; i < n; i++) { const a = a0 + i / n * 6.283; x.beginPath(); x.moveTo(0, 0); x.lineTo(Math.cos(a) * L * 0.85, Math.sin(a) * L * 0.85); x.stroke(); }
     x.fillStyle = '#6b5a3a'; x.beginPath(); x.arc(0, 0, 2.2, 0, 7); x.fill();
+  } else if (t === ARB_PINO) {
+    // pino: estrellas de agujas oscuras, unas encima de otras, con la punta de cada rama mas clara
+    const R = (3.3 + rnd() * 1.2) * M, ramas = [];
+    for (let i = 0; i < 9; i++) { const a = i / 9 * 6.283 + rnd() * 0.4, d = R * (0.25 + rnd() * 0.4); ramas.push([Math.cos(a) * d, Math.sin(a) * d, R * (0.45 + rnd() * 0.2)]); }
+    ramas.push([0, 0, R * 0.6]);
+    const estrella = (cx, cy, r, col, w) => { x.strokeStyle = col; x.lineWidth = w; x.beginPath();
+      for (let k = 0; k < 16; k++) { const a = k / 16 * 6.283 + rnd() * 0.3, l = r * (0.6 + rnd() * 0.4); x.moveTo(cx, cy); x.lineTo(cx + Math.cos(a) * l, cy + Math.sin(a) * l); } x.stroke(); };
+    if (!parte) { x.fillStyle = 'rgba(0,0,0,0.28)'; x.beginPath(); for (const [a, b, r] of ramas) { x.moveTo(a + R * 0.35 + r * 0.8, b + R * 0.4); x.arc(a + R * 0.35, b + R * 0.4, r * 0.8, 0, 7); } x.fill(); return ARB_SPR[key] = c; }
+    x.lineCap = 'round';
+    x.fillStyle = '#1b3324'; x.beginPath(); for (const [a, b, r] of ramas) { x.moveTo(a + r * 0.7, b); x.arc(a, b, r * 0.7, 0, 7); } x.fill();
+    for (const [a, b, r] of ramas) estrella(a, b, r, '#24452f', 1.1);
+    for (const [a, b, r] of ramas) estrella(a - r * 0.15, b - r * 0.15, r * 0.8, '#3d6a45', 0.8);
+    for (const [a, b, r] of ramas) estrella(a - r * 0.25, b - r * 0.25, r * 0.45, '#6e9a5e', 0.6);
+  } else if (t === ARB_EUCA) {
+    // eucalipto: alto y ralo, hojas verde grisaceo en manchones separados y ramas blancas que se asoman
+    const R = (3.4 + rnd() * 1.6) * M, n = 7 + ((rnd() * 3) | 0), lob = [];
+    for (let i = 0; i < n; i++) { const a = i / n * 6.283 + rnd() * 0.6, d = R * (0.3 + rnd() * 0.45); lob.push([Math.cos(a) * d, Math.sin(a) * d, R * (0.22 + rnd() * 0.16), a]); }
+    lob.push([0, 0, R * 0.3, 0]);
+    const bolas = (dx, dy, col) => { x.fillStyle = col; x.beginPath(); for (const [a, b, r] of lob) { x.moveTo(a + dx + r, b + dy); x.arc(a + dx, b + dy, r, 0, 7); } x.fill(); };
+    if (!parte) { bolas(R * 0.5, R * 0.55, 'rgba(0,0,0,0.22)'); return ARB_SPR[key] = c; }
+    x.lineCap = 'round'; x.strokeStyle = '#d8d0bf'; x.lineWidth = 1.3;
+    x.beginPath(); for (const [a, b] of lob) { x.moveTo(0, 0); x.lineTo(a * 0.85, b * 0.85); } x.stroke();
+    bolas(0, 0, '#56705a');
+    for (const [a, b, r] of lob) { x.fillStyle = '#7f9a80'; x.beginPath(); x.arc(a - r * 0.2, b - r * 0.2, r * 0.7, 0, 7); x.fill(); }
+    x.fillStyle = '#b3c4a8';
+    for (let i = 0; i < 30; i++) { const [a, b, r] = lob[(rnd() * lob.length) | 0], q = rnd() * 6.283, d = rnd() * r; x.beginPath(); x.ellipse(a + Math.cos(q) * d - 1, b + Math.sin(q) * d - 1, 1.3, 0.5, rnd() * 3, 0, 7); x.fill(); }
   } else {
     // copa de varias bolitas: base oscura, luz arriba a la izquierda y unas hojitas
     const COLS = { [ARB_LAURO]: ['#2f5a2a', '#4a7a36', '#6d9a4a'], [ARB_JACA]: ['#4f437a', '#7f66b5', '#b39be0'], [ARB_PIRUL]: ['#4f5f2c', '#728640', '#9aa860'] }[t];
@@ -1192,9 +1313,9 @@ function arbolSprite(t, v, parte) {
 }
 // todos los arboles (sin sombra) en una sola textura, para que Phaser los dibuje de un jalon; cuadro t*ARB_VAR+v
 function arbolesAtlas() {
-  const S = ARB_SZ * RES, c = document.createElement('canvas'); c.width = S * ARB_VAR; c.height = S * 4;
+  const S = ARB_SZ * RES, c = document.createElement('canvas'); c.width = S * ARB_VAR; c.height = S * ARB_TIPOS;
   const x = c.getContext('2d');
-  for (let t = 0; t < 4; t++) for (let v = 0; v < ARB_VAR; v++) x.drawImage(arbolSprite(t, v, 1), v * S, t * S);
+  for (let t = 0; t < ARB_TIPOS; t++) for (let v = 0; v < ARB_VAR; v++) x.drawImage(arbolSprite(t, v, 1), v * S, t * S);
   return c;
 }
 const bacheGrid = gridIndex(baches, TCELL, 'bb');
@@ -1973,6 +2094,7 @@ function* chunkSteps(cx, cy) {
   for (const [a] of lagos) { ctx.fillStyle = areaFill(ctx, a.k); trace(ctx, a.p, true); ctx.fill(); }
   for (const [a, i, c] of lagos) if (c) pintarLago(ctx, a, i, c, X0, Y0, X1, Y1);
   for (const a of canales) pintarCanal(ctx, a);
+  if (pintarJardines(ctx, chunkBlds.get(k) || [], ar)) yield; // los jardines de una colonia cuestan unos milisegundos
   for (const e of chunkEst.get(k) || []) pintarEstacionamiento(ctx, e);
   const sl = chunkSuelo.get(k) || [];
   for (const e of sl) pintarSuelo(ctx, e);
@@ -5718,7 +5840,7 @@ class Main extends Phaser.Scene {
     if (!this.copas) {
       this.copas = new Map();
       const tx = this.textures.addCanvas('arboles', arbolesAtlas()), S = ARB_SZ * RES;
-      for (let t = 0; t < 4; t++) for (let v = 0; v < ARB_VAR; v++) tx.add(t * ARB_VAR + v, 0, v * S, t * S, S, S);
+      for (let t = 0; t < ARB_TIPOS; t++) for (let v = 0; v < ARB_VAR; v++) tx.add(t * ARB_VAR + v, 0, v * S, t * S, S, S);
     }
     const L = [];
     for (const i of chunkArboles.get(GK(cx, cy)) || []) {
