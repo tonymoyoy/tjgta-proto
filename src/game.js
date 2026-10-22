@@ -377,7 +377,7 @@ function arbolPatio(ctx, x, y, rnd) {
 }
 // jardincitos alrededor de las casas: manchones de pasto y plantas pegados a la casa, por fuera (lo que caiga en la
 // calle o la banqueta lo tapan despues; lo que caiga bajo la casa, la casa). No en zonas de comercio o industria
-function pintarJardines(ctx, bl, ar) {
+function* pintarJardines(ctx, bl, ar) {
   const zonas = ar.filter(a => a.k === 4 || a.k === 5); let hay = 0;
   for (const b of bl) {
     if (!b.casa && !(b.h < 12 && hash(b.id * 7 + 1) % 4 === 0)) continue;
@@ -390,9 +390,9 @@ function pintarJardines(ctx, bl, ar) {
     for (let i = 0; i < n; i++) { const [x, y] = orilla(1 + rnd() * 8); manchonPasto(ctx, x, y, 6 + rnd() * 9, rnd); }
     const m = (rnd() * 4) | 0;
     for (let i = 0; i < m; i++) { const [x, y] = orilla(1.5 + rnd() * 3); planta(ctx, x, y, PLANTAS[(rnd() * PLANTAS.length) | 0], rnd); }
-    hay++;
+    if (++hay % 12 === 0) yield; // de doce en doce casas: una colonia llena de casas costaba un paso muy largo
   }
-  return hay;
+  if (hay % 12) yield;
 }
 function pintarSuelo(ctx, e) {
   const { P, lu, lv } = e, r = mulberry(e.id * 2654435761);
@@ -1721,8 +1721,8 @@ function* drawBuildings(ctx, bl, rs, cx, cy) {
         }
       }
       w.globalCompositeOperation = 'source-over';
+      yield; // una capa por paso: con los edificios altos cada una cuesta varios milisegundos en el celular
     }
-    yield;
     // apilar la pared L veces: se arma un piso (PISO capas) y se duplica la pila sobre si misma (1, 2, 4 pisos...)
     // en vez de pintar capa por capa; las que sobran se pintan una por una
     const st = bStack.getContext('2d');
@@ -1730,11 +1730,12 @@ function* drawBuildings(ctx, bl, rs, cx, cy) {
     const lx = (k) => Math.round(k * LEAN);
     const top = L - 2, base = Math.min(top, PISO);
     st.clearRect(0, Math.max(0, ry0 - L - 1), BW, rh + L + 2); cp(st, bWall2, 0, 0);
-    for (let k = 1; k < base; k++) cp(st, wallLayer(k), lx(k), -k);
-    // al duplicar, la pila ya mide n capas: se copia el rectangulo crecido hacia arriba
+    for (let k = 1; k < base; k++) { cp(st, wallLayer(k), lx(k), -k); if (k === PISO / 2) yield; }
+    yield;
+    // al duplicar, la pila ya mide n capas: se copia el rectangulo crecido hacia arriba (un duplicado por paso)
     const cps = (dx, dy, n) => blit(st, bStack, rx0, ry0 - n, rw + lx(n), rh + n, rx0 + dx, ry0 - n + dy, rw + lx(n), rh + n);
     let n = base;
-    while (n * 2 <= top) { cps(lx(n), -n, n); n *= 2; }
+    while (n * 2 <= top) { cps(lx(n), -n, n); n *= 2; yield; }
     if (n < top) cps(lx(top - n), n - top, n); // lo que falta: la misma pila corrida (top - n es multiplo de PISO)
     cp(st, bWall, lx(top), -top); cp(st, bWall2, lx(top + 1), -top - 1); // cornisa clara arriba
     yield;
@@ -1743,6 +1744,7 @@ function* drawBuildings(ctx, bl, rs, cx, cy) {
     blit(ctx, bStack, rx0, sy0, sw, ry1 - sy0, rx0 - LEAN_PAD, sy0, sw, ry1 - sy0);
     blit(ctx, bRoof, rx0, ry0, rw, rh, rx0 + lx(L) - LEAN_PAD, ry0 - L, rw, rh);
     ctx.restore();
+    yield;
     // tinacos negros (de rigor) y calentadores solares: ya sobre el techo elevado. Si fueran en la capa del techo
     // se apilarian con las paredes y saldrian como columnas negras al frente de la casa. Donde el techo quedo
     // borrado por una calle o banqueta (ver arriba) tampoco van
@@ -1758,6 +1760,7 @@ function* drawBuildings(ctx, bl, rs, cx, cy) {
       const cs = calentador(b); if (cs && !onRoad(cs[0], cs[1]) && !onRoad(cs[0] + CAL_W, cs[1] + CAL_H) && !onRoad(cs[0], cs[1] + CAL_H) && !onRoad(cs[0] + CAL_W, cs[1])) pintarCalentador(ctx, cs[0], cs[1]);
     }
     ctx.restore();
+    yield;
   }
 }
 // ¿lo tapa un edificio? Las paredes y el techo se elevan hacia el norte (capa k: k px arriba y k*LEAN a la derecha),
@@ -2092,6 +2095,8 @@ function* chunkSteps(cx, cy) {
   // los halos del pasto antes que todas las areas: solo se ven sobre la tierra pelona
   for (const a of ar) if (pasto(a)) haloPasto(ctx, a);
   for (const a of ar) if (a.k !== AREA_AGUA) { ctx.fillStyle = areaFill(ctx, a.k); trace(ctx, a.p, true); ctx.fill(); }
+  // (pasos cortos: en el celular un paso de mas de unos 8 ms ya hace que se brinque un cuadro)
+  if (ar.length) yield;
   let hay = false;
   ar.forEach((a, n) => { if (pasto(a)) { orillaPasto(ctx, a, ia[n], X0, Y0, X1, Y1); hay = true; } });
   if (hay) yield; // las orillas del pasto cuestan un par de milisegundos en el celular: lo demas en otro cuadro
@@ -2102,7 +2107,8 @@ function* chunkSteps(cx, cy) {
   for (const [a] of lagos) { ctx.fillStyle = areaFill(ctx, a.k); trace(ctx, a.p, true); ctx.fill(); }
   for (const [a, i, c] of lagos) if (c) pintarLago(ctx, a, i, c, X0, Y0, X1, Y1);
   for (const a of canales) pintarCanal(ctx, a);
-  if (pintarJardines(ctx, chunkBlds.get(k) || [], ar)) yield; // los jardines de una colonia cuestan unos milisegundos
+  if (lagos.length || canales.length) yield;
+  yield* pintarJardines(ctx, chunkBlds.get(k) || [], ar); // los jardines de una colonia cuestan unos milisegundos
   for (const e of chunkEst.get(k) || []) pintarEstacionamiento(ctx, e);
   const sl = chunkSuelo.get(k) || [];
   for (const e of sl) pintarSuelo(ctx, e);
@@ -2165,6 +2171,7 @@ function* chunkSteps(cx, cy) {
 
   yield;
   yield* drawBuildings(ctx, bl, rs, cx, cy);
+  // las sombras de los arboles (con mas arboles en las colonias, revisar cuales van cuesta)
   for (const i of chunkArboles.get(k) || []) { if (!arbolVa(i)) continue; ctx.drawImage(arbolSprite(arboles.T[i], arboles.V[i], 0), arboles.X[i] - ARB_SZ / 2, arboles.Y[i] - ARB_SZ / 2, ARB_SZ, ARB_SZ); }
   // lado de Estados Unidos
   const x0 = cx * CHUNK, x1 = x0 + CHUNK;
