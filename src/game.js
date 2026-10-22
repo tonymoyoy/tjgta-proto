@@ -2706,15 +2706,15 @@ const FRASES = {
   // celular hay que recortar, y unos edificios no salen como son. Ni modo
   mapa: [
     '¿Ese edificio? En la vida real es otro. Pero aquí es el que hay, ni modo.',
-    'Mi casa en la realidad es de dos pisos y verde. Aquí me tocó gris y de uno. Ni modo.',
+    'En la vida real para llegar a mi casa hay que subir un cerro. Aquí todo es planito. Ni modo.',
     'Si buscas tu casa y no está, no te sientas mal: la mía tampoco.',
     'Dicen que están mejorando el mapa. Yo llevo años esperando que me pongan banqueta.',
     'Esa calle en la vida real sí tiene salida. Aquí, nomás si tienes fe.',
-    'Para que el juego corra en tu celular le quitaron detalles a la ciudad. Como a mi peinado.',
+    'Tijuana es puro cerro y bajada, pero aquí el mapa quedó más plano que una tortilla.',
     'Hay edificios que en la realidad son más altos. Aquí les recortaron pisos para que no se trabe el juego.',
     'Si ves algo raro en el mapa no es error, es arte moderno. Bueno, sí es error.',
     'Optimizar es quitarle cosas a la ciudad hasta que quepa en tu bolsillo.',
-    'En la vida real esa esquina tiene su puesto de tacos. Aquí tiene un poste. Qué tristeza.',
+    'Allá afuera mi carro no sube mi calle de tan empinada. Aquí ni se despeina.',
     'El programador dice que el mapa es "casi" Tijuana. Ese "casi" pesa.',
     'Mi colonia aquí es más plana que en la realidad. Por fin no hay que subir cerros. ¡Qué descanso!',
     'Si un edificio aparece donde no va, hazte el que no lo viste. Yo así le hago.',
