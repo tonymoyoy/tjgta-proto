@@ -10054,27 +10054,65 @@ function showPerkButtons() { renderOptions(); }
 
 // ---------- menu de opciones: tu avance, ajustes y controles ----------
 let optsOpen = false;
-function renderOptions() {
-  const p = perks(), n = (a, k) => a.filter(o => o[k]).length;
-  const rows = [
-    ['★ Lugares', n(landmarks, 'found'), landmarks.length, 'Tijuana de noche'],
-    ['🌮 Tacos', n(tacos, 'eaten'), tacos.length, 'las taquerías te reparan el carro y una troca de tacos'],
-    ['☕ Cafés', n(cafes, 'drunk'), cafes.length, 'correr sin cansarte'],
+// Mi avance (en el telefono): el total, tus numeros y cada coleccion con su barra y su premio; al tocarla se abre lo
+// que llevas por zona (de los secretos y los paros, solo los que ya hiciste: los demas son "???")
+function renderAvance(p) {
+  const n = (a, k) => a.filter(o => o[k]).length, paros = (state.paros || []).length;
+  const cols = [
+    { ico: '★', name: 'Lugares', a: landmarks, k: 'found', premio: 'Tijuana de noche', ok: p.noche, zonas: true, nombres: true },
+    { ico: '🌮', name: 'Tacos', a: tacos, k: 'eaten', premio: 'las taquerías te reparan el carro y una troca de tacos', ok: p.taco, zonas: true },
+    { ico: '☕', name: 'Cafés', a: cafes, k: 'drunk', premio: 'correr sin cansarte', ok: p.cafe, zonas: true },
+    { ico: '🥚', name: 'Secretos', a: EGGS, k: 'got', premio: '', secretos: true },
+    { ico: '🤝', name: 'Paros', v: paros, tot: PAROS.length, premio: '' },
   ];
-  if (EGGS.some(e => e.got)) rows.push(['🥚 Secretos', n(EGGS, 'got'), EGGS.length, '']);
-  $('optprog').innerHTML = '';
-  for (const [name, v, tot, prize] of rows) {
-    const d = document.createElement('div'); d.className = 'prog' + (v >= tot ? ' done' : '');
-    d.innerHTML = '<div></div><div class="bar"><i></i></div><small></small>';
-    d.firstChild.textContent = name + '  ' + v + '/' + tot; d.querySelector('i').style.width = (v / tot * 100) + '%';
-    d.lastChild.textContent = prize ? (v >= tot ? '✓ ' : 'Premio: ') + prize : '';
-    $('optprog').appendChild(d);
+  let tv = 0, tt = 0;
+  for (const c of cols) { c.v = c.v ?? n(c.a, c.k); c.tot = c.tot ?? c.a.length; tv += c.v; tt += c.tot; }
+  const pct = Math.floor(tv / tt * 100), box = $('optprog'); box.innerHTML = '';
+  const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+  // el total con su anillo
+  const top = el('div', 'av-top'), ring = el('div', 'av-anillo');
+  ring.style.setProperty('--p', pct); ring.appendChild(el('b', null, pct + '%')); ring.appendChild(el('small', null, 'de Tijuana'));
+  const meta = el('div', 'av-meta');
+  meta.appendChild(el('b', null, p.final ? '🏆 ¡Completaste todo!' : 'Tu meta'));
+  meta.appendChild(el('span', null, p.final ? 'Ya eres tijuanense de corazón. Tu Acta te espera.' : 'Conoce todos los lugares y prueba todos los tacos y cafés: burro cebra dorado, fiesta y Acta.'));
+  top.appendChild(ring); top.appendChild(meta); box.appendChild(top);
+  // tus numeros
+  const grid = el('div', 'av-grid');
+  for (const [i, v, t] of [['💵', '$' + state.money.toLocaleString('es-MX'), 'en la cartera'], ['📦', state.deliveries, 'entregas'], ['🚕', state.rides, 'viajes de taxi'],
+    ['🔧', state.vendidos || 0, 'carros vendidos'], ['🤝', paros, 'paros hechos'], ['🥚', n(EGGS, 'got'), 'secretos']]) {
+    const d = el('div', 'av-num'); d.appendChild(el('i', null, i)); d.appendChild(el('b', null, String(v))); d.appendChild(el('small', null, t)); grid.appendChild(d);
   }
-  const extra = document.createElement('div'); extra.className = 'prog';
-  extra.innerHTML = '<small></small>';
-  extra.firstChild.textContent = '$' + state.money.toLocaleString('es-MX') + ' · ' + state.deliveries + ' entregas · ' + state.rides + ' viajes de taxi · ' +
-    (p.final ? '🏆 ¡Completaste todo!' : 'Completa todo: burro cebra dorado, fiesta y Acta');
-  $('optprog').appendChild(extra);
+  box.appendChild(grid);
+  // las colecciones
+  box.appendChild(el('h4', null, 'Colecciones'));
+  for (const c of cols) {
+    const det = el('details', 'av-col' + (c.v >= c.tot ? ' done' : '')), sum = el('summary');
+    sum.innerHTML = '<span class="ico"></span><span class="txt"><b></b><span class="bar"><i></i></span><small></small></span><span class="cnt"></span>';
+    sum.querySelector('.ico').textContent = c.ico; sum.querySelector('b').textContent = c.name;
+    sum.querySelector('i').style.width = (c.v / c.tot * 100) + '%'; sum.querySelector('.cnt').textContent = c.v + '/' + c.tot;
+    sum.querySelector('small').textContent = c.premio ? (c.ok ? '✓ Premio: ' : 'Premio: ') + c.premio : c.secretos ? 'Búscalos en los "?" del mapa' : 'Favores para la gente de las colonias';
+    det.appendChild(sum);
+    const body = el('div', 'av-det');
+    if (c.zonas) {
+      // por zona: cuantos llevas y, de los lugares, cuales
+      const z = new Map();
+      for (const o of c.a) { const k = zonaDe(o.x, o.y); if (!z.has(k)) z.set(k, []); z.get(k).push(o); }
+      for (const [zona, l] of [...z.entries()].sort((a, b) => a[0].localeCompare(b[0], 'es'))) {
+        const v = l.filter(o => o[c.k]).length, row = el('div', 'av-zona' + (v === l.length ? ' done' : ''));
+        row.appendChild(el('span', null, zona)); row.appendChild(el('b', null, v + '/' + l.length)); body.appendChild(row);
+        if (c.nombres) { const ul = el('div', 'av-nombres'); for (const o of l) ul.appendChild(el('span', o[c.k] ? 'si' : 'no', (o[c.k] ? '✓ ' : '') + o.name)); body.appendChild(ul); }
+      }
+    } else if (c.secretos) {
+      const ul = el('div', 'av-nombres'); for (const e of EGGS) ul.appendChild(el('span', e.got ? 'si' : 'no', e.got ? e.name : '???')); body.appendChild(ul);
+    } else {
+      const ul = el('div', 'av-nombres'); for (const q of PAROS) { const h = (state.paros || []).includes(q.k); ul.appendChild(el('span', h ? 'si' : 'no', h ? q.ico + ' ' + q.quien : '???')); } body.appendChild(ul);
+    }
+    det.appendChild(body); box.appendChild(det);
+  }
+}
+function renderOptions() {
+  const p = perks();
+  renderAvance(p);
   const muted = window.SND && SND.muted, key = (k) => document.body.classList.contains('touch') ? '' : '  (' + k + ')'; // teclas solo en PC
   $('optsnd').textContent = (muted ? '🔇 Sonido: apagado' : '🔊 Sonido: encendido') + key('N');
   $('optnight').disabled = !p.noche;

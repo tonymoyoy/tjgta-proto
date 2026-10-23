@@ -170,6 +170,41 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); c
 .cel-item .txt small { display: block; color: var(--muted); font-size: 11px; margin-top: 1px; }
 .cel-item .precio { color: var(--good); font-weight: bold; white-space: nowrap; }
 #comidaestado:not(:empty) { margin-bottom: 10px; padding: 10px 12px; border-radius: 11px; background: rgba(255,138,80,.15); border: 1px solid rgba(255,138,80,.5); }
+/* Mi avance: el total en un anillo, tus numeros en cuadritos y las colecciones que se abren por zona */
+.av-top { display: flex; align-items: center; gap: 14px; padding: 12px; border-radius: 14px; background: rgba(0,0,0,.3); margin-bottom: 10px; }
+.av-anillo { --p: 0; flex: none; width: 86px; height: 86px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: radial-gradient(closest-side, #1d1428 78%, transparent 80% 100%), conic-gradient(var(--accent) calc(var(--p) * 1%), rgba(255,255,255,.12) 0); }
+.av-anillo b { font-size: 22px; color: var(--accent); line-height: 1; }
+.av-anillo small { font-size: 9px; color: var(--muted); margin-top: 2px; }
+.av-meta b { display: block; font-size: 14px; margin-bottom: 3px; }
+.av-meta span { font-size: 11.5px; color: var(--muted); line-height: 1.35; }
+.av-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 4px; }
+.av-num { padding: 8px 4px; border-radius: 11px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.08); text-align: center; }
+.av-num i { font-style: normal; font-size: 16px; display: block; }
+.av-num b { display: block; font-size: 15px; margin-top: 2px; }
+.av-num small { font-size: 10px; color: var(--muted); }
+.av-col { margin-bottom: 7px; border-radius: 11px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); overflow: hidden; }
+.av-col summary { display: flex; align-items: center; gap: 9px; padding: 9px 10px; cursor: pointer; list-style: none; }
+.av-col summary::-webkit-details-marker { display: none; }
+.av-col summary .ico { font-size: 20px; width: 24px; text-align: center; }
+.av-col summary .txt { flex: 1; min-width: 0; }
+.av-col summary .txt b { font-size: 13px; }
+.av-col summary .bar { display: block; height: 6px; border-radius: 3px; background: rgba(255,255,255,.1); overflow: hidden; margin: 4px 0 3px; }
+.av-col summary .bar i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+.av-col.done summary .bar i { background: var(--good); }
+.av-col summary small { display: block; font-size: 10.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.av-col.done summary small { color: var(--good); }
+.av-col summary .cnt { font-weight: bold; font-size: 13px; }
+.av-col summary .cnt::after { content: ' ›'; color: var(--muted); display: inline-block; transition: transform .15s; }
+.av-col[open] summary .cnt::after { transform: rotate(90deg); }
+.av-det { padding: 2px 10px 10px; max-height: 260px; overflow-y: auto; }
+.av-zona { display: flex; justify-content: space-between; font-size: 12px; padding: 5px 2px 3px; border-bottom: 1px solid rgba(255,255,255,.06); }
+.av-zona b { color: var(--accent); }
+.av-zona.done b { color: var(--good); }
+.av-nombres { display: flex; flex-wrap: wrap; gap: 4px; padding: 5px 0 4px; }
+.av-nombres span { font-size: 10.5px; padding: 2px 7px; border-radius: 9px; background: rgba(255,255,255,.07); }
+.av-nombres span.si { background: rgba(87,209,107,.18); color: #bff5c8; }
+.av-nombres span.no { color: var(--muted); }
 .cel-creditos { text-align: center; padding: 30px 10px; }
 .cel-creditos b { display: block; font-size: 30px; color: var(--accent); font-style: italic; letter-spacing: 3px; text-shadow: 2px 2px 0 #b3261e, 4px 4px 0 #000; }
 .cel-creditos span { display: block; letter-spacing: 4px; font-size: 11px; color: var(--muted); }
