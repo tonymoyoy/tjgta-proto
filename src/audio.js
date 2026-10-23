@@ -7,6 +7,9 @@ let muted = false;
 try { muted = localStorage.getItem('tjgta-mute') === '1'; } catch (e) { /* sin almacenamiento */ }
 
 const VOL = { master: 0.8, music: 0.16, amb: 0.22, sfx: 0.5 };
+// lo que el jugador le sube o le baja a cada uno (0 a 1; se guarda): musica, ambiente y efectos
+const NIVEL = { music: 1, amb: 1, sfx: 1 };
+try { Object.assign(NIVEL, JSON.parse(localStorage.getItem('tjrush-vol') || '{}')); } catch (e) { /* sin almacenamiento */ }
 
 function init() {
   if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
@@ -15,9 +18,9 @@ function init() {
   ctx = new AC();
   master = ctx.createGain(); master.gain.value = muted ? 0 : VOL.master; master.connect(ctx.destination);
   const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -18; comp.ratio.value = 4; comp.connect(master);
-  musicBus = ctx.createGain(); musicBus.gain.value = VOL.music; musicBus.connect(comp);
-  ambBus = ctx.createGain(); ambBus.gain.value = VOL.amb; ambBus.connect(comp);
-  sfxBus = ctx.createGain(); sfxBus.gain.value = VOL.sfx; sfxBus.connect(comp);
+  musicBus = ctx.createGain(); musicBus.gain.value = VOL.music * NIVEL.music; musicBus.connect(comp);
+  ambBus = ctx.createGain(); ambBus.gain.value = VOL.amb * NIVEL.amb; ambBus.connect(comp);
+  sfxBus = ctx.createGain(); sfxBus.gain.value = VOL.sfx * NIVEL.sfx; sfxBus.connect(comp);
   // ruido para tambores, trafico y choques
   noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
   const d = noiseBuf.getChannelData(0);
@@ -276,6 +279,15 @@ window.SND = {
     traffic.gain.setTargetAtTime(0.18 + Math.min(cars / 8, 1) * 0.35, t, 0.5);
   },
   get muted() { return muted; },
+  // el volumen de musica, ambiente o efectos (0 a 1)
+  nivel(k, v) {
+    if (v == null) return NIVEL[k];
+    NIVEL[k] = Math.max(0, Math.min(1, v));
+    try { localStorage.setItem('tjrush-vol', JSON.stringify(NIVEL)); } catch (e) { /* sin almacenamiento */ }
+    const bus = { music: musicBus, amb: ambBus, sfx: sfxBus }[k];
+    if (ctx && bus) bus.gain.setTargetAtTime(VOL[k] * NIVEL[k], ctx.currentTime, 0.05);
+    return NIVEL[k];
+  },
   // la app se va a segundo plano (o vuelve): se calla todo y se reanuda si el sonido estaba prendido
   suspend() { if (ctx) ctx.suspend(); },
   resume() { if (ctx && !muted) ctx.resume(); },

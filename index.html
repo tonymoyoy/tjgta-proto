@@ -52,20 +52,30 @@
       <div class="cel-saldo">Tu cartera: <b id="celsaldo">$0</b></div>
     </div>
     <div class="cel-pag" id="pag-ajustes"><div class="cel-bar"><button class="cel-atras">‹</button><b>Ajustes</b></div><div class="cel-cont">
-      <button class="optrow" id="optsnd"></button>
-      <div class="optrow seg" id="optcal"><span>🎨 Gráficos</span>
-        <button data-q="alta">Alta</button><button data-q="media">Media</button><button data-q="baja">Baja</button></div>
-      <div class="optrow seg" id="optori"><span>📱 Pantalla</span>
-        <button data-o="auto">Gira</button><button data-o="horizontal">Horiz.</button><button data-o="vertical">Vert.</button></div>
-      <button class="optrow" id="optfps"></button>
-      <button class="optrow" id="optnight"></button>
-      <button class="optrow" id="optexit" style="display:none">🚪 Guardar y salir</button>
-      <h4>Tu partida</h4>
-      <button class="optrow" id="optexport">💾 Exportar partida (respaldo)</button>
-      <button class="optrow" id="optimport">📂 Importar partida</button>
-      <input type="file" id="optimpfile" accept="application/json,.json" style="display:none">
-      <div id="optmsg"></div>
-      <div id="optver"></div>
+      <div class="aj-grupo"><h5>Sonido</h5>
+        <button class="aj-fila" id="optsnd"><i style="--a:#ff5252;--b:#b71c1c">🔊</i><span>Sonido<small></small></span><em class="sw"></em></button>
+        <div class="aj-fila aj-vol"><i style="--a:#ab47bc;--b:#6a1b9a">🎵</i><span>Música</span><input type="range" min="0" max="100" data-vol="music"></div>
+        <div class="aj-fila aj-vol"><i style="--a:#26a69a;--b:#00695c">🏙️</i><span>Ciudad</span><input type="range" min="0" max="100" data-vol="amb"></div>
+        <div class="aj-fila aj-vol"><i style="--a:#ffa726;--b:#e65100">💥</i><span>Efectos</span><input type="range" min="0" max="100" data-vol="sfx"></div>
+      </div>
+      <div class="aj-grupo"><h5>Pantalla</h5>
+        <div class="aj-fila aj-col" id="optcal"><i style="--a:#42a5f5;--b:#1565c0">🎨</i><span>Gráficos<small>Al cambiarla se reinicia el juego</small></span>
+          <div class="aj-seg"><button data-q="alta">Alta</button><button data-q="media">Media</button><button data-q="baja">Baja</button></div></div>
+        <div class="aj-fila aj-col" id="optori"><i style="--a:#78909c;--b:#37474f">📱</i><span>Orientación</span>
+          <div class="aj-seg"><button data-o="auto">Gira</button><button data-o="horizontal">Horizontal</button><button data-o="vertical">Vertical</button></div></div>
+        <button class="aj-fila" id="optfps"><i style="--a:#66bb6a;--b:#2e7d32">📈</i><span>Cuadros por segundo<small>Para ver si va fluido</small></span><em class="sw"></em></button>
+      </div>
+      <div class="aj-grupo"><h5>Juego</h5>
+        <button class="aj-fila" id="optnight"><i style="--a:#5c6bc0;--b:#1a237e">🌙</i><span>Tijuana de noche<small></small></span><em class="sw"></em></button>
+      </div>
+      <div class="aj-grupo"><h5>Tu partida</h5>
+        <button class="aj-fila" id="optexport"><i style="--a:#ffca28;--b:#f57f17">💾</i><span>Exportar partida<small>Guárdala en un archivo de respaldo</small></span><em class="chev">›</em></button>
+        <button class="aj-fila" id="optimport"><i style="--a:#8d6e63;--b:#4e342e">📂</i><span>Importar partida<small>Recupérala de un respaldo</small></span><em class="chev">›</em></button>
+        <input type="file" id="optimpfile" accept="application/json,.json" style="display:none">
+        <div id="optmsg"></div>
+      </div>
+      <button class="aj-fila aj-salir" id="optexit" style="display:none"><i style="--a:#ef5350;--b:#c62828">🚪</i><span>Guardar y salir</span></button>
+      <div class="aj-acerca"><b>TJ RUSH</b><span id="optver"></span></div>
     </div></div>
     <div class="cel-pag" id="pag-progreso"><div class="cel-bar"><button class="cel-atras">‹</button><b>Mi avance</b></div><div class="cel-cont">
       <div id="optprog"></div>

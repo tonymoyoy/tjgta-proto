@@ -10114,12 +10114,15 @@ function renderOptions() {
   const p = perks();
   renderAvance(p);
   const muted = window.SND && SND.muted, key = (k) => document.body.classList.contains('touch') ? '' : '  (' + k + ')'; // teclas solo en PC
-  $('optsnd').textContent = (muted ? '🔇 Sonido: apagado' : '🔊 Sonido: encendido') + key('N');
+  // interruptores: prendido o apagado, con su notita (y la tecla, en la PC)
+  const sw = (id, on, nota) => { const e = $(id); e.classList.toggle('on', on); e.querySelector('small').textContent = nota; };
+  sw('optsnd', !muted, (muted ? 'Apagado' : 'Prendido') + key('N'));
   $('optnight').disabled = !p.noche;
-  $('optnight').textContent = p.noche ? (state.night ? '☀️ Volver al día' : '🌙 Tijuana de noche') + key('L') : '🔒 Tijuana de noche · conoce los ' + landmarks.length + ' lugares';
+  sw('optnight', !!(p.noche && state.night), p.noche ? (state.night ? 'Prendida' : 'Apagada') + key('L') : '🔒 Conoce los ' + landmarks.length + ' lugares para ganarla');
+  for (const r of document.querySelectorAll('[data-vol]')) { r.value = Math.round((window.SND ? SND.nivel(r.dataset.vol) : 1) * 100); r.disabled = muted; }
   for (const b of document.querySelectorAll('#optcal button')) b.classList.toggle('on', b.dataset.q === CALIDAD);
   for (const b of document.querySelectorAll('#optori button')) b.classList.toggle('on', b.dataset.o === orientacion);
-  $('optfps').textContent = (verFps ? '📈 Ver cuadros por segundo: sí' : '📈 Ver cuadros por segundo: no');
+  $('optfps').classList.toggle('on', verFps);
   $('optacta').disabled = !p.final;
   $('optacta').textContent = p.final ? '📜 Ver mi Acta de Tijuanense' : '🔒 Acta de Tijuanense · completa todo';
 }
@@ -10221,6 +10224,11 @@ function renderTienda(k) {
 $('optbtn').addEventListener('click', toggleOptions);
 $('optclose').addEventListener('click', toggleOptions);
 $('optsnd').addEventListener('click', toggleSound);
+// los volumenes (al soltar suena un clic para oir como quedo)
+for (const r of document.querySelectorAll('[data-vol]')) {
+  r.addEventListener('input', () => { if (window.SND) SND.nivel(r.dataset.vol, r.value / 100); });
+  r.addEventListener('change', () => { if (window.SND && r.dataset.vol === 'sfx') SND.play('chat'); });
+}
 $('optnight').addEventListener('click', toggleNight);
 $('optacta').addEventListener('click', () => { toggleOptions(); openActa(); });
 
@@ -10301,8 +10309,8 @@ $('optimpfile').addEventListener('change', (ev) => { const f = ev.target.files[0
 // version: en la app la del paquete de Android; en la web no hay numero
 (() => {
   const A = window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.App;
-  $('optver').textContent = 'TJ Rush · versión web';
-  if (A) A.getInfo().then(i => { $('optver').textContent = 'TJ Rush ' + i.version + ' (compilación ' + i.build + ')'; }).catch(() => {});
+  $('optver').textContent = 'versión web';
+  if (A) A.getInfo().then(i => { $('optver').textContent = 'versión ' + i.version + ' · compilación ' + i.build; }).catch(() => {});
 })();
 // O o Esc abren y cierran el menu (con el juego en pausa Phaser no lee el teclado, por eso va aqui)
 window.addEventListener('keydown', (ev) => {

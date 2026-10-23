@@ -241,6 +241,35 @@ kbd.ancha { min-width: 44px; }
 .ctl-tips div { padding: 8px; border-radius: 10px; background: rgba(255,157,74,.08); border: 1px solid rgba(255,157,74,.25); font-size: 11px; color: var(--muted); line-height: 1.35; }
 .ctl-tips i { font-style: normal; display: block; font-size: 17px; margin-bottom: 2px; }
 @media (orientation: landscape) { .ctl-pantalla { width: 34%; } .ctl-tips { grid-template-columns: 1fr 1fr 1fr; } }
+/* Ajustes: como los del celular, en grupos con su icono de color, interruptores, barras de volumen y botones de opcion */
+.aj-grupo { margin-bottom: 12px; border-radius: 13px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.08); overflow: hidden; }
+.aj-grupo h5 { margin: 0; padding: 8px 12px 4px; font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+.aj-fila { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 12px; border: 0; border-top: 1px solid rgba(255,255,255,.06);
+  background: none; color: var(--text); font-size: 13px; text-align: left; cursor: pointer; }
+.aj-grupo h5 + .aj-fila { border-top: 0; }
+button.aj-fila:active { background: rgba(255,255,255,.06); }
+.aj-fila:disabled { cursor: default; }
+.aj-fila:disabled span { opacity: .6; }
+.aj-fila > i { flex: none; font-style: normal; width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 15px;
+  background: linear-gradient(160deg, var(--a), var(--b)); box-shadow: inset 0 1px 0 rgba(255,255,255,.3); }
+.aj-fila > span { flex: 1; min-width: 0; }
+.aj-fila small { display: block; font-size: 10.5px; color: var(--muted); margin-top: 1px; }
+.aj-fila .sw { flex: none; position: relative; width: 40px; height: 23px; border-radius: 12px; background: rgba(255,255,255,.2); transition: background .2s; }
+.aj-fila .sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 19px; height: 19px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.4); transition: left .2s; }
+.aj-fila.on .sw { background: var(--good); }
+.aj-fila.on .sw::after { left: 19px; }
+.aj-fila .chev { font-style: normal; color: var(--muted); font-size: 20px; }
+.aj-vol input { flex: 1.3; accent-color: var(--accent); }
+.aj-vol input:disabled { opacity: .4; }
+.aj-col { flex-wrap: wrap; cursor: default; }
+.aj-seg { flex-basis: 100%; display: flex; gap: 4px; margin: 4px 0 2px 38px; }
+.aj-seg button { flex: 1; padding: 6px 4px; border-radius: 8px; border: 1px solid rgba(255,255,255,.16); background: rgba(0,0,0,.3); color: var(--text); font-size: 12px; cursor: pointer; }
+.aj-seg button.on { background: var(--accent); color: #1a1a1a; font-weight: bold; border-color: var(--accent); }
+.aj-salir { border-radius: 13px; margin-bottom: 12px; background: rgba(239,83,80,.12); border: 1px solid rgba(239,83,80,.35); color: #ffcdd2; }
+#optmsg:not(:empty) { padding: 6px 12px 9px; }
+.aj-acerca { text-align: center; padding: 6px 0 4px; }
+.aj-acerca b { display: block; color: var(--accent); font-style: italic; letter-spacing: 3px; font-size: 15px; }
+.aj-acerca span { font-size: 10.5px; color: var(--muted); }
 .cel-creditos { text-align: center; padding: 30px 10px; }
 .cel-creditos b { display: block; font-size: 30px; color: var(--accent); font-style: italic; letter-spacing: 3px; text-shadow: 2px 2px 0 #b3261e, 4px 4px 0 #000; }
 .cel-creditos span { display: block; letter-spacing: 4px; font-size: 11px; color: var(--muted); }
@@ -272,7 +301,6 @@ button.optrow:disabled:hover { border-color: rgba(255,255,255,.14); background: 
 .optrow.seg button.on { background: var(--accent); color: #1a1a1a; font-weight: bold; border-color: var(--accent); box-shadow: 0 2px 0 #b38f12; }
 #fps { display: none; top: 50px; left: max(10px, env(safe-area-inset-left)); font: bold 12px monospace; color: #9f9; background: rgba(0,0,0,.5); padding: 2px 6px; border-radius: 4px; }
 #optmsg { color: var(--accent); font-size: 12px; min-height: 1em; }
-#optver { color: var(--muted); font-size: 11px; margin-top: 10px; }
 #opts table.keys { border-collapse: collapse; font-size: 13px; width: 100%; }
 #opts table.keys td { padding: 4px 6px; color: var(--muted); vertical-align: top; border-bottom: 1px solid rgba(255,255,255,.06); }
 #opts table.keys td:first-child { color: var(--accent); font-weight: bold; white-space: nowrap; }
