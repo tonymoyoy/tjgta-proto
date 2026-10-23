@@ -18,6 +18,8 @@ Uso: python3 tools/rellenar.py [data/centro.js]   (necesita numpy y Pillow)
 import json, math, os, random, re, sys
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from quitar_chicos import chico
 
 OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "centro.js")
 REG_DIR = os.path.join(os.path.dirname(os.path.abspath(OUT)), "reg")
@@ -73,7 +75,8 @@ for fn in os.listdir(REG_DIR):
     if fn.endswith(".js"):
         t = open(os.path.join(REG_DIR, fn), encoding="utf-8").read()
         m = re.match(r"TJ_REG\('([^']+)','(.*)'\);\s*$", t, re.S)
-        regs[m.group(1)] = [b for b in json.loads(m.group(2)) if len(b) == 2 and b[0] >= 0]  # sin lo puesto antes
+        # sin lo puesto antes ni los edificios demasiado chicos (ver quitar_chicos.py)
+        regs[m.group(1)] = [b for b in json.loads(m.group(2)) if len(b) == 2 and b[0] >= 0 and not chico(undelta(b[1]))]
 blds = [undelta(b[1]) for bs in regs.values() for b in bs]
 print("regiones", len(regs), "edificios", len(blds))
 

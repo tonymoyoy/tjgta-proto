@@ -73,6 +73,7 @@ Lo que pasa detrás de un edificio (al norte, donde se dibujan sus paredes y su 
   (aquí se eligen los lugares y taquerías). Necesita Pillow (capa del minimapa) y shapely (el mar y la línea fronteriza
   en la costa).
 - `tools/rellenar.py` (despues de prep_data.py) llena el terreno vacio, donde al mapa le faltan las casas: casitas de una o dos plantas pegadas a la calle en las colonias (con su patio), lotes baldíos y canchas de tierra adentro de las manzanas, y estacionamientos con su plaza comercial junto a las avenidas y en las zonas comerciales. Se agregan a `data/reg/` (casitas `[h, contorno, 1, fondo del patio]`, plazas `[h, contorno, 2]`, estacionamientos `[-1, contorno]`, lotes `[-2, contorno]`, canchas `[-3, contorno]`) y rehace la capa del minimapa. Siempre sale igual y se puede volver a correr. Necesita numpy y Pillow.
+- `tools/quitar_chicos.py` quita de `data/reg/` los edificios del mapa demasiado chicos para ser edificios (menos de 12 m² o menos de 1.5 m de ancho promedio: bardas, tinacos, cuartitos y pedazos sueltos pegados a las casas) y rehace la capa del minimapa; en su lugar no se pone nada. prep_data.py y rellenar.py ya los descartan con la misma regla.
 - `tools/build.py` genera (no se suben al repo, ver .gitignore) `dist/tjgta.html` (todo en un archivo) y `dist/tjgta-artifact.html`.
 
 ## Datos

@@ -9,6 +9,8 @@ Cada calle: [clase, indice_nombre, banderas(1=puente, 2=un sentido, 4=sin autos)
 Cada edificio (en su region): [altura_m, coords].
 """
 import json, math, sys, os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from quitar_chicos import chico
 
 RAW = sys.argv[1] if len(sys.argv) > 1 else "raw"
 OUT = sys.argv[2] if len(sys.argv) > 2 else os.path.join(os.path.dirname(__file__), "..", "data", "centro.js")
@@ -266,7 +268,10 @@ for f in load_iter("building"):
             continue
         if not (LON0 < lo < LON1 and LAT0 < la < LAT1):
             continue
-        blds.append([round(min(h, 120)), flat(ring[:-1])])
+        f = flat(ring[:-1])
+        if chico(f):  # bardas, tinacos y cuartitos: no son edificios (ver quitar_chicos.py)
+            continue
+        blds.append([round(min(h, 120)), f])
 
 # ---- uso de suelo y agua
 LU = {"park": 0, "grass": 0, "garden": 0, "meadow": 0, "playground": 0, "pitch": 1,
