@@ -210,8 +210,8 @@ const EGGS = [
     say: '(Un señor de bigote, con su plano enrollado y su tripié.) "Es julio de 1889 y estoy trazando un pueblito junto al río. ¿Que ya somos millones? Ah, caray. Ten, a ver si todavía te sirven estos pesos."' },
   // referencias que se quedan siempre en su lugar (fija: no se quitan al encontrarlas; r: de que tan lejos cuentan).
   // canal: va adentro del canal del rio, en la orilla mas cercana al lugar (ver lugarEnCanal)
-  { k: 'cachorros', name: 'La Patrulla de Cachorros', near: 'Plaza Río Tijuana', dx: 0, dy: 0, pay: 300, fija: true, canal: true, r: 150,
-    say: '(Seis cachorros con chalequito y casco de colores jalan una soga para sacar a un señor del canal del río.) "¡Ningún rescate es demasiado grande!", ladra el de azul. El señor nomás quería sacar su chancla. Te dejaron una propina por echar porras.' },
+  { k: 'cachorros', name: 'Rescate en el Canal', near: 'Plaza Río Tijuana', dx: 0, dy: 0, pay: 300, fija: true, canal: true, r: 150,
+    say: '(Seis perritos con chalequito y casco de colores jalan una soga para sacar a un señor del canal del río.) El señor nomás quería sacar su chancla. Te dejaron una propina por echar porras.' },
   // las mascotas de las escuelas, afuera de su campus
   { k: 'cimarrones', name: 'Los Cimarrones de la UABC', near: 'UABC Campus Tijuana', dx: 55, dy: -45, pay: 300, fija: true, r: 70,
     say: '(Unos borregos cimarrones con bufanda verde y dorada pastan afuera de la UABC.) El cimarrón vive en las sierras de Baja California y es la mascota de la universidad. Estos ya van en octavo semestre. Te dejaron una lana para las copias.' },
@@ -3127,8 +3127,8 @@ const FRASES_FIJAS = {
   cachorros: [
   '¡Jálenle, cachorros, jálenle!', '¡El de rosa, el de rosa sí está jalando!', '¡Ya casi, ya casi... ya no!',
   '¡Nomás era mi chancla, no hacía falta tanto!', '¡Gracias, perritos! ¿Aceptan croquetas o transferencia?',
-  '¡Que alguien les avise que ya me puedo parar, el agua me llega a la cintura!', '¡Ningún rescate es demasiado grande!',
-  '¡El de amarillo trae su casco de construcción, qué profesional!', '¡Yo nomás venía a ver si estaba la marea alta!',
+  '¡Que alguien les avise que ya me puedo parar, el agua me llega a la cintura!',
+  '¡Yo nomás venía a ver si estaba la marea alta!',
   ],
   cimarrones: [
     'Beee... digo, ¡arriba los Cimarrones!', 'Vengo de la biblioteca. Bueno, de comerme el pasto de afuera de la biblioteca.',
