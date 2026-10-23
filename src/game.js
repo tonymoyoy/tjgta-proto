@@ -212,6 +212,9 @@ const EGGS = [
   // canal: va adentro del canal del rio, en la orilla mas cercana al lugar (ver lugarEnCanal)
   { k: 'cachorros', name: 'Rescate en el Canal', near: 'Plaza Río Tijuana', dx: 0, dy: 0, pay: 300, fija: true, canal: true, r: 150,
     say: '(Seis perritos con chalequito y casco de colores jalan una soga para sacar a un señor del canal del río.) El señor nomás quería sacar su chancla. Te dejaron una propina por echar porras.' },
+  // libre: va justo ahi (a media ladera), no en la banqueta de la calle mas cercana
+  { k: 'senderistas', name: 'Los Senderistas Perdidos', near: 'Mirador del Cerro Colorado', dx: -45, dy: -60, pay: 300, fija: true, libre: true, r: 70,
+    say: '(Cuatro senderistas con mochila, bastones y un mapa al revés discuten en plena ladera.) Llevan tres horas perdidos a sesenta metros del mirador, con las antenas a la vista y toda la ciudad allá abajo. Te dieron una lana para que no le cuentes a nadie.' },
   // las mascotas de las escuelas, afuera de su campus
   { k: 'cimarrones', name: 'Los Cimarrones de la UABC', near: 'UABC Campus Tijuana', dx: 55, dy: -45, pay: 300, fija: true, r: 70,
     say: '(Unos borregos cimarrones con bufanda verde y dorada pastan afuera de la UABC.) El cimarrón vive en las sierras de Baja California y es la mascota de la universidad. Estos ya van en octavo semestre. Te dejaron una lana para las copias.' },
@@ -3129,6 +3132,13 @@ const FRASES_FIJAS = {
   '¡Nomás era mi chancla, no hacía falta tanto!', '¡Gracias, perritos! ¿Aceptan croquetas o transferencia?',
   '¡Que alguien les avise que ya me puedo parar, el agua me llega a la cintura!',
   '¡Yo nomás venía a ver si estaba la marea alta!',
+  ],
+  senderistas: [
+    '¿Alguien sabe para dónde queda Tijuana? ...Ah, es todo eso de abajo.', 'Según el mapa estamos en Ensenada.',
+    'Sigan las antenas... no, esas no, las otras antenas.', 'Ya le marqué a mi mamá. Dice que nos ve desde la azotea.',
+    '¡Que nadie se separe! ...¿Y el Beto?', 'Llevamos tres horas dándole vueltas a la misma piedra.',
+    'Tranquilos, todavía nos queda media barra de granola para los cuatro.', '¿Y si le preguntamos al señor de los elotes? Está aquí nomás.',
+    'Yo digo que es por la derecha. Bueno, mi otra derecha.',
   ],
   cimarrones: [
     'Beee... digo, ¡arriba los Cimarrones!', 'Vengo de la biblioteca. Bueno, de comerme el pasto de afuera de la biblioteca.',
@@ -6283,6 +6293,28 @@ function makeEggs(scene) {
     ell(oscuro, -0.9, 6.6, 0.5, 0.9, -0.5); ell(oscuro, 0.9, 6.6, 0.5, 0.9, 0.5); // orejitas para atras
     x.restore();
   };
+  // los senderistas, en bolita alrededor del mapa: gorra, mochila de color y bastones
+  draw.senderistas = () => {
+    const uno = (cx, cy, a, gorra, mochila, playera) => {
+      x.save(); x.translate(cx, cy); x.rotate(a);
+      shadow(0, 0, 3.6, 3);
+      x.strokeStyle = '#5f6368'; x.lineWidth = 0.45; x.beginPath(); x.moveTo(-3.4, 1); x.lineTo(-4.6, -2.6); x.moveTo(3.4, 1); x.lineTo(4.6, -2.6); x.stroke(); // bastones
+      x.fillStyle = mochila; x.beginPath(); x.roundRect(-2.2, -3.6, 4.4, 3.2, 1); x.fill(); // la mochila (atras)
+      x.fillStyle = 'rgba(0,0,0,0.25)'; x.fillRect(-2.2, -2.2, 4.4, 0.5);
+      shoulders(0, 0.6, playera, playera, 3.4, 2.2);
+      ball(0, 1.2, 1.6, '#e0b48c', '#b9855c'); // cabeza
+      x.fillStyle = gorra; x.beginPath(); x.arc(0, 1.1, 1.65, Math.PI * 0.95, Math.PI * 2.05); x.fill(); x.fillRect(-1.4, 1.6, 2.8, 1.1); // gorra con visera hacia el centro
+      x.restore();
+    };
+    uno(10, 10, -0.8, '#e53935', '#1e88e5', '#ffb74d'); uno(22, 10, 0.8, '#43a047', '#f4511e', '#90caf9');
+    uno(10, 22, -2.3, '#fdd835', '#6d4c41', '#ce93d8'); uno(22, 22, 2.3, '#1e88e5', '#8e24aa', '#a5d6a7');
+    // el mapa en medio, al reves (la rosa de los vientos apuntando para abajo)
+    x.save(); x.translate(16, 16); x.rotate(0.3);
+    x.fillStyle = '#f3e9cf'; x.fillRect(-3.4, -2.4, 6.8, 4.8); x.strokeStyle = '#b89c6a'; x.lineWidth = 0.25; x.strokeRect(-3.4, -2.4, 6.8, 4.8);
+    line('#5d8f4e', 0.35, [[-3, 1], [-1, -0.5], [1, 0.8], [3, -1]]); line('#4a7fb5', 0.3, [[-3, -1.8], [-0.5, -1], [3, -1.6]]);
+    x.fillStyle = '#c62828'; x.beginPath(); x.moveTo(2.2, 1.9); x.lineTo(1.8, 0.7); x.lineTo(2.6, 0.7); x.closePath(); x.fill(); x.font = 'bold 0.9px sans-serif'; x.fillText('N', 1.85, 2.3);
+    x.restore();
+  };
   draw.cimarrones = () => {
     cimarron(10, 13, 0.3, true, true); cimarron(21, 11, -0.2, false, false); cimarron(16, 23, 0.1, false, true);
     ell('#7cb342', 6, 25, 2, 1.2); ell('#689f38', 26, 24, 1.6, 1); ell('#8bc34a', 24, 4, 1.4, 0.9); // matitas de pasto
@@ -6665,7 +6697,7 @@ class Main extends Phaser.Scene {
           continue;
         }
       }
-      const [sx, sy, rot] = sidewalkSpot(e.x, e.y, (SIDEWALK + 0.5) * M);
+      const [sx, sy, rot] = e.libre && !blocked(e.x, e.y) && !onRoad(e.x, e.y) ? [e.x, e.y, 0.4] : sidewalkSpot(e.x, e.y, (SIDEWALK + 0.5) * M);
       e.x = sx; e.y = sy;
       e.icon = this.add.image(sx, sy, 'egg_' + e.k).setScale(0.4).setRotation(rot).setDepth(7).setVisible(!e.got || e.fija);
       if (e.fija) { e.persona = { x: sx, y: sy }; this.tweens.add({ targets: e.icon, rotation: rot + 0.06, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' }); }
