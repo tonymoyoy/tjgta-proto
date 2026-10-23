@@ -10305,6 +10305,53 @@ setInterval(() => {
   const g = window.TJGTA; if (!verFps || !g || optsOpen || bigOpen) return;
   $('fps').style.display = 'block'; $('fps').textContent = Math.round(g.loop.actualFps) + ' fps';
 }, 500);
+// el fondo de pantalla del telefono: "YO ♥ TIJUANA" en pixeles, con el atardecer, el sol en el horizonte y la silueta
+// del Arco y la ciudad. Se pinta una vez en chiquito y se estira sin suavizar (image-rendering: pixelated); uno
+// alargado para el telefono parado y otro casi cuadrado para cuando la pantalla va acostada
+(() => {
+  const F = { Y: ['10001', '10001', '01010', '00100', '00100', '00100', '00100'], O: ['01110', '10001', '10001', '10001', '10001', '10001', '01110'],
+    T: ['11111', '00100', '00100', '00100', '00100', '00100', '00100'], I: ['01110', '00100', '00100', '00100', '00100', '00100', '01110'],
+    J: ['00111', '00010', '00010', '00010', '00010', '10010', '01100'], U: ['10001', '10001', '10001', '10001', '10001', '10001', '01110'],
+    A: ['01110', '10001', '10001', '11111', '10001', '10001', '10001'], N: ['10001', '11001', '10101', '10011', '10001', '10001', '10001'] };
+  const CORAZON = ['0110110', '1111111', '1111111', '0111110', '0011100', '0001000'];
+  const CIELO = ['#1a0f2e', '#24123c', '#341650', '#4a1a5e', '#661e66', '#86246a', '#a62e66', '#c43d5c', '#de5650', '#ef7444', '#f7963a', '#fbb93a'];
+  // W x H, donde va el "YO ♥" (yT) y la linea del horizonte (hz)
+  const fondo = (W, H, yT, hz) => {
+    const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+    const g = cv.getContext('2d'), px = (x, y, c, w = 1, h = 1) => { g.fillStyle = c; g.fillRect(x, y, w, h); }, cx = W / 2;
+    // el cielo en franjas, con un poco de tramado entre una y otra, y unas estrellas
+    const fr = hz / CIELO.length;
+    for (let y = 0; y < hz; y++) {
+      const i = Math.min(CIELO.length - 1, Math.floor(y / fr)), f = (y % fr) / fr;
+      for (let x = 0; x < W; x++) px(x, y, f > 0.7 && (x + y) % 2 && i + 1 < CIELO.length ? CIELO[i + 1] : CIELO[i]);
+    }
+    const r = mulberry(1889);
+    for (let k = 0; k < W / 6; k++) px((r() * W) | 0, (r() * hz * 0.25) | 0, '#fff7d6');
+    // el sol a medio meter, con sus rayas
+    for (let y = hz - 16; y < hz; y++) for (let x = cx - 14; x < cx + 14; x++) { const d = Math.hypot(x - cx + 0.5, y - hz); if (d < 14 && !(y > hz - 10 && y % 3 === 0)) px(x, y, d < 9 ? '#ffe680' : '#ffc94a'); }
+    // el piso y la silueta de la ciudad, con ventanitas prendidas
+    px(0, hz, '#2a1238', W, H - hz);
+    for (let x = 0, k = 0; x < W; k++) {
+      const w = 4 + ((r() * 3) | 0), y = hz + 2 + ((r() * 9) | 0) - (Math.abs(x - cx) < 20 ? -6 : 0);
+      if (Math.abs(x + w / 2 - cx) > 17) { px(x, y, '#1c0b28', w, H - y); for (let yy = y + 2; yy < H - 2; yy += 3) for (let xx = x + 1; xx < x + w - 1; xx += 2) if (r() < 0.3) px(xx, yy, '#ffd36b'); }
+      x += w;
+    }
+    // el Arco Monumental: un arco parabolico grueso
+    for (let x = Math.round(cx - 16.5); x <= Math.round(cx + 16.5); x++) { const t = (x - cx) / 16.5, y = Math.round(hz - 3 + 26 * t * t); if (y < H) px(x, y, '#130720', 1, 3); }
+    for (let y = hz; y < H; y++) { px(Math.round(cx - 16.5), y, '#130720', 2, 1); px(Math.round(cx + 15.5), y, '#130720', 2, 1); }
+    // las letras (5 x 7, con su sombrita) y el corazon
+    const capa = (filas, x0, y0, k, c) => filas.forEach((f, j) => [...f].forEach((b, i) => { if (b === '1') px(x0 + i * k, y0 + j * k, c, k, k); }));
+    const texto = (t, x0, y0, k, c) => { for (const [dx, col] of [[1, '#2a0d24'], [0, c]]) { let x = x0; for (const ch of t) { capa(F[ch], x + dx, y0 + dx, k, col); x += 6 * k; } } };
+    const anchoYO = 2 * 6 * 2 + 14, x1 = Math.round(cx - anchoYO / 2);
+    texto('YO', x1, yT, 2, '#ffffff');
+    capa(CORAZON, x1 + 25, yT + 2, 2, '#2a0d24'); capa(CORAZON, x1 + 24, yT + 1, 2, '#e8243c'); px(x1 + 26, yT + 3, '#ff8a9a', 2, 2);
+    texto('TIJUANA', Math.round(cx - 20.5), yT + 20, 1, '#ffe680');
+    return 'url(' + cv.toDataURL() + ')';
+  };
+  const home = document.getElementById('pag-home');
+  home.style.setProperty('--fondo-v', fondo(64, 128, 54, 100));
+  home.style.setProperty('--fondo-h', fondo(100, 104, 60, 92));
+})();
 // ---------- el telefono: la pantalla de inicio con sus apps ----------
 let celPag = 'home';
 function celPagina(k) {

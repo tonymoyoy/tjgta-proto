@@ -143,6 +143,8 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); c
   background: radial-gradient(120% 70% at 50% 0%, rgba(255,122,60,.55), rgba(0,0,0,0) 60%), linear-gradient(180deg, #3a1a40 0%, #1a1030 50%, #0b0a14 100%); }
 .cel-pag { display: none; height: 100%; flex-direction: column; }
 .cel-pag.on { display: flex; }
+#pag-home { background: var(--fondo-v) center bottom / cover; image-rendering: pixelated; }
+@media (orientation: landscape) { #pag-home { background-image: var(--fondo-h); } }
 .cel-reloj { text-align: center; margin: 18px 0 10px; color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,.5); }
 .cel-reloj b { display: block; font-size: 46px; font-weight: 300; letter-spacing: 2px; }
 .cel-reloj small { font-size: 12px; opacity: .85; text-transform: capitalize; }
@@ -153,7 +155,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); c
   background: linear-gradient(160deg, var(--a), var(--b)); box-shadow: 0 4px 10px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.35); transition: transform .1s; }
 .app:active i { transform: scale(.92); }
 .app span { font-size: 11px; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
-@media (orientation: landscape) { .app i { width: 42px; height: 42px; font-size: 22px; border-radius: 11px; } .cel-apps { gap: 8px 4px; padding: 6px 10px; } }
+@media (orientation: landscape) { .app i { width: 42px; height: 42px; font-size: 22px; border-radius: 11px; } .cel-apps { gap: 8px 4px; padding: 6px 10px; grid-template-columns: repeat(8, 1fr); } }
 .cel-saldo { margin: auto 14px 12px; padding: 8px 12px; border-radius: 12px; background: rgba(0,0,0,.35); font-size: 13px; text-align: center; }
 .cel-saldo b { color: var(--good); font-size: 16px; }
 .cel-bar { display: flex; align-items: center; gap: 6px; padding: 8px 10px; background: rgba(0,0,0,.35); border-bottom: 1px solid rgba(255,255,255,.08); }
