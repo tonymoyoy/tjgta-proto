@@ -82,6 +82,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); c
 /* los gatos de las azoteas: morado de noche con ojos amarillos, y muy creidos */
 .bubble.cachorros { --bg: #e8f4ff; --bd: #1e5bd8; --fg: #0d2a5c; font-weight: 700; }
 .bubble.repartidor { --bg: #fff3e0; --bd: #d84315; --fg: #3e1a00; font-weight: 700; }
+.bubble.piloto { --bg: #f4e6c8; --bd: #e65100; --fg: #3b2310; font-weight: 700; }
 .bubble.programador { --bg: #0d1117; --bd: #3fb950; --fg: #c9f7d0; font-family: ui-monospace, 'Droid Sans Mono', monospace; font-size: 12px; font-weight: 500; }
 .bubble.banda { --bg: #fff7e0; --bd: #9c1f2e; --fg: #4a0a12; font-weight: 700; }
 .bubble.chupacabras { --bg: #2a1f35; --bd: #ff1744; --fg: #e9f5e8; font-weight: 700; }

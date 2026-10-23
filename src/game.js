@@ -225,6 +225,9 @@ const EGGS = [
   // en un terreno vacio de Natura (sin calles, casas ni agua cerca)
   { k: 'gnomos', name: 'Los Gnomos Conspiradores', at: [12382, 13312], pay: 300, fija: true, libre: true, rot: 0, quieto: true, r: 70,
     say: '(Cinco gnomos de jardín en bolita, alrededor de un tronquito con una vela y un plano marcado con una X, se quedan quietitos en cuanto te ven.) Uno te guiñó el ojo y te pasó un billete "para que no hayas visto nada".' },
+  // en un llano del Cañón del Sainz (sin calles, casas ni agua cerca): las huellas dan vueltas en circulo
+  { k: 'piloto', name: 'El Piloto Perdido', at: [8302, 11612], pay: 300, fija: true, libre: true, rot: 0, quieto: true, r: 80,
+    say: '(Un piloto de la carrera de mil millas por la península, con casco y el traje lleno de polvo, ve un mapa que no le cuadra junto a su buggy.) "¿Esto es Ensenada?" Te dio una lana para que no le digas a nadie que se perdió.' },
   // en un terreno perdido de San Antonio del Mar (sin calles, casas ni agua cerca): habla solo
   { k: 'programador', name: 'El Programador Solitario', at: [-3598, 12632], pay: 300, fija: true, libre: true, rot: 0, quieto: true, r: 70,
     say: '(Un programador despeinado, con su laptop conectada a una extensión que se pierde en el monte, le habla a un patito de hule.) "¿Tú también encontraste este lugar? Entonces sí funciona." Te pasó una lana "por probar el juego".' },
@@ -3217,6 +3220,13 @@ const FRASES_FIJAS = {
   '¡Nomás era mi chancla, no hacía falta tanto!', '¡Gracias, perritos! ¿Aceptan croquetas o transferencia?',
   '¡Que alguien les avise que ya me puedo parar, el agua me llega a la cintura!',
   '¡Yo nomás venía a ver si estaba la marea alta!',
+  ],
+  piloto: [
+    '¿Esto es Ensenada? ...¿Cómo que Tijuana?', 'Iba en primer lugar. Luego le hice caso al GPS.',
+    'Llevo mil millas... y como doscientas de más.', '¿No ha visto pasar a los demás? Iban para allá. O para acá.',
+    'El copiloto se bajó a preguntar en un puesto de tacos. Hace tres horas.', 'Si me ven en las noticias, digan que fue estrategia.',
+    'Polvo, piedras, cactus y ahora una colonia. Esta etapa está difícil.', 'Ya di tres vueltas a este llano. Ya me sé cada piedra.',
+    'Ya no corro: ahora vivo aquí. Ya hasta me saludan los vecinos.',
   ],
   programador: [
     'Nomás arreglo este bug y me voy a dormir. Eso dije hace tres días.', 'Patito, explícame otra vez por qué esto no sirve.',
@@ -6656,7 +6666,35 @@ function makeEggs(scene) {
     // un nopalito de compañia
     ell('#4f8a3a', 7, 9, 1.6, 2.4); ell('#4f8a3a', 8.6, 7, 1.1, 1.6, 0.5);
   };
-  const GRANDE = { monolito: 120, gnomos: 48, chupacabras: 44, banda: 48, programador: 44 };
+  // el buggy de carreras del desierto lleno de polvo, las huellas dando vueltas y el piloto con su mapa
+  draw.piloto = () => {
+    // las huellas: vueltas y vueltas en el llano
+    x.strokeStyle = 'rgba(90,70,45,0.35)'; x.lineWidth = 0.6; x.setLineDash([0.8, 0.6]);
+    for (const [r, o] of [[17, 0], [14, 1.3], [19.5, 2.6]]) for (const d of [-1.2, 1.2]) { x.beginPath(); x.ellipse(24, 24, r + d, (r + d) * 0.75, o, 0, 7); x.stroke(); }
+    x.setLineDash([]);
+    ell('rgba(205,180,140,0.35)', 17, 28, 11, 7); // la polvareda
+    // el buggy: chasis, jaula, llantotas, refaccion atras y barra de luces
+    x.save(); x.translate(18, 25); x.rotate(-0.35);
+    shadow(0, 0, 6.5, 11);
+    for (const [wx, wy] of [[-5.2, -6.6], [5.2, -6.6], [-5.2, 6.4], [5.2, 6.4]]) { x.fillStyle = '#1b1b1b'; x.beginPath(); x.roundRect(wx - 1.6, wy - 2.6, 3.2, 5.2, 1); x.fill(); x.fillStyle = '#444'; x.fillRect(wx - 1.6, wy - 0.3, 3.2, 0.6); }
+    x.fillStyle = '#e65100'; x.beginPath(); x.roundRect(-4.2, -9, 8.4, 18, 2); x.fill(); // la carroceria naranja
+    x.fillStyle = '#fafafa'; x.fillRect(-0.9, -9, 1.8, 18); // la franja
+    x.strokeStyle = '#263238'; x.lineWidth = 0.6; x.strokeRect(-3.2, -3.6, 6.4, 7.6); line('#263238', 0.6, [[-3.2, -3.6], [3.2, 4]]); // la jaula
+    x.fillStyle = '#fffde7'; x.fillRect(-3.8, -9.6, 7.6, 0.9); for (let i = 0; i < 5; i++) ell('#fff59d', -3 + i * 1.5, -9.2, 0.45, 0.35); // barra de luces
+    ell('#1b1b1b', 0, 8, 2, 1.4); ell('#555', 0, 8, 1, 0.7); // la llanta de refaccion
+    x.fillStyle = '#fff'; x.fillRect(-2.6, -0.4, 5.2, 3); x.fillStyle = '#111'; x.font = 'bold 2.4px sans-serif'; x.textAlign = 'center'; x.fillText('113', 0, 2.1); // el numero
+    x.fillStyle = 'rgba(190,160,115,0.35)'; x.fillRect(-4.2, 2, 8.4, 7); // polvo en la parte de atras
+    x.restore();
+    // el piloto parado junto, con su casco y el mapa abierto
+    shadow(35, 18, 3.6, 3);
+    shoulders(35, 18.6, '#1565c0', '#0d3c75', 3.2, 2.1); x.fillStyle = '#ffeb3b'; x.fillRect(32, 18.2, 6, 0.6); // el traje con franja
+    ball(35, 18, 1.9, '#fafafa', '#9e9e9e', 'rgba(0,0,0,0.4)'); x.fillStyle = '#d32f2f'; x.fillRect(33.2, 17.6, 3.6, 0.6); // el casco
+    x.save(); x.translate(35, 22.4); x.rotate(0.12); x.fillStyle = '#f3e9cf'; x.fillRect(-3.4, -1.6, 6.8, 3.6); x.strokeStyle = '#b89c6a'; x.lineWidth = 0.2; x.strokeRect(-3.4, -1.6, 6.8, 3.6);
+    line('#c62828', 0.3, [[-2.8, 1.2], [-1, -0.6], [1, 0.6], [2.8, -1]]); x.fillStyle = '#c62828'; x.font = 'bold 1.6px sans-serif'; x.fillText('?', 2.4, 1.6); x.restore();
+    // un sahuaro de los que ya conoce
+    ell('#558b2f', 8, 10, 1.4, 1.4); ell('#558b2f', 6.6, 9, 0.7, 1.4); ell('#558b2f', 9.4, 11, 0.7, 1.4);
+  };
+  const GRANDE = { monolito: 120, gnomos: 48, chupacabras: 44, banda: 48, programador: 44, piloto: 48 };
   for (const k in draw) {
     const n = GRANDE[k] || 32, t = scene.textures.createCanvas('egg_' + k, n * 5, n * 5);
     x = t.getContext(); x.save(); x.scale(5, 5); draw[k](x); x.restore(); t.refresh();
