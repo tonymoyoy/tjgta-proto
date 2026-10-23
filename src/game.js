@@ -1203,8 +1203,43 @@ const YONKE = (() => {
   }
   const e = best || nearEdge(traffic, wx, wy).e;
   edgePos(e, e.len / 2, 1, e.w / 2 + 1.5 * M, tmp);
-  return { name: 'Yonke El Güero', x: tmp.x, y: tmp.y, cool: 0, msgT: 0 };
+  return { name: 'Yonke El Güero', x: tmp.x, y: tmp.y, cool: 0, msgT: 0, k: 1, puesto: false };
 })();
+// los demas yonkes, repartidos por la ciudad y en las orillas (donde pagan un poquito mas: pocos llegan hasta alla).
+// Cada uno junto a un lugar (o en metros, at) y en una calle de colonia; el terreno se escoge cuando ya estan los
+// edificios de alrededor (ver ponerYonkes): el primero donde el corralon no cae encima de una casa
+const YONKES_MAS = [
+  { name: 'Yonke Los Compadres', near: 'Macroplaza', k: 1 },
+  { name: 'Autopartes El Chato', near: 'Garita de Otay', k: 1.05 },
+  { name: 'Yonke La Gaviota', near: 'Faro de Playas', dx: 450, dy: 250, k: 0.95 },
+  { name: 'Yonke El Florido', near: 'El Florido', k: 1 },
+  { name: 'Yonke El Hipódromo', near: 'Estadio Caliente', k: 1 },
+  { name: 'Yonke La Camionera', near: 'Central Camionera', k: 1 },
+  // los de las orillas
+  { name: 'Deshuesadero La Presa', near: 'Presa Rodríguez', k: 1.1 },
+  { name: 'Yonke El Mezquite', near: 'Santa Fe', k: 1.05 },
+  { name: 'Fierros Natura', near: 'Natura', k: 1.1 },
+  { name: 'Yonke del Cerro', near: 'Mirador del Cerro Colorado', k: 1.1 },
+  { name: 'Yonke Las Olas', near: 'El Colef', k: 1.05 },
+  { name: 'Fierros del Mar', near: 'San Antonio del Mar', k: 1.15 },
+  { name: 'Chatarrera del Sainz', near: 'Mirador del Cañón del Sainz', k: 1.15 },
+];
+const YONKES = [YONKE, ...YONKES_MAS.map(o => {
+  const l = o.near && landmarks.find(q => q.name === o.near);
+  const tx = l ? l.x + (o.dx || 0) * M : REF_X + o.at[0] * M, ty = l ? l.y + (o.dy || 0) * M : REF_Y + o.at[1] * M, tmp = {};
+  // las calles de colonia cercanas (las mas cercanas primero), de los dos lados
+  const cands = [];
+  for (const e of traffic.edges) {
+    if (e.c < 3 || e.c > 6 || e.len < 80 || e.trampa) continue;
+    edgePos(e, e.len / 2, 1, 0, tmp);
+    const d = dist(tmp.x, tmp.y, tx, ty) + (e.c === 3 ? 300 : 0); // de preferencia en calle de colonia
+    if (d < 3000) cands.push([d, e]);
+  }
+  cands.sort((a, b) => a[0] - b[0]);
+  if (!cands.length) return null;
+  const e = cands[0][1]; edgePos(e, e.len / 2, 1, e.w / 2 + 1.5 * M, tmp);
+  return { name: o.name, x: tmp.x, y: tmp.y, cool: 0, msgT: 0, k: o.k, puesto: false, cands: cands.slice(0, 14).map(c => c[1]) };
+}).filter(Boolean)];
 
 // ---------- detalles de la calle: topes y baches ----------
 function mulberry(seed) {
@@ -7066,15 +7101,7 @@ class Main extends Phaser.Scene {
       const hh = Math.abs(Math.cos(rot)) * 40 + Math.abs(Math.sin(rot)) * 54;
       c.label = this.add.text(c.icon.x, c.icon.y - hh - 8, c.name, { fontSize: '12px', color: '#ff8a80', stroke: '#000', strokeThickness: 3, resolution: TXT_RES }).setOrigin(0.5).setDepth(19);
     }
-    {
-      // el yonke: el porton queda en la banqueta y el terreno se mete hacia la cuadra
-      const Y = YONKE, [sx, sy, rot] = sidewalkSpot(Y.x, Y.y, (SIDEWALK + 0.5) * M + 2);
-      Y.x = sx; Y.y = sy;
-      const bx = -Math.sin(rot), by = Math.cos(rot);
-      Y.icon = this.add.image(sx - bx * 44, sy - by * 44, 'yonke' + (Math.cos(rot) < -0.3 ? 'u' : '')).setScale(1 / SPR).setRotation(rot).setDepth(6);
-      const hh = Math.abs(Math.cos(rot)) * 52 + Math.abs(Math.sin(rot)) * 75;
-      Y.label = this.add.text(Y.icon.x, Y.icon.y - hh - 8, '🔧 ' + Y.name, { fontSize: '13px', fontStyle: 'bold', color: '#ffd54f', stroke: '#000', strokeThickness: 3, resolution: TXT_RES }).setOrigin(0.5).setDepth(19);
-    }
+    { const Y = YONKE, [sx, sy, rot] = sidewalkSpot(Y.x, Y.y, (SIDEWALK + 0.5) * M + 2); this.ponerYonke(Y, sx, sy, rot); }
     for (const e of EGGS) {
       if (e.canal) {
         // adentro del canal: los perritos en el piso y la soga hasta el agua (si no hay canal cerca, en la banqueta)
@@ -9492,12 +9519,47 @@ class Main extends Phaser.Scene {
       }
     }
   }
-  // ----- el yonke: entras con un carro robado y te lo compran -----
+  // el yonke: el porton queda en la banqueta y el terreno se mete hacia la cuadra
+  ponerYonke(Y, sx, sy, rot) {
+    Y.x = sx; Y.y = sy; Y.puesto = true;
+    const bx = -Math.sin(rot), by = Math.cos(rot);
+    Y.icon = this.add.image(sx - bx * 44, sy - by * 44, 'yonke' + (Math.cos(rot) < -0.3 ? 'u' : '')).setScale(1 / SPR).setRotation(rot).setDepth(6);
+    const hh = Math.abs(Math.cos(rot)) * 52 + Math.abs(Math.sin(rot)) * 75;
+    Y.label = this.add.text(Y.icon.x, Y.icon.y - hh - 8, '🔧 ' + Y.name, { fontSize: '13px', fontStyle: 'bold', color: '#ffd54f', stroke: '#000', strokeThickness: 3, resolution: TXT_RES }).setOrigin(0.5).setDepth(19);
+  }
+  // los demas yonkes se ponen cuando te acercas y ya estan los edificios de alrededor: en la primera calle candidata
+  // donde el corralon (unos 100 x 70 px hacia adentro de la cuadra) no cae encima de una casa, del agua ni de otra calle
+  ponerYonkes(f) {
+    if ((this.yonkesT = (this.yonkesT || 0) - 1) > 0) return;
+    this.yonkesT = 60; // (una vez por segundo)
+    for (const Y of YONKES) {
+      if (Y.puesto || dist(Y.x, Y.y, f.x, f.y) > 2500 || !regionesListas(Y.x - 900, Y.y - 900, Y.x + 900, Y.y + 900)) continue;
+      const tmp = {};
+      let ok = null;
+      for (const e of Y.cands) for (const lado of [1, -1]) {
+        if (ok) break;
+        edgePos(e, e.len / 2, 1, lado * (e.w / 2 + 1.5 * M), tmp);
+        const [sx, sy, rot] = sidewalkSpot(tmp.x, tmp.y, (SIDEWALK + 0.5) * M + 2), bx = -Math.sin(rot), by = Math.cos(rot), ux = Math.cos(rot), uy = Math.sin(rot);
+        let libre = true;
+        for (let dd = 18; dd <= 78 && libre; dd += 12) for (let aa = -46; aa <= 46 && libre; aa += 15) {
+          const x = sx - bx * dd + ux * aa, y = sy - by * dd + uy * aa;
+          if (inBuilding(x, y) || onRoad(x, y) || inWater(x, y)) libre = false;
+        }
+        if (libre) ok = [sx, sy, rot];
+      }
+      if (ok) this.ponerYonke(Y, ...ok);
+      else { // ni modo: en la primera, aunque se encime
+        const e = Y.cands[0]; edgePos(e, e.len / 2, 1, e.w / 2 + 1.5 * M, tmp); this.ponerYonke(Y, ...sidewalkSpot(tmp.x, tmp.y, (SIDEWALK + 0.5) * M + 2));
+      }
+    }
+  }
+  // ----- los yonkes: entras con un carro robado y te lo compran -----
   checkYonke(dt, f, sp) {
-    const Y = YONKE, car = this.inCar;
-    Y.cool -= dt; Y.msgT -= dt;
-    if (!car || sp > 45 || dist(Y.x, Y.y, f.x, f.y) > 50) return;
-    const base = YONKE_PRECIO[car.T.name];
+    this.ponerYonkes(f);
+    for (const Y of YONKES) { Y.cool -= dt; Y.msgT -= dt; }
+    const Y = YONKES.find(q => q.puesto && dist(q.x, q.y, f.x, f.y) <= 50), car = this.inCar;
+    if (!Y || !car || sp > 45) return;
+    const base = YONKE_PRECIO[car.T.name] * Y.k;
     if (!base || !VTYPES.includes(car.T)) { // taxi, moto, troca de tacos, burro: esos no se venden
       if (Y.msgT <= 0) { Y.msgT = 8; toast('🔧 ' + Y.name, '"¿' + (car.moto ? 'La moto del repartidor' : 'Eso') + '? No, compa, eso no lo compro. Tráeme un carro."', 3); }
       return;
@@ -9695,7 +9757,7 @@ class Main extends Phaser.Scene {
     for (const t of tacos) this.moverAdornos(t, t.eaten, f, time);
     for (const c of cafes) this.moverAdornos(c, c.drunk, f, time);
     for (const c of chinas) c.label.setVisible(dist(c.x, c.y, f.x, f.y) < 300);
-    YONKE.label.setVisible(dist(YONKE.x, YONKE.y, f.x, f.y) < 400);
+    for (const Y of YONKES) if (Y.label) Y.label.setVisible(dist(Y.x, Y.y, f.x, f.y) < 400);
     const g = this.goal();
     // verde el destino; ambar donde recoges al pasajero y morado el de los paros (como su globo)
     const pick = this.taxi && this.taxi.phase === 'pick';
@@ -9744,7 +9806,7 @@ function drawMarkers(c, sx, sy, ox, oy, scene, f, big) {
   // los secretos que te faltan: un signo de interrogacion tenue (sin decir que es)
   c.font = 'bold ' + (big ? 13 : 10) + 'px sans-serif'; c.lineWidth = 2.5; c.strokeStyle = 'rgba(40,20,70,0.55)'; c.fillStyle = 'rgba(240,232,255,0.82)';
   for (const e of EGGS) if (!e.got) { const [x, y] = P(e.x, e.y); c.strokeText('?', x, y); c.fillText('?', x, y); }
-  { const [x, y] = P(YONKE.x, YONKE.y), r = big ? 5 : 3.5; c.fillStyle = '#fdd835'; c.strokeStyle = '#000'; c.lineWidth = 1.5; c.beginPath(); c.rect(x - r, y - r, r * 2, r * 2); c.fill(); c.stroke(); }
+  for (const Y of YONKES) { const [x, y] = P(Y.x, Y.y), r = big ? 5 : 3.5; c.fillStyle = '#fdd835'; c.strokeStyle = '#000'; c.lineWidth = 1.5; c.beginPath(); c.rect(x - r, y - r, r * 2, r * 2); c.fill(); c.stroke(); }
   for (const l of landmarks) {
     const [x, y] = P(l.x, l.y);
     c.font = (big ? 22 : 15) + 'px sans-serif'; c.lineWidth = 3; c.strokeStyle = '#000'; c.strokeText('★', x, y);
@@ -9870,7 +9932,7 @@ function renderBig(detail) {
   const farol = (X, Y, k) => { c.fillStyle = '#c62828'; c.beginPath(); c.ellipse(X, Y, 5 * k, 6 * k, 0, 0, 7); c.fill(); c.fillStyle = '#ffd23f';
     c.fillRect(X - 3 * k, Y - 7 * k, 6 * k, 2 * k); c.fillRect(X - 3 * k, Y + 5 * k, 6 * k, 2 * k); c.strokeStyle = 'rgba(0,0,0,0.5)'; c.lineWidth = 1; c.beginPath(); c.moveTo(X, Y - 6 * k); c.lineTo(X, Y + 6 * k); c.stroke(); };
   for (const k of chinas) { const X = bmX(k.x), Y = bmY(k.y); if (on(X, Y)) farol(X, Y, icons ? 1.1 : 0.6); }
-  { const X = bmX(YONKE.x), Y = bmY(YONKE.y); if (on(X, Y)) { if (icons) { c.font = '17px sans-serif'; c.fillText('🔧', X, Y); c.font = 'bold 11px sans-serif'; c.lineWidth = 3; c.strokeStyle = '#000'; c.strokeText('Yonke', X, Y + 14); c.fillStyle = '#fdd835'; c.fillText('Yonke', X, Y + 14); }
+  for (const YK of YONKES) { const X = bmX(YK.x), Y = bmY(YK.y); if (on(X, Y)) { if (icons) { c.font = '17px sans-serif'; c.fillText('🔧', X, Y); c.font = 'bold 11px sans-serif'; c.lineWidth = 3; c.strokeStyle = '#000'; c.strokeText('Yonke', X, Y + 14); c.fillStyle = '#fdd835'; c.fillText('Yonke', X, Y + 14); }
     else { c.fillStyle = '#fdd835'; c.strokeStyle = '#000'; c.lineWidth = 1; c.fillRect(X - 3.5, Y - 3.5, 7, 7); c.strokeRect(X - 3.5, Y - 3.5, 7, 7); } } }
   // los secretos que te faltan: un signo de interrogacion tenue
   c.font = 'bold ' + (icons ? 15 : 10) + 'px sans-serif'; c.lineWidth = 3; c.strokeStyle = 'rgba(40,20,70,0.55)'; c.fillStyle = 'rgba(240,232,255,0.82)';
@@ -10435,7 +10497,7 @@ async function start() {
     scene: [Main], fps: { target: 60, smoothStep: false },
   });
   window.addEventListener('resize', () => game.scale.resize(window.innerWidth * DPR, window.innerHeight * DPR));
-  window.TJGTA = game; game.dbg = { SENALES, VENDEDORES, GARITAS, filaSlots, chunkFila, enComida, comidaGrid, walkG, edgePos, pasoBanqueta, SOBRERUEDAS, tianguis, puestos, chunkPuestos, pintarPuesto, walkTianguis, enSobreruedas, findRoute, ESCENAS, tocaChoque, WORLD_W, WORLD_H, regiones, esperarRegiones, chunkBlds, miniCuadros, miniVista, borderY, INICIO, traffic, nextEdge, arboles, arbolVa, arbolEn, bajoTecho, chinas, VTYPES, vehicleTexture, state, drawChunk, chunkSteps, areaFill, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, walkableTo, waterAreas, roads, areas, PED_VARIANTS };
+  window.TJGTA = game; game.dbg = { YONKES, SENALES, VENDEDORES, GARITAS, filaSlots, chunkFila, enComida, comidaGrid, walkG, edgePos, pasoBanqueta, SOBRERUEDAS, tianguis, puestos, chunkPuestos, pintarPuesto, walkTianguis, enSobreruedas, findRoute, ESCENAS, tocaChoque, WORLD_W, WORLD_H, regiones, esperarRegiones, chunkBlds, miniCuadros, miniVista, borderY, INICIO, traffic, nextEdge, arboles, arbolVa, arbolEn, bajoTecho, chinas, VTYPES, vehicleTexture, state, drawChunk, chunkSteps, areaFill, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, walkableTo, waterAreas, roads, areas, PED_VARIANTS };
 }
 $('go').addEventListener('click', start);
 
