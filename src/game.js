@@ -225,6 +225,9 @@ const EGGS = [
   // en un terreno vacio de Natura (sin calles, casas ni agua cerca)
   { k: 'gnomos', name: 'Los Gnomos Conspiradores', at: [12382, 13312], pay: 300, fija: true, libre: true, rot: 0, quieto: true, r: 70,
     say: '(Cinco gnomos de jardín en bolita, alrededor de un tronquito con una vela y un plano marcado con una X, se quedan quietitos en cuanto te ven.) Uno te guiñó el ojo y te pasó un billete "para que no hayas visto nada".' },
+  // en el monte de Terrazas del Valle (sin calles, casas ni agua cerca)
+  { k: 'banda', name: 'La Banda del Monte', at: [18162, 9912], pay: 300, fija: true, libre: true, rot: 0, quieto: true, r: 80,
+    say: '(En pleno monte, una banda completa, con tuba, tambora, trompetas, clarinetes y trombón, le toca con todo el corazón a un nopal.) "Nos dijeron que aquí era la boda." Te pasaron una lana para que les pidas una canción.' },
   // en el monte de La Presa (sin calles, casas ni agua cerca)
   { k: 'chupacabras', name: 'El Chupacabras Jubilado', at: [13742, 9912], pay: 300, fija: true, libre: true, rot: 0, quieto: true, r: 70,
     say: '(En pleno monte, el mismísimo chupacabras toma horchata en una silla de playa, junto a una cabra que duerme tranquilita.) "Ya nadie me tiene miedo; ahora me piden selfies." Te dio un billete medio mordido.' },
@@ -3211,6 +3214,12 @@ const FRASES_FIJAS = {
   '¡Nomás era mi chancla, no hacía falta tanto!', '¡Gracias, perritos! ¿Aceptan croquetas o transferencia?',
   '¡Que alguien les avise que ya me puedo parar, el agua me llega a la cintura!',
   '¡Yo nomás venía a ver si estaba la marea alta!',
+  ],
+  banda: [
+    '¡Y pura banda, compa!', 'Esta va dedicada al nopal, que no se ha ido en toda la noche.',
+    'Nos contrataron para una boda. Creo que nos dieron mal la dirección.', 'Llevamos tocando desde el sábado. Hoy es martes.',
+    'El de la tuba ya no siente los labios, pero no se raja.', '¿Otra? ¡Otra! ...el nopal pidió otra.',
+    'Se cobra por hora, pero al nopal le fiamos.', 'Aquí en el monte nadie se queja del ruido. Ensayamos a gusto.',
   ],
   chupacabras: [
     'Ya no se espanta nadie. En los noventa salía en todos los noticieros.', 'No, no chupo cabras. Soy vegetariano desde el 2003.',
@@ -6571,7 +6580,38 @@ function makeEggs(scene) {
     line('#5d4037', 0.3, [[30.4, 35.2], [31.2, 35.4]]); // ojo cerrado
     x.fillStyle = 'rgba(255,255,255,0.85)'; x.font = 'bold 2.2px sans-serif'; x.fillText('z', 33, 31.4); x.font = 'bold 1.6px sans-serif'; x.fillText('z', 34.6, 29.8);
   };
-  const GRANDE = { monolito: 120, gnomos: 48, chupacabras: 44 };
+  // la banda en medio circulo tocandole a un nopal: texanas blancas, camisas iguales y cada quien con su instrumento
+  draw.banda = () => {
+    const c = 24, cy = 30;
+    // el nopal: pencas verdes con espinitas y una tuna
+    shadow(c + 1, cy + 6, 4, 2.5);
+    for (const [px, py, a, k] of [[0, 4, 0, 1], [-2.6, 0.4, -0.5, 0.8], [2.4, 0.6, 0.45, 0.85], [0.4, -2.6, 0.1, 0.75]]) {
+      x.save(); x.translate(c + px, cy + py); x.rotate(a); ell('#4f8a3a', 0, 0, 2 * k, 3 * k); ell('rgba(255,255,255,0.18)', -0.5 * k, -0.6 * k, 0.8 * k, 1.4 * k);
+      for (let j = 0; j < 4; j++) ell('#e9e3c9', (j % 2 - 0.5) * 1.6 * k, (j - 1.5) * 1.2 * k, 0.15, 0.15); x.restore();
+    }
+    ell('#c2185b', c + 1.8, cy - 4.4, 0.8, 0.9); // la tuna
+    // los musicos en medio circulo arriba del nopal, viendolo
+    const M7 = ['tuba', 'trompeta', 'clarinete', 'tambora', 'trombon', 'clarinete', 'trompeta'];
+    M7.forEach((ins, i) => {
+      const a = Math.PI + (i + 0.5) / M7.length * Math.PI, mx = c + Math.cos(a) * 15, my = cy + Math.sin(a) * 14;
+      x.save(); x.translate(mx, my); x.rotate(Math.atan2(cy - my, c - mx) - Math.PI / 2); // +y hacia el nopal
+      shadow(0, 0, 3.6, 3);
+      shoulders(0, 0, '#9c1f2e', '#5e0f1a', 3.2, 2.1); // camisa vino de la banda
+      x.fillStyle = '#d4a017'; x.fillRect(-2.6, -0.3, 5.2, 0.5); // el bordado dorado
+      // el instrumento, hacia el frente
+      if (ins === 'tuba') { ell('#c99a2e', -1.6, 0.6, 2.4, 2.2); ell('#f2cf66', -1.6, 0.6, 1.7, 1.5); ell('#8a6514', -1.6, 0.6, 0.8, 0.7); }
+      else if (ins === 'tambora') { ell('#7a4a22', 0, 2.8, 2.6, 2.6); ell('#efe6d2', 0, 2.8, 2.1, 2.1); ell('#d4a017', 2.4, 1.4, 1, 1); line('#5d4037', 0.35, [[-1, 1], [-0.4, 3]]); }
+      else if (ins === 'trompeta') { line('#d4a017', 0.6, [[0, 1], [0, 4.4]]); ell('#f2cf66', 0, 4.8, 0.9, 0.6); }
+      else if (ins === 'clarinete') { line('#1b1b1b', 0.6, [[0, 1], [0, 4.6]]); ell('#555', 0, 4.9, 0.6, 0.45); }
+      else { line('#d4a017', 0.5, [[0.5, 1], [0.5, 6]]); line('#d4a017', 0.5, [[-0.5, 1], [-0.5, 6]]); ell('#f2cf66', -1.6, 3, 0.9, 0.7); } // trombon
+      ell('#f4f1ea', 0, -0.4, 2.3, 2.3); ell('#e0dccf', 0, -0.4, 1.4, 1.4); // la texana blanca, vista desde arriba
+      x.restore();
+    });
+    // las notitas en el aire
+    x.fillStyle = 'rgba(255,255,255,0.85)'; x.font = 'bold 3px sans-serif';
+    for (const [nx, ny, t] of [[10, 8, '♪'], [36, 9, '♫'], [24, 4, '♪'], [42, 22, '♫'], [6, 22, '♪']]) x.fillText(t, nx, ny);
+  };
+  const GRANDE = { monolito: 120, gnomos: 48, chupacabras: 44, banda: 48 };
   for (const k in draw) {
     const n = GRANDE[k] || 32, t = scene.textures.createCanvas('egg_' + k, n * 5, n * 5);
     x = t.getContext(); x.save(); x.scale(5, 5); draw[k](x); x.restore(); t.refresh();
