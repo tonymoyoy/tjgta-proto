@@ -225,6 +225,9 @@ const EGGS = [
   // en un terreno vacio de Natura (sin calles, casas ni agua cerca)
   { k: 'gnomos', name: 'Los Gnomos Conspiradores', at: [12382, 13312], pay: 300, fija: true, libre: true, rot: 0, quieto: true, r: 70,
     say: '(Cinco gnomos de jardín en bolita, alrededor de un tronquito con una vela y un plano marcado con una X, se quedan quietitos en cuanto te ven.) Uno te guiñó el ojo y te pasó un billete "para que no hayas visto nada".' },
+  // en un baldio de Otay (sin calles, casas ni agua cerca)
+  { k: 'lucha', name: 'El Ring del Baldío', at: [8982, 1752], pay: 300, fija: true, libre: true, rot: 0, quieto: true, r: 80,
+    say: '(En un baldío, dos luchadores enmascarados ensayan llaves en un ring hecho con cuerdas de tendedero, con su réferi y todo.) "¡A dos de tres caídas!" Te dieron una lana por ser el público.' },
   // en un llano del Cañón del Sainz (sin calles, casas ni agua cerca): las huellas dan vueltas en circulo
   { k: 'piloto', name: 'El Piloto Perdido', at: [8302, 11612], pay: 300, fija: true, libre: true, rot: 0, quieto: true, r: 80,
     say: '(Un piloto de la carrera de mil millas por la península, con casco y el traje lleno de polvo, ve un mapa que no le cuadra junto a su buggy.) "¿Esto es Ensenada?" Te dio una lana para que no le digas a nadie que se perdió.' },
@@ -3268,6 +3271,13 @@ const FRASES_FIJAS = {
   '¡Nomás era mi chancla, no hacía falta tanto!', '¡Gracias, perritos! ¿Aceptan croquetas o transferencia?',
   '¡Que alguien les avise que ya me puedo parar, el agua me llega a la cintura!',
   '¡Yo nomás venía a ver si estaba la marea alta!',
+  ],
+  lucha: [
+    '¡A dos de tres caídas, sin límite de tiempo!', 'Rudos contra técnicos, y el baldío de testigo.',
+    'Ensayamos para la función del sábado. Las cuerdas son del tendedero de mi mamá.', '¡Esta plancha va con dedicatoria para mi suegra!',
+    'El réferi es mi primo. Por eso siempre gano.', 'Mi máscara no se toca. Ni para lavarla.',
+    '¡Uno! ¡Dos! ...¡se levantó! ¡Qué barbaridad!', 'Si vas a grabar, de mi lado bueno. El izquierdo.',
+    'Debajo de la máscara hay otra máscara. Por si acaso.',
   ],
   piloto: [
     '¿Esto es Ensenada? ...¿Cómo que Tijuana?', 'Iba en primer lugar. Luego le hice caso al GPS.',
@@ -6751,7 +6761,38 @@ function makeEggs(scene) {
     // un sahuaro de los que ya conoce
     ell('#558b2f', 8, 10, 1.4, 1.4); ell('#558b2f', 6.6, 9, 0.7, 1.4); ell('#558b2f', 9.4, 11, 0.7, 1.4);
   };
-  const GRANDE = { monolito: 120, gnomos: 48, chupacabras: 44, banda: 48, programador: 44, piloto: 48 };
+  // el ring del baldio: lona, esquineros y cuerdas de colores, dos luchadores enmascarados (uno volando en plancha),
+  // el referi de rayas y unas sillas de plastico para el publico
+  draw.lucha = () => {
+    const c = 24, R = 13;
+    shadow(c + 1, c + 1.5, R + 1, R + 1);
+    x.fillStyle = '#e8e4da'; x.fillRect(c - R, c - R, 2 * R, 2 * R); // la lona
+    x.strokeStyle = 'rgba(120,110,90,0.35)'; x.lineWidth = 0.4; x.strokeRect(c - R + 2, c - R + 2, 2 * R - 4, 2 * R - 4);
+    [['#d32f2f', 0], ['#fafafa', 1.2], ['#1565c0', 2.4]].forEach(([col, o]) => { x.strokeStyle = col; x.lineWidth = 0.5; x.strokeRect(c - R - 0.6 + o * 0.25, c - R - 0.6 + o * 0.25, 2 * R + 1.2 - o * 0.5, 2 * R + 1.2 - o * 0.5); });
+    for (const [px, py] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) ell('#424242', c + px * (R + 0.4), c + py * (R + 0.4), 1.1, 1.1); // esquineros
+    // las sillas de plastico afuera
+    for (const [sx, sy] of [[5, 44], [10, 45], [38, 44], [43, 43], [44, 6]]) { x.fillStyle = '#fafafa'; x.fillRect(sx - 1.6, sy - 1.6, 3.2, 3.2); x.fillStyle = '#e0e0e0'; x.fillRect(sx - 1.6, sy - 1.6, 3.2, 0.8); }
+    // un luchador tirado en la lona (el que va a recibir) y el otro volando en plancha, con su sombra en la lona
+    const luchador = (lx, ly, a, piel, mascara, raya, malla, k) => {
+      x.save(); x.translate(lx, ly); x.rotate(a); x.scale(k, k);
+      ell(malla, 0, 2, 2.6, 3.2); // la malla
+      line(piel, 1.2, [[-2.6, -0.6], [-5, -2.4]]); line(piel, 1.2, [[2.6, -0.6], [5, -2.4]]); // los brazos abiertos
+      line(malla, 1.3, [[-1.2, 4.6], [-2, 7.4]]); line(malla, 1.3, [[1.2, 4.6], [2, 7.4]]); // las piernas
+      ell(piel, 0, -0.6, 3, 2); // el torso
+      ball(0, -3.4, 1.9, mascara, mascara); x.fillStyle = raya; x.fillRect(-0.4, -5.2, 0.8, 3.4); // la mascara con su raya
+      ell('#fff', -0.8, -3.2, 0.5, 0.35); ell('#fff', 0.8, -3.2, 0.5, 0.35);
+      x.restore();
+    };
+    luchador(c - 3, c + 4, 0.3, '#d9a77c', '#1565c0', '#cfd8dc', '#263238', 1);
+    ell('rgba(0,0,0,0.25)', c + 3, c + 1, 4, 3.4); // la sombra del que vuela
+    luchador(c + 1, c - 6, Math.PI + 0.5, '#c68e5f', '#ffd600', '#d32f2f', '#b71c1c', 1.15);
+    // el referi de rayas en la esquina
+    x.save(); x.translate(c + 9, c + 8); shadow(0, 0, 2.4, 2);
+    x.fillStyle = '#fafafa'; x.beginPath(); x.ellipse(0, 0.4, 2.6, 1.8, 0, 0, 7); x.fill();
+    x.save(); x.clip(); for (let i = -3; i < 3; i++) { x.fillStyle = '#212121'; x.fillRect(i * 1.1, -2, 0.55, 5); } x.restore();
+    ball(0, -0.8, 1.3, '#d9a77c', '#a8714a'); x.restore();
+  };
+  const GRANDE = { monolito: 120, gnomos: 48, chupacabras: 44, banda: 48, programador: 44, piloto: 48, lucha: 48 };
   for (const k in draw) {
     const n = GRANDE[k] || 32, t = scene.textures.createCanvas('egg_' + k, n * 5, n * 5);
     x = t.getContext(); x.save(); x.scale(5, 5); draw[k](x); x.restore(); t.refresh();
