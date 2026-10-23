@@ -1163,7 +1163,7 @@ const topes = [], baches = [];
   for (const e of traffic.edges) {
     if (e.c < 4 || e.len < 160 || hash(e.id * 7 + 3) % 3 !== 0) continue;
     const q = edgePos(e, e.len / 2, 1, 0, {});
-    topes.push({ x: q.x, y: q.y, a: q.a, w: e.w, bb: [q.x - 40, q.y - 40, q.x + 40, q.y + 40] });
+    topes.push({ e, x: q.x, y: q.y, a: q.a, w: e.w, bb: [q.x - 40, q.y - 40, q.x + 40, q.y + 40] });
   }
   // baches: uno cada ~600 m de calle en promedio, en cualquier carril, lejos de las esquinas
   for (const e of traffic.edges) {
@@ -1183,6 +1183,76 @@ function topesNear(x, y) { return topeGrid.get(GK(Math.floor(x / TCELL), Math.fl
 // puentes: como el mapa es plano y no se puede pasar por debajo, todos (calles, andadores y tren) se pintan a nivel
 // como cualquier calle y se cruzan con las de abajo como en un crucero.
 const chunkBaches = gridIndex(baches, CHUNK, 'bb');
+
+// ---------- altos, postes de luz y señalamientos ----------
+// No en todas las calles: lo suficiente para que se sienta natural. Van en la banqueta de la derecha (segun el
+// sentido) y se pintan en el trozo despues de los edificios, parados como ellos (lo alto hacia el norte); si un
+// edificio los taparia (ver bajoTecho) no se pintan. No estorban: se pasa por encima.
+//   alto: en los cruceros, sobre todo donde una calle de colonia llega a una mas grande, con su raya en el piso
+//   poste: postes de luz de un lado de la calle, cada ~30 m, en la mayoria de las avenidas y algunas calles
+//   tope (aviso amarillo antes del tope), sentido (flecha de un sentido), vel (velocidad maxima), noest (no estacionarse)
+// Son decenas de miles, asi que van en arreglos (como los arboles): posicion, rumbo, tipo, ancho de la calle (para la
+// raya del alto) y un numero (la velocidad, o si la calle del alto es de un sentido)
+const SEN_TIPOS = ['alto', 'poste', 'tope', 'sentido', 'vel', 'noest'];
+const SENALES = (() => {
+  const X = [], Y = [], A = [], T = [], W = [], V = [];
+  const ocupado = new Set(), celda = (x, y) => GK(Math.floor(x / 14), Math.floor(y / 14));
+  const poner = (t, e, s, dir, v) => {
+    const lat = e.w / 2 + SIDEWALK * M * (t === 'poste' ? 0.3 : 0.6), q = edgePos(e, s, dir, lat, {});
+    if (q.y < borderY(q.x) + 40 || onAsfalto(q.x, q.y, 0.3 * M)) return null;
+    const c = celda(q.x, q.y); if (ocupado.has(c)) return null;
+    ocupado.add(c);
+    X.push(q.x); Y.push(q.y); A.push(q.a); T.push(SEN_TIPOS.indexOf(t)); W.push(Math.min(255, Math.round(e.w))); V.push(t === 'alto' ? +e.one : v || 0);
+  };
+  // los tramos que llegan a cada crucero (en los dos sentidos)
+  // (en arreglos seguidos: un arreglo por crucero, con toda la ciudad, pesaba demasiado)
+  const E = traffic.edges, ini = new Int32Array(traffic.nN + 1), cola = new Int32Array(E.length * 2);
+  for (const e of E) { ini[e.a + 1]++; ini[e.b + 1]++; }
+  for (let n = 0; n < traffic.nN; n++) ini[n + 1] += ini[n];
+  const pos = ini.slice(0, traffic.nN);
+  for (const e of E) { cola[pos[e.a]++] = e.id; cola[pos[e.b]++] = e.id; }
+  for (let n = 0; n < traffic.nN; n++) {
+    if (ini[n + 1] - ini[n] < 3) continue;
+    const L = Array.from(cola.subarray(ini[n], ini[n + 1]), id => E[id]);
+    for (const e of L) {
+      if (e.c < 5 || e.len < 70) continue;
+      const dir = n === e.b ? 1 : -1; if (dir < 0 && e.one) continue; // por ahi no se llega
+      const otras = L.filter(o => o !== e), grande = otras.some(o => o.c < e.c);
+      if (hash(e.id * 13 + n * 7) % 100 >= (grande ? 55 : 12)) continue;
+      const atras = Math.max(...otras.map(o => o.w)) / 2 + SIDEWALK * M + 1.5 * M;
+      if (atras > e.len * 0.4) continue;
+      poner('alto', e, e.len - atras, dir);
+    }
+  }
+  for (const e of traffic.edges) {
+    if (e.len < 100) continue;
+    const h = hash(e.id * 31 + 11);
+    // postes de luz: casi todas las avenidas y una de cada cuatro calles de colonia
+    if (e.c >= 2 && h % 100 < (e.c <= 4 ? 70 : 25)) {
+      const dir = (h >> 8) & 1 ? 1 : -1;
+      for (let s = 30 + (h >> 10) % 60; s < e.len - 30; s += 150) poner('poste', e, s, dir);
+    }
+    // velocidad maxima en las avenidas, flecha de un sentido y no estacionarse en algunas calles
+    if (e.c >= 2 && e.c <= 4 && e.len > 300 && (h >> 4) % 4 === 0) poner('vel', e, e.len * 0.3, 1, e.c <= 3 ? 60 : 40);
+    if (e.one && e.len > 80 && (h >> 6) % 3 === 0) poner('sentido', e, 9 * M, 1);
+    if (e.c >= 4 && e.len > 200 && (h >> 12) % 12 === 0) poner('noest', e, e.len * 0.55, (h >> 14) & 1 ? 1 : -1);
+  }
+  // el aviso amarillo unos 20 m antes de los topes
+  for (const t of topes) {
+    const e = t.e;
+    for (const dir of e.one ? [1] : [1, -1]) if (hash(e.id * 17 + dir + 5) % 10 < 4 && e.len / 2 > 26 * M) poner('tope', e, e.len / 2 - 20 * M, dir);
+  }
+  // TAP: si lo tapa un edificio (-1 falta ver, se ve al pintar el trozo con los edificios ya cargados)
+  return { n: X.length, X: new Float32Array(X), Y: new Float32Array(Y), A: new Float32Array(A), T: new Uint8Array(T), W: new Uint8Array(W), V: new Uint8Array(V), TAP: new Int8Array(X.length).fill(-1) };
+})();
+// en los trozos que toca su dibujo (el poste sube unos 32 px y la sombra se va abajo a la derecha)
+const chunkSenales = rejillaDensa((emit) => {
+  for (let i = 0; i < SENALES.n; i++) {
+    const x = SENALES.X[i], y = SENALES.Y[i];
+    for (let cx = Math.floor((x - 16) / CHUNK); cx <= Math.floor((x + 24) / CHUNK); cx++)
+      for (let cy = Math.floor((y - 40) / CHUNK); cy <= Math.floor((y + 22) / CHUNK); cy++) emit(cx, cy, i);
+  }
+});
 
 // ---------- arboles ----------
 // Tijuana es seca: pocos y repartidos. Algunas calles tienen arboles en la banqueta y la mayoria casi no;
@@ -1663,6 +1733,77 @@ function roadMarks(ctx, k) {
     ctx.save(); ctx.translate(t.x, t.y); ctx.rotate(t.a);
     ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(-2, -t.w / 2, 8, t.w);
     for (let l = -t.w / 2, j = 0; l < t.w / 2; l += 6, j++) { ctx.fillStyle = j % 2 ? '#2a2a2a' : '#d9b21f'; ctx.fillRect(-3, l, 6, Math.min(6, t.w / 2 - l)); }
+    ctx.restore();
+  }
+}
+// los altos, postes y señalamientos del trozo (ver SENALES): la raya del alto en el piso, la sombra y lo parado
+// (el poste se eleva hacia arriba y un poco a la derecha, como los edificios; el letrero mira hacia acá)
+function pintarSenales(ctx, k) {
+  for (const i of chunkSenales.get(k) || []) {
+    const S = SENALES, x = S.X[i], y = S.Y[i], t = SEN_TIPOS[S.T[i]], a = S.A[i];
+    if (S.TAP[i] < 0) S.TAP[i] = bajoTecho(x, y) || inBuilding(x, y) ? 1 : 0;
+    if (S.TAP[i]) continue;
+    const nx = -Math.sin(a), ny = Math.cos(a); // hacia la derecha de la calle
+    if (t === 'alto') {
+      // raya blanca de alto de la orilla a la mitad (toda la calle si es de un sentido)
+      const lat = S.W[i] / 2 + SIDEWALK * M * 0.6, c = { x: x - nx * lat, y: y - ny * lat }, w = S.W[i] / 2 - 1, iz = S.V[i] ? -w : 0;
+      ctx.strokeStyle = 'rgba(236,233,224,0.85)'; ctx.lineWidth = 0.7 * M; ctx.lineCap = 'butt';
+      ctx.beginPath(); ctx.moveTo(c.x + nx * iz, c.y + ny * iz); ctx.lineTo(c.x + nx * w, c.y + ny * w); ctx.stroke(); ctx.lineCap = 'round';
+    }
+    const H = t === 'poste' ? 32 : 14, tx = x + H * LEAN, ty = y - H;
+    // sombra en el piso hacia abajo a la derecha
+    ctx.strokeStyle = 'rgba(0,0,0,0.28)'; ctx.lineWidth = t === 'poste' ? 2 : 1.4;
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + H * 0.45, y + H * 0.45); ctx.stroke();
+    if (t === 'poste') { ctx.beginPath(); ctx.moveTo(x + H * 0.45, y + H * 0.45); ctx.lineTo(x + H * 0.45 - nx * 11, y + H * 0.45 - ny * 11); ctx.stroke(); }
+    // el tubo
+    ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(x, y, 1.6, 1, 0, 0, 7); ctx.fill();
+    ctx.strokeStyle = t === 'poste' ? '#6f7377' : '#8b8f94'; ctx.lineWidth = t === 'poste' ? 2 : 1.1;
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(tx, ty); ctx.stroke();
+    if (t === 'poste') {
+      // brazo hacia la calle y la lampara
+      const lx = tx - nx * 11, ly = ty - ny * 11;
+      ctx.strokeStyle = '#6f7377'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(lx, ly); ctx.stroke();
+      ctx.save(); ctx.translate(lx, ly); ctx.rotate(Math.atan2(-ny, -nx));
+      ctx.fillStyle = '#3d4044'; ctx.beginPath(); ctx.ellipse(0, 0, 3.4, 1.9, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = '#f4ecc8'; ctx.beginPath(); ctx.ellipse(0.3, 0, 2.4, 1.1, 0, 0, 7); ctx.fill();
+      ctx.restore();
+      continue;
+    }
+    ctx.save(); ctx.translate(tx, ty);
+    ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.translate(0.6, 0.6);
+    const placa = () => {
+      ctx.beginPath();
+      if (t === 'alto') for (let j = 0; j < 8; j++) { const a = (j + 0.5) / 8 * Math.PI * 2; ctx.lineTo(Math.cos(a) * 5, Math.sin(a) * 5); }
+      else if (t === 'tope') { ctx.moveTo(0, -5.5); ctx.lineTo(5.5, 0); ctx.lineTo(0, 5.5); ctx.lineTo(-5.5, 0); }
+      else if (t === 'sentido') ctx.rect(-6, -2.6, 12, 5.2);
+      else if (t === 'vel') ctx.rect(-4, -5, 8, 10);
+      else ctx.arc(0, 0, 4.6, 0, 7);
+      ctx.closePath();
+    };
+    placa(); ctx.fill(); ctx.translate(-0.6, -0.6);
+    ctx.lineWidth = 0.7; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    if (t === 'alto') {
+      placa(); ctx.fillStyle = '#c62828'; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.stroke();
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 3px sans-serif'; ctx.fillText('ALTO', 0, 0.2);
+    } else if (t === 'tope') {
+      placa(); ctx.fillStyle = '#f2c230'; ctx.fill(); ctx.strokeStyle = '#2a2a2a'; ctx.stroke();
+      ctx.fillStyle = '#2a2a2a'; ctx.beginPath(); ctx.moveTo(-3, 1.6); ctx.quadraticCurveTo(0, -2.2, 3, 1.6); ctx.closePath(); ctx.fill();
+    } else if (t === 'sentido') {
+      placa(); ctx.fillStyle = '#1d1d1d'; ctx.fill(); ctx.strokeStyle = '#eee'; ctx.stroke();
+      // la flecha hacia donde va la calle (vista de frente: a la izquierda o a la derecha)
+      const d = Math.cos(a) < 0 ? -1 : 1;
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.moveTo(-4 * d, -0.6); ctx.lineTo(1.5 * d, -0.6); ctx.lineTo(1.5 * d, -1.8); ctx.lineTo(4.4 * d, 0);
+      ctx.lineTo(1.5 * d, 1.8); ctx.lineTo(1.5 * d, 0.6); ctx.lineTo(-4 * d, 0.6); ctx.closePath(); ctx.fill();
+    } else if (t === 'vel') {
+      placa(); ctx.fillStyle = '#f7f7f2'; ctx.fill(); ctx.strokeStyle = '#2a2a2a'; ctx.stroke();
+      ctx.strokeStyle = '#c62828'; ctx.lineWidth = 0.9; ctx.beginPath(); ctx.arc(0, -0.6, 3, 0, 7); ctx.stroke();
+      ctx.fillStyle = '#1d1d1d'; ctx.font = 'bold 3px sans-serif'; ctx.fillText(String(S.V[i]), 0, -0.4);
+      ctx.font = 'bold 1.6px sans-serif'; ctx.fillText('km/h', 0, 3.6);
+    } else {
+      placa(); ctx.fillStyle = '#f7f7f2'; ctx.fill(); ctx.strokeStyle = '#c62828'; ctx.lineWidth = 1; ctx.stroke();
+      ctx.fillStyle = '#1d1d1d'; ctx.font = 'bold 5px sans-serif'; ctx.fillText('E', 0, 0.3);
+      ctx.strokeStyle = '#c62828'; ctx.lineWidth = 0.9; ctx.beginPath(); ctx.moveTo(-3.2, -3.2); ctx.lineTo(3.2, 3.2); ctx.stroke();
+    }
     ctx.restore();
   }
 }
@@ -2271,6 +2412,7 @@ function* chunkSteps(cx, cy) {
 
   yield;
   yield* drawBuildings(ctx, bl, rs, cx, cy);
+  pintarSenales(ctx, k);
   // las sombras de los arboles (con mas arboles en las colonias, revisar cuales van cuesta)
   for (const i of chunkArboles.get(k) || []) { if (!arbolVa(i)) continue; ctx.drawImage(arbolSprite(arboles.T[i], arboles.V[i], 0), arboles.X[i] - ARB_SZ / 2, arboles.Y[i] - ARB_SZ / 2, ARB_SZ, ARB_SZ); }
   // lado de Estados Unidos
@@ -9319,7 +9461,7 @@ async function start() {
     scene: [Main], fps: { target: 60, smoothStep: false },
   });
   window.addEventListener('resize', () => game.scale.resize(window.innerWidth * DPR, window.innerHeight * DPR));
-  window.TJGTA = game; game.dbg = { VENDEDORES, GARITAS, filaSlots, chunkFila, enComida, comidaGrid, walkG, edgePos, pasoBanqueta, SOBRERUEDAS, tianguis, puestos, chunkPuestos, pintarPuesto, walkTianguis, enSobreruedas, findRoute, ESCENAS, tocaChoque, WORLD_W, WORLD_H, regiones, esperarRegiones, chunkBlds, miniCuadros, miniVista, borderY, INICIO, traffic, nextEdge, arboles, arbolVa, arbolEn, bajoTecho, chinas, VTYPES, vehicleTexture, state, drawChunk, chunkSteps, areaFill, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, walkableTo, waterAreas, roads, areas, PED_VARIANTS };
+  window.TJGTA = game; game.dbg = { SENALES, VENDEDORES, GARITAS, filaSlots, chunkFila, enComida, comidaGrid, walkG, edgePos, pasoBanqueta, SOBRERUEDAS, tianguis, puestos, chunkPuestos, pintarPuesto, walkTianguis, enSobreruedas, findRoute, ESCENAS, tocaChoque, WORLD_W, WORLD_H, regiones, esperarRegiones, chunkBlds, miniCuadros, miniVista, borderY, INICIO, traffic, nextEdge, arboles, arbolVa, arbolEn, bajoTecho, chinas, VTYPES, vehicleTexture, state, drawChunk, chunkSteps, areaFill, baches, landmarks, tacos, cafes, perks, EGGS, YONKE, partidaValida, zonaDe, blocked, inWater, onRoad, walkableTo, waterAreas, roads, areas, PED_VARIANTS };
 }
 $('go').addEventListener('click', start);
 
