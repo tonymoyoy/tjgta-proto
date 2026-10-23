@@ -80,6 +80,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); c
   background: repeating-linear-gradient(0deg, rgba(255,255,255,.09) 0 1px, transparent 1px 10px),
     repeating-linear-gradient(90deg, rgba(255,255,255,.09) 0 1px, transparent 1px 10px), #1f4f86; }
 /* los gatos de las azoteas: morado de noche con ojos amarillos, y muy creidos */
+.bubble.perro { --bg: #fff8e7; --bd: #8a5a35; font-size: 26px; line-height: 1; padding: 6px 10px; border-radius: 50%; }
 .bubble.gato { --bg: #2a1f35; --bd: #f5b700; --fg: #ffe9a8; font-style: italic; }
 /* los del sobreruedas: rosa mexicano con una tira de lonas de colores arriba */
 .bubble.tianguis { --bg: #fff4fa; --bd: #d81b60; --fg: #4a0d26;

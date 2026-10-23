@@ -2875,6 +2875,10 @@ const FRASES_PAN_CANCION = [
   '♪ ¡El panadero con el pan! ♪ (todos los perros de la cuadra le contestan)',
 ];
 const ZONAS_SIN_PAN = new Set(['Zona Centro', 'Zona Norte', 'Zona Río']);
+// lo que te "dice" un perro cuando te le acercas: un solo emoji. Casi siempre lo de siempre (hueso, popo, amor)
+// y de vez en cuando algo que nadie entiende
+const PERRO_DICE = ['🦴', '🦴', '🦴', '💩', '💩', '❤️', '❤️', '🥰', '🐾', '🍖', '🎾', '😋'];
+const PERRO_ENIGMA = ['🌕', '👁️', '🔮', '🛸', '⏳', '🗝️', '🌀', '♾️', '🪐', '📜', '🕯️', '🧿', '🌵', '🪞', '🦉', '⚖️', '🧭', '🎻', '🌑', '🫖'];
 const FRASES_PAN = [
   '¡Lleve su pan! ¡Conchas, cuernitos, orejas, bolillo calientito!',
   '¡Salga, señito, que ya pasó el pan! ¡Hay pan dulce y hay pan de sal!',
@@ -7323,6 +7327,11 @@ class Main extends Phaser.Scene {
       if (d.t <= 0) { d.st = d.st === 'walk' ? 'idle' : 'walk'; d.t = d.st === 'idle' ? rnd(1.5, 4) : rnd(4, 10); if (d.st === 'idle') { d.sprite.stop(); d.sprite.setFrame(0); } else d.sprite.play({ key: 'perroAnda' + d.raza, startFrame: 1 }); }
       // le ladra a quien pasa cerca
       if (now > (d.ladraT || 0) && dist(d.x, d.y, f.x, f.y) < (car ? 45 : 35)) { d.ladraT = now + rnd(4000, 9000); if (window.SND) SND.play('ladrido', 0.5); }
+      // y te dice algo (un emoji), si no hay otro globo y no vas volando
+      if (now > (d.diceT || 0) && csp < 60 && !(this.bubble.ped && this.bubble.t > 0) && dist(d.x, d.y, f.x, f.y) < 40) {
+        d.diceT = now + rnd(12000, 20000);
+        this.globo(d, 'perro', pick(Math.random() < 0.3 ? PERRO_ENIGMA : PERRO_DICE), 2.5);
+      }
       if (d.st === 'idle') { d.sprite.setRotation(d.a + Math.sin(now / 400 + d.s) * 0.3); continue; }
       d.s += d.speed * dt;
       if (d.s > d.e.len) {
