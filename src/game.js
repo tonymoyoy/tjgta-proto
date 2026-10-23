@@ -218,6 +218,10 @@ const EGGS = [
   // libre: va justo ahi (a media ladera), no en la banqueta de la calle mas cercana
   { k: 'senderistas', name: 'Los Senderistas Perdidos', near: 'Mirador del Cerro Colorado', dx: -45, dy: -60, pay: 300, fija: true, libre: true, r: 70,
     say: '(Cuatro senderistas con mochila, bastones y un mapa al revés discuten en plena ladera.) Llevan tres horas perdidos a sesenta metros del mirador, con las antenas a la vista y toda la ciudad allá abajo. Te dieron una lana para que no le cuentes a nadie.' },
+  // en un llano vacio del Cañón del Sainz (sin calles, casas ni agua cerca), en metros como el raton. Va derecho (rot)
+  // y quieto, que el monolito no se mece
+  { k: 'monolito', name: 'El Monolito del Llano', at: [6602, 12632], pay: 300, fija: true, libre: true, rot: 0, quieto: true, r: 110,
+    say: '(Nueve vacas formadas en un círculo perfecto miran, sin parpadear, una losa negra que apareció en medio del llano.) Nadie sabe quién la puso ni desde cuándo. Una vaca te pasó una moneda con la pezuña y volvió a su lugar.' },
   // las mascotas de las escuelas, afuera de su campus
   { k: 'cimarrones', name: 'Los Cimarrones de la UABC', near: 'UABC Campus Tijuana', dx: 55, dy: -45, pay: 300, fija: true, r: 70,
     say: '(Unos borregos cimarrones con bufanda verde y dorada pastan afuera de la UABC.) El cimarrón vive en las sierras de Baja California y es la mascota de la universidad. Estos ya van en octavo semestre. Te dejaron una lana para las copias.' },
@@ -3135,6 +3139,13 @@ const FRASES_FIJAS = {
   '¡Nomás era mi chancla, no hacía falta tanto!', '¡Gracias, perritos! ¿Aceptan croquetas o transferencia?',
   '¡Que alguien les avise que ya me puedo parar, el agua me llega a la cintura!',
   '¡Yo nomás venía a ver si estaba la marea alta!',
+  ],
+  monolito: [
+    '...Muuu.', '(Las vacas miran el monolito. El monolito no dice nada. Nadie dice nada.)',
+    'Llegó anoche. Desde entonces ya sabemos usar herramientas.', 'Antes rumiábamos pasto. Ahora rumiamos ideas.',
+    '♪ Taaa... taaaa... ¡TAAAAN! ♪', 'Si lo tocas suena un coro. Mejor no lo toques.',
+    'No sabemos qué es, pero le hacemos guardia.', 'La de la esquina dice que es un refrigerador muy elegante.',
+    'Muuu... digo, la verdad está ahí afuera.',
   ],
   delfines: [
     'Miren, otro humano tomándose una foto con el muro. Qué originales.', 'Ustedes necesitan pasaporte. Nosotros, aletas.',
@@ -6350,8 +6361,37 @@ function makeEggs(scene) {
     galgo(8, 15, 0.12, '#9e9e9e', '#5f5f5f', true); galgo(16, 18, 0.04, '#d8b07a', '#9c7240', false); galgo(24, 14, -0.08, '#2f2f2f', '#111', true);
     x.strokeStyle = 'rgba(255,255,255,0.5)'; x.lineWidth = 0.4; for (const px of [5, 13, 21, 27]) { x.beginPath(); x.moveTo(px, 2); x.lineTo(px, 5); x.stroke(); } // rayitas de velocidad
   };
+  // las vacas en circulo mirando el monolito: un dibujo grande (120 en vez de 32: unos 48 m)
+  draw.monolito = () => {
+    const c = 60;
+    // el pasto pisoteado del circulo
+    x.strokeStyle = 'rgba(120,95,55,0.35)'; x.lineWidth = 9; x.beginPath(); x.arc(c, c, 40, 0, 7); x.stroke();
+    ell('rgba(110,140,70,0.25)', c, c, 30, 30);
+    // nueve vacas pintas, cada una viendo hacia el centro
+    for (let i = 0; i < 9; i++) {
+      const a = i / 9 * Math.PI * 2 + 0.2, vx = c + Math.cos(a) * 40, vy = c + Math.sin(a) * 40;
+      x.save(); x.translate(vx, vy); x.rotate(a - Math.PI / 2); // +y hacia afuera: la cabeza (-y) al centro
+      ell('rgba(0,0,0,0.3)', 1.4, 1.6, 4.4, 7.4);
+      x.fillStyle = rad(0, 0, 7, '#ffffff', '#d8d4cc'); x.beginPath(); x.ellipse(0, 0.5, 4, 7, 0, 0, 7); x.fill();
+      x.save(); x.clip(); const r = mulberry(i * 31 + 5); // manchas negras
+      for (let j = 0; j < 4; j++) ell('#1d1d1d', (r() - 0.5) * 6, (r() - 0.5) * 11, 1.2 + r() * 1.6, 1 + r() * 1.8, r() * 3);
+      x.restore();
+      x.strokeStyle = '#1d1d1d'; x.lineWidth = 0.5; x.beginPath(); x.moveTo(0, 7.2); x.quadraticCurveTo(1.2, 9, 0.4, 10); x.stroke(); // cola
+      ell('#f1ede6', 0, -7.4, 2.4, 2.6); ell('#1d1d1d', 0.6, -7.8, 1.2, 1.1); // cabeza
+      ell('#f2a7a7', 0, -9.6, 1.6, 1); // el hocico rosa
+      ell('#e8dcc0', -2.3, -8.2, 0.9, 0.5, -0.4); ell('#e8dcc0', 2.3, -8.2, 0.9, 0.5, 0.4); // cuernitos
+      x.restore();
+    }
+    // el monolito: una losa negra parada (sube hacia arriba y un poco a la derecha, como los edificios) y su sombra
+    const L = 0.25, Hm = 34, w = 9, b = c + 5, l = c - w / 2; // (1 de ancho por 4 de alto, como debe ser)
+    x.fillStyle = 'rgba(0,0,0,0.35)'; x.beginPath(); x.moveTo(l, b); x.lineTo(l + w, b); x.lineTo(l + w + Hm * 0.55, b + Hm * 0.55); x.lineTo(l + Hm * 0.55, b + Hm * 0.55); x.closePath(); x.fill();
+    x.fillStyle = '#050505'; x.beginPath(); x.moveTo(l, b); x.lineTo(l + w, b); x.lineTo(l + w + Hm * L, b - Hm); x.lineTo(l + Hm * L, b - Hm); x.closePath(); x.fill(); // el frente
+    x.fillStyle = '#1c1c1e'; x.beginPath(); x.moveTo(l + Hm * L, b - Hm); x.lineTo(l + w + Hm * L, b - Hm); x.lineTo(l + w + Hm * L + 0.6, b - Hm - 2.4); x.lineTo(l + Hm * L + 0.6, b - Hm - 2.4); x.closePath(); x.fill(); // arriba, delgadita
+    line('rgba(150,160,180,0.45)', 0.35, [[l + w, b], [l + w + Hm * L, b - Hm]]); // el filo con el reflejo
+  };
+  const GRANDE = { monolito: 120 };
   for (const k in draw) {
-    const t = scene.textures.createCanvas('egg_' + k, 160, 160);
+    const n = GRANDE[k] || 32, t = scene.textures.createCanvas('egg_' + k, n * 5, n * 5);
     x = t.getContext(); x.save(); x.scale(5, 5); draw[k](x); x.restore(); t.refresh();
   }
 }
@@ -6738,10 +6778,11 @@ class Main extends Phaser.Scene {
           continue;
         }
       }
-      const [sx, sy, rot] = e.libre && !blocked(e.x, e.y) && !onRoad(e.x, e.y) ? [e.x, e.y, 0.4] : sidewalkSpot(e.x, e.y, (SIDEWALK + 0.5) * M);
+      const [sx, sy, rot] = e.libre && !blocked(e.x, e.y) && !onRoad(e.x, e.y) ? [e.x, e.y, e.rot ?? 0.4] : sidewalkSpot(e.x, e.y, (SIDEWALK + 0.5) * M);
       e.x = sx; e.y = sy;
       e.icon = this.add.image(sx, sy, 'egg_' + e.k).setScale(0.4).setRotation(rot).setDepth(7).setVisible(!e.got || e.fija);
-      if (e.fija) { e.persona = { x: sx, y: sy }; this.tweens.add({ targets: e.icon, rotation: rot + 0.06, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' }); }
+      if (e.fija) e.persona = { x: sx, y: sy - (e.k === 'monolito' ? 40 : 0) };
+      if (e.fija && !e.quieto) { this.tweens.add({ targets: e.icon, rotation: rot + 0.06, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' }); }
     }
     this.stamina = STAMINA; this.tired = false; this.burning = []; this.perros = []; this.gatos = []; this.gatoProx = 0; this.fuegos = []; this.manchas = []; this.blastLights = [];
     this.chatDeck = []; this.chatCool = 0;
