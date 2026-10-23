@@ -10177,6 +10177,7 @@ function celPagina(k) {
   $('celfecha').textContent = d.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
   $('celsaldo').textContent = '$' + state.money.toLocaleString('es-MX');
   if (k === 'tele' || k === 'bici' || k === 'comida') renderTienda(k);
+  if (k === 'controles') ctlTab(document.body.classList.contains('touch') ? 'touch' : 'pc');
 }
 // atras dentro del telefono: a la pantalla de inicio; ya en el inicio, se cierra
 function celAtras() { if (celPag !== 'home') celPagina('home'); else toggleOptions(); }
@@ -10185,6 +10186,12 @@ for (const b of document.querySelectorAll('.app')) b.addEventListener('click', (
   celPagina(b.dataset.app);
 });
 for (const b of document.querySelectorAll('.cel-atras')) b.addEventListener('click', () => celPagina('home'));
+// Controles: la pestaña de lo tactil o del teclado (abre en la de tu aparato)
+function ctlTab(t) {
+  for (const b of document.querySelectorAll('.ctl-tabs button')) b.classList.toggle('on', b.dataset.ctl === t);
+  $('ctltouch').classList.toggle('on', t === 'touch'); $('ctlpc').classList.toggle('on', t === 'pc');
+}
+for (const b of document.querySelectorAll('.ctl-tabs button')) b.addEventListener('click', () => ctlTab(b.dataset.ctl));
 $('celhome').addEventListener('click', () => celPagina('home'));
 // cerrar tocando afuera del telefono
 $('opts').addEventListener('click', (ev) => { if (ev.target === $('opts')) toggleOptions(); });

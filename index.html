@@ -72,27 +72,56 @@
       <button class="optrow" id="optacta"></button>
     </div></div>
     <div class="cel-pag" id="pag-controles"><div class="cel-bar"><button class="cel-atras">‹</button><b>Controles</b></div><div class="cel-cont">
-      <table class="keys" id="keystouch">
-        <tr><td>Joystick</td><td>Caminar o manejar</td></tr>
-        <tr><td>SUBIR / BAJAR</td><td>Robar un auto y subirte / bajarte</td></tr>
-        <tr><td>FRENO</td><td>Freno de mano (derrapes)</td></tr>
-        <tr><td>REVERSA</td><td>Echarte para atrás</td></tr>
-        <tr><td>TAXI</td><td>Trabajar de taxista (en auto)</td></tr>
-        <tr><td>Minimapa</td><td>Tócalo para abrir el mapa grande: arrastra, pellizca y toca para marcar destino</td></tr>
-        <tr><td>📱</td><td>Este teléfono</td></tr>
-      </table>
-      <table class="keys" id="keyspc">
-        <tr><td>Flechas / WASD</td><td>Caminar o manejar</td></tr>
-        <tr><td>E</td><td>Robar un auto / bajarte</td></tr>
-        <tr><td>Espacio</td><td>Freno de mano (derrapes)</td></tr>
-        <tr><td>R / ↓</td><td>Reversa</td></tr>
-        <tr><td>Shift</td><td>Correr a pie</td></tr>
-        <tr><td>T</td><td>Trabajar de taxista (en auto)</td></tr>
-        <tr><td>M / clic al minimapa</td><td>Mapa grande (rueda para acercar, clic para destino)</td></tr>
-        <tr><td>N · L</td><td>Sonido · noche</td></tr>
-        <tr><td>O / Esc</td><td>Este teléfono</td></tr>
-      </table>
-      <p class="tip">Te habla la gente si caminas pegado a ella. Roba la moto de un repartidor 🛵 para hacer entregas. Los carros robados se venden en el yonke 🔧 de la Zona Norte. En la comida china 🏮 se te va el dinero.</p>
+      <div class="ctl-tabs"><button data-ctl="touch">📱 Táctil</button><button data-ctl="pc">⌨️ Teclado</button></div>
+      <div class="ctl-pane" id="ctltouch">
+        <!-- la pantalla del juego en chiquito, con cada control numerado -->
+        <div class="ctl-pantalla">
+          <span class="m-stats">$ ★ 🌮 ☕</span><span class="m-mini"></span><span class="m-cel">📱</span>
+          <span class="m-stick"><i></i></span>
+          <span class="m-btn m-subir">SUBIR</span><span class="m-btn m-freno">FRENO</span><span class="m-btn m-rev">REVERSA</span><span class="m-btn m-taxi">TAXI</span>
+          <b class="n" style="left:17%;bottom:30%">1</b><b class="n" style="right:9%;bottom:30%">2</b><b class="n" style="right:36%;bottom:30%">3</b>
+          <b class="n" style="right:36%;bottom:4%">4</b><b class="n" style="right:9%;bottom:4%">5</b><b class="n" style="right:32%;top:9%">6</b><b class="n" style="right:20%;top:23%">7</b>
+        </div>
+        <ol class="ctl-lista">
+          <li><b>Joystick</b> Caminar o manejar. Empújalo hasta la orilla para correr.</li>
+          <li><b>SUBIR / BAJAR</b> Robarte el carro de junto y subirte, o bajarte.</li>
+          <li><b>FRENO</b> Freno de mano: para derrapar en las curvas.</li>
+          <li><b>REVERSA</b> Echarte para atrás.</li>
+          <li><b>TAXI</b> Trabajar de taxista (arriba de un carro).</li>
+          <li><b>Minimapa</b> Tócalo para el mapa grande: arrastra, pellizca y toca para marcar a dónde vas.</li>
+          <li><b>📱</b> Este teléfono (el juego se pausa).</li>
+        </ol>
+      </div>
+      <div class="ctl-pane" id="ctlpc">
+        <div class="ctl-grupo"><h5>Moverte</h5>
+          <div class="ctl-tecla"><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> <em>o</em> <kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd></span>Caminar o manejar</div>
+          <div class="ctl-tecla"><span><kbd class="ancha">Shift</kbd></span>Correr a pie</div>
+          <div class="ctl-tecla"><span><kbd class="ancha">Espacio</kbd></span>Freno de mano (derrapes)</div>
+          <div class="ctl-tecla"><span><kbd>R</kbd> <em>o</em> <kbd>↓</kbd></span>Reversa</div>
+        </div>
+        <div class="ctl-grupo"><h5>Hacer cosas</h5>
+          <div class="ctl-tecla"><span><kbd>E</kbd></span>Robar un carro y subirte / bajarte</div>
+          <div class="ctl-tecla"><span><kbd>T</kbd></span>Trabajar de taxista (en carro)</div>
+          <div class="ctl-tecla"><span><kbd>E</kbd></span>Aceptar un paro o pagarle al coyote</div>
+        </div>
+        <div class="ctl-grupo"><h5>Pantalla</h5>
+          <div class="ctl-tecla"><span><kbd>M</kbd></span>Mapa grande (rueda para acercar, clic para destino)</div>
+          <div class="ctl-tecla"><span><kbd>O</kbd> <em>o</em> <kbd class="ancha">Esc</kbd></span>Este teléfono</div>
+          <div class="ctl-tecla"><span><kbd>N</kbd></span>Sonido</div>
+          <div class="ctl-tecla"><span><kbd>L</kbd></span>Tijuana de noche (cuando la ganes)</div>
+        </div>
+      </div>
+      <h4>Consejos</h4>
+      <div class="ctl-tips">
+        <div><i>🗣️</i>Camina pegado a la gente y te platica.</div>
+        <div><i>🛵</i>Róbale la moto a un repartidor y entrega su pedido antes de que se enfríe.</div>
+        <div><i>🌮</i>Las taquerías te reparan el carro; los cafés te dan aire para correr.</div>
+        <div><i>🔧</i>Los carros robados se venden en el yonke de la Zona Norte.</div>
+        <div><i>🤝</i>Los morados del mapa son paros: favores para la gente de las colonias.</div>
+        <div><i>🏮</i>En la comida china se te va el dinero. Tú sabrás.</div>
+        <div><i>❓</i>Los "?" del mapa son secretos. Algunos están en lugares muy raros.</div>
+        <div><i>🌀</i>¿Muy lejos? TeleTJ te lleva, pero cuesta.</div>
+      </div>
     </div></div>
     <div class="cel-pag" id="pag-creditos"><div class="cel-bar"><button class="cel-atras">‹</button><b>Créditos</b></div><div class="cel-cont">
       <div class="cel-creditos"><b>TJ RUSH</b><span>Tijuana · B.C.</span><p>Los créditos completos vienen pronto.</p>
