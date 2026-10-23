@@ -208,6 +208,15 @@ const EGGS = [
     say: '"En 1989, para los cien años de la ciudad, un escultor hizo por aquí una mujer de concreto de 17 metros y se fue a vivir adentro. Le dicen La Mona. En Tijuana hasta las estatuas tienen recámara. Ten."' },
   { k: 'topografo', name: 'El Topógrafo de 1889', near: 'El Colef', dx: -50, dy: 55, pay: 300,
     say: '(Un señor de bigote, con su plano enrollado y su tripié.) "Es julio de 1889 y estoy trazando un pueblito junto al río. ¿Que ya somos millones? Ah, caray. Ten, a ver si todavía te sirven estos pesos."' },
+  // referencias que se quedan siempre en su lugar (fija: no se quitan al encontrarlas; r: de que tan lejos cuentan).
+  // canal: va adentro del canal del rio, en la orilla mas cercana al lugar (ver lugarEnCanal)
+  { k: 'cachorros', name: 'La Patrulla de Cachorros', near: 'Plaza Río Tijuana', dx: 0, dy: 0, pay: 300, fija: true, canal: true, r: 150,
+    say: '(Seis cachorros con chalequito y casco de colores jalan una soga para sacar a un señor del canal del río.) "¡Ningún rescate es demasiado grande!", ladra el de azul. El señor nomás quería sacar su chancla. Te dejaron una propina por echar porras.' },
+  // las mascotas de las escuelas, afuera de su campus
+  { k: 'cimarrones', name: 'Los Cimarrones de la UABC', near: 'UABC Campus Tijuana', dx: 55, dy: -45, pay: 300, fija: true, r: 70,
+    say: '(Unos borregos cimarrones con bufanda verde y dorada pastan afuera de la UABC.) El cimarrón vive en las sierras de Baja California y es la mascota de la universidad. Estos ya van en octavo semestre. Te dejaron una lana para las copias.' },
+  { k: 'galgos', name: 'Los Galgos del Tec', near: 'Tecnológico de Tijuana', dx: -55, dy: 45, pay: 300, fija: true, r: 70,
+    say: '(Tres galgos con sudadera azul pasan corriendo frente al Tecnológico.) Son la mascota del Tec de Tijuana: flacos, rapidísimos y siempre corriendo a la primera clase. A uno se le cayó un billete y ni regresó por él.' },
   // este no tiene un lugar cerca: va en metros desde la esquina noroeste del mapa, en plena Zona Norte
   { k: 'raton', name: 'La Botarga del Ratón Amarillo', at: [395, 615], pay: 200,
     say: '"¡Foto con el ratón, foto! ...No soy pirata, soy edición limitada. Ten, por no preguntar de qué caricatura soy."' },
@@ -3019,6 +3028,28 @@ const FRASES_PAN_CANCION = [
 const ZONAS_SIN_PAN = new Set(['Zona Centro', 'Zona Norte', 'Zona Río']);
 // lo que te "dice" un perro cuando te le acercas: un solo emoji. Casi siempre lo de siempre (hueso, popo, amor)
 // y de vez en cuando algo que nadie entiende
+// lo que dicen los secretos que se quedan en su lugar (EGGS con fija) cuando pasas cerca, y su globo
+const FRASES_FIJAS = {
+  // el señor que estan sacando del canal
+  cachorros: [
+  '¡Jálenle, cachorros, jálenle!', '¡El de rosa, el de rosa sí está jalando!', '¡Ya casi, ya casi... ya no!',
+  '¡Nomás era mi chancla, no hacía falta tanto!', '¡Gracias, perritos! ¿Aceptan croquetas o transferencia?',
+  '¡Que alguien les avise que ya me puedo parar, el agua me llega a la cintura!', '¡Ningún rescate es demasiado grande!',
+  '¡El de amarillo trae su casco de construcción, qué profesional!', '¡Yo nomás venía a ver si estaba la marea alta!',
+  ],
+  cimarrones: [
+    'Beee... digo, ¡arriba los Cimarrones!', 'Vengo de la biblioteca. Bueno, de comerme el pasto de afuera de la biblioteca.',
+    'Examen de cálculo a las siete. Aquí nomás andamos rumiando.', 'Estos cuernos no son para pelear, son para cargar las copias.',
+    '¿Fila en la cafetería? Yo me salto la barda, soy de montaña.', 'En la sierra quedamos pocos. Aquí en la UABC somos miles.',
+    'Mi tesis es sobre el pasto de Otay. Llevo cuatro años en el trabajo de campo.',
+  ],
+  galgos: [
+    '¡Arriba los Galgos del Tec!', 'Corremos porque ya va a empezar la clase de termodinámica.',
+    'Un galgo de ingeniería no corre: optimiza la trayectoria.', 'Llevo tres semestres buscando dónde estacionarme.',
+    'Ingeniero en sistemas y en los cien metros planos.', '¿Me pasas la tarea? Te la cambio por una galleta.',
+    'Si el profe no ha llegado en quince minutos, nos vamos. Somos galgos, no tortugas.',
+  ],
+};
 const PERRO_DICE = ['🦴', '🦴', '🦴', '💩', '💩', '❤️', '❤️', '🥰', '🐾', '🍖', '🎾', '😋'];
 const PERRO_ENIGMA = ['🌕', '👁️', '🔮', '🛸', '⏳', '🗝️', '🌀', '♾️', '🪐', '📜', '🕯️', '🧿', '🌵', '🪞', '🦉', '⚖️', '🧭', '🎻', '🌑', '🫖'];
 const FRASES_PAN = [
@@ -5440,6 +5471,75 @@ function makeLandmarkIcons(scene) {
     l.icon = 'lm' + i;
   });
 }
+// el punto de la orilla de un canal (como el del rio Tijuana) mas cercano a (x, y), con su direccion hacia adentro y
+// lo que mide su talud (b) y su piso (f) antes del agua (ver pintarCanal)
+function lugarEnCanal(x, y) {
+  let best = null;
+  for (const a of areas) {
+    if (!a.canal || x < a.bb[0] - 600 || x > a.bb[2] + 600 || y < a.bb[1] - 600 || y > a.bb[3] + 600) continue;
+    const p = a.p, n = p.length / 2;
+    for (let i = 0; i < n; i++) {
+      const x0 = p[i * 2], y0 = p[i * 2 + 1], x1 = p[(i + 1) % n * 2], y1 = p[(i + 1) % n * 2 + 1], dx = x1 - x0, dy = y1 - y0, l2 = dx * dx + dy * dy || 1;
+      const t = Math.max(0.2, Math.min(0.8, ((x - x0) * dx + (y - y0) * dy) / l2)), qx = x0 + dx * t, qy = y0 + dy * t, d = Math.hypot(x - qx, y - qy);
+      if (best && d >= best.d) continue;
+      const l = Math.sqrt(l2); let nx = -dy / l, ny = dx / l;
+      if (!pip(qx + nx * 4, qy + ny * 4, p)) { nx = -nx; ny = -ny; }
+      // que quepa: el agua tiene que seguir adentro del canal
+      if (!pip(qx + nx * (a.canal.b + a.canal.f + 20), qy + ny * (a.canal.b + a.canal.f + 20), p)) continue;
+      best = { d, x: qx, y: qy, nx, ny, b: a.canal.b, f: a.canal.f };
+    }
+  }
+  return best;
+}
+// la patrulla de cachorros: seis perritos con chalequito y casco de colores jalando una soga (de arriba hacia abajo:
+// los perritos y luego la soga hasta el agua, L px mas abajo). Mirando hacia arriba (-y); en px del mundo, a 5x
+const CACHORROS = [ // pelo, pelo oscuro, chaleco/casco
+  ['#a8743f', '#5b3a1e', '#1e5bd8'], ['#f4f1ea', '#2b2b2b', '#d62828'], ['#d9b27c', '#8d6a3f', '#f2c230'],
+  ['#9aa0a6', '#5f6368', '#2e9e44'], ['#6d4527', '#3e2614', '#f57c1f'], ['#efd9b4', '#b8956a', '#f06ba8'],
+];
+function makeCachorros(scene, L) {
+  const K = 1.9, W = 60, H = Math.ceil(L + 40), t = scene.textures.createCanvas('egg_cachorros', W * 5, H * 5), x = t.getContext(); // K: del tamaño de los perros de la calle
+  x.scale(5, 5);
+  const ell = (c, cx, cy, rx, ry, a) => { x.fillStyle = c; x.beginPath(); x.ellipse(cx, cy, rx, ry, a || 0, 0, 7); x.fill(); };
+  const cx = W / 2, top = 12, py = top + L; // la cabeza del primero y el señor en el agua
+  // la soga, de las manos del señor a la boca del primero, con su torcido
+  x.lineCap = 'round';
+  const soga = (c, w, o) => { x.strokeStyle = c; x.lineWidth = w; x.beginPath(); x.moveTo(cx + o, py - 3 * K); x.quadraticCurveTo(cx + 3 + o, (top + py) / 2 + 8, cx + o, top - 2 * K); x.stroke(); };
+  soga('rgba(0,0,0,0.3)', 2, 1.4); soga('#b98a4e', 1.6, 0); x.setLineDash([1, 1.5]); soga('#7a5428', 0.8, 0); x.setLineDash([]);
+  // los cachorros en fila, uno de cada lado de la soga, echados para atras jalando
+  CACHORROS.forEach(([pelo, oscuro, col], i) => {
+    const lado = i % 2 ? 1 : -1, dx = cx + lado * 3.4 * K, dy = top + (2 + i * 6.2) * K, a = lado * 0.18;
+    x.save(); x.translate(dx, dy); x.rotate(a); x.scale(K, K);
+    ell('rgba(0,0,0,0.3)', 1, 1.4, 3, 4.6);
+    for (const [px, pyy] of [[-2.1, -1.6], [2.1, -1.6], [-2, 2.8], [2, 2.8]]) ell(oscuro, px, pyy, 0.9, 1.2); // patas abiertas, haciendo fuerza
+    ell(pelo, 0, 1, 2.5, 3.8); // cuerpo
+    if (i === 1) for (const [sx, sy] of [[-1, 2.6], [1.2, 0.4], [0.3, 3.6], [-1.3, -0.2]]) ell('#2b2b2b', sx, sy, 0.45, 0.4); // manchas
+    x.fillStyle = col; x.beginPath(); x.roundRect(-2.2, -1.4, 4.4, 3.6, 0.9); x.fill(); // chaleco
+    x.fillStyle = 'rgba(255,255,255,0.85)'; x.beginPath(); x.arc(0, 0.4, 0.9, 0, 7); x.fill(); // placa
+    x.fillStyle = col; x.beginPath(); x.arc(0, 0.4, 0.45, 0, 7); x.fill();
+    x.strokeStyle = oscuro; x.lineWidth = 0.7; x.beginPath(); x.moveTo(0, 4.6); x.quadraticCurveTo(lado * 1.4, 5.8, lado * 0.6, 7); x.stroke(); // cola
+    ell(pelo, 0, -3.6, 2, 1.9); // cabeza
+    ell(oscuro, -1.8, -3.4, 0.8, 1.4, -0.4); ell(oscuro, 1.8, -3.4, 0.8, 1.4, 0.4); // orejas
+    x.fillStyle = col; x.beginPath(); x.arc(0, -3.9, 1.65, Math.PI, 0); x.fill(); // casco
+    ell(pelo, -lado * 0.9, -5.2, 0.9, 0.8); ell('#1b1b1b', -lado * 1.1, -5.9, 0.4, 0.3); // hocico mordiendo la soga
+    x.restore();
+  });
+  x.save(); x.translate(cx, py); x.scale(K, K); x.translate(-cx, -py);
+  // el agua alrededor del señor: ondas y espuma
+  for (const [r, al] of [[9, 0.25], [6.5, 0.4], [4.2, 0.55]]) { x.strokeStyle = 'rgba(235,245,240,' + al + ')'; x.lineWidth = 0.5; x.beginPath(); x.ellipse(cx, py + 1, r, r * 0.6, 0, 0, 7); x.stroke(); }
+  // el señor, con el agua hasta el pecho: los hombros apenas, las manos agarrando la soga y la cara de susto
+  ell('rgba(60,90,80,0.55)', cx, py + 2.4, 4.4, 2.4);
+  ell('#3b6ea5', cx, py + 2, 3.6, 1.8); // la camisa mojada
+  x.strokeStyle = '#d8a27a'; x.lineWidth = 1.1; x.beginPath(); x.moveTo(cx - 3, py + 1.6); x.lineTo(cx - 0.6, py - 2.6); x.moveTo(cx + 3, py + 1.6); x.lineTo(cx + 0.6, py - 2.6); x.stroke();
+  ell('#d8a27a', cx - 0.5, py - 2.8, 0.8, 0.8); ell('#d8a27a', cx + 0.5, py - 2.8, 0.8, 0.8); // las manos
+  ell('#d8a27a', cx, py + 0.4, 2, 2); ell('#2a1c14', cx, py + 1, 2, 1.3); // cabeza con pelo
+  ell('rgba(255,255,255,0.8)', cx + 3.8, py - 0.5, 0.6, 0.4); ell('rgba(255,255,255,0.8)', cx - 4, py + 2.6, 0.5, 0.35); // gotitas
+  // la chancla flotando
+  x.save(); x.translate(cx + 6.5, py + 4.5); x.rotate(0.6); ell('#ffd600', 0, 0, 1, 2.2); x.fillStyle = '#1565c0'; x.fillRect(-1, -0.6, 2, 0.6); x.restore();
+  x.restore();
+  t.refresh();
+  return { W, H, top, py };
+}
 function makeEggs(scene) {
   let x;
   const ell = (c, cx, cy, rx, ry, a) => { x.fillStyle = c; x.beginPath(); x.ellipse(cx, cy, rx, ry, a || 0, 0, 7); x.fill(); };
@@ -6059,6 +6159,45 @@ function makeEggs(scene) {
       line('#ffd54f', 0.35, [[13.7, 17.6], [18.3, 17.6]]); // lentes de cadenita
     },
   };
+  // un borrego cimarron visto desde arriba, mirando hacia abajo (+y), con los cuernos enroscados (grandes: el macho)
+  const cimarron = (cx, cy, a, cuernos, bufanda) => {
+    x.save(); x.translate(cx, cy); x.rotate(a);
+    ell('rgba(0,0,0,0.3)', 1, 1.2, 3.4, 5.4);
+    x.fillStyle = rad(0, 0, 5, '#b98a5a', '#7a5434'); x.beginPath(); x.ellipse(0, -0.5, 3.2, 5, 0, 0, 7); x.fill(); // cuerpo cafe
+    ell('#f1ead9', 0, -4.6, 2.2, 1.3); // la nalga blanca
+    ell('#2b2016', 0, -6.1, 0.5, 0.8); // colita
+    if (bufanda) { x.fillStyle = '#0f7a3f'; x.fillRect(-2.6, 2.4, 5.2, 1.3); x.fillStyle = '#d4a017'; x.fillRect(-2.6, 2.8, 5.2, 0.45); x.fillStyle = '#0f7a3f'; x.fillRect(1.6, 2.6, 1, 2.6); }
+    ell('#8a6240', 0, 5, 1.8, 2.2); ell('#efe6d2', 0, 6.6, 1.1, 0.8); // cabeza y hocico claro
+    x.lineCap = 'round';
+    for (const l of [-1, 1]) { // cuernos: un arco enroscado de cada lado
+      x.strokeStyle = '#d8c39a'; x.lineWidth = cuernos ? 1.4 : 0.9; x.beginPath();
+      x.arc(l * (cuernos ? 2.6 : 1.9), 4.6, cuernos ? 1.9 : 1.1, l > 0 ? Math.PI * 1.1 : -Math.PI * 0.1, l > 0 ? Math.PI * 2.6 : Math.PI * 1.4, l < 0); x.stroke();
+      x.strokeStyle = 'rgba(90,70,40,0.6)'; x.lineWidth = 0.3; x.stroke();
+    }
+    ell('#1b1b1b', -0.7, 5.6, 0.3, 0.3); ell('#1b1b1b', 0.7, 5.6, 0.3, 0.3); // ojos
+    x.restore();
+  };
+  // un galgo corriendo visto desde arriba, mirando hacia abajo (+y): flaco y largo, patas estiradas
+  const galgo = (cx, cy, a, pelo, oscuro, sudadera) => {
+    x.save(); x.translate(cx, cy); x.rotate(a);
+    ell('rgba(0,0,0,0.28)', 1, 1.2, 2.2, 7);
+    x.strokeStyle = oscuro; x.lineWidth = 0.7; x.lineCap = 'round';
+    x.beginPath(); x.moveTo(-1.4, 3); x.lineTo(-2.2, 6.6); x.moveTo(1.4, 3); x.lineTo(2.2, 6.6); x.moveTo(-1.3, -3); x.lineTo(-2.1, -6.8); x.moveTo(1.3, -3); x.lineTo(2.1, -6.8); x.stroke(); // patas
+    x.fillStyle = rad(0, 0, 4, pelo, oscuro); x.beginPath(); x.ellipse(0, 0, 1.9, 5.4, 0, 0, 7); x.fill();
+    if (sudadera) { x.fillStyle = '#1b3a8a'; x.beginPath(); x.ellipse(0, 0.6, 2, 3.4, 0, 0, 7); x.fill(); x.fillStyle = '#fff'; x.fillRect(-0.3, -1.6, 0.6, 3.6); }
+    x.beginPath(); x.moveTo(0, -5); x.quadraticCurveTo(1.6, -8, 0.4, -10.4); x.stroke(); // cola larga y delgada
+    ell(pelo, 0, 6.2, 1.1, 1.5); ell(pelo, 0, 8.2, 0.7, 1.6); ell('#1b1b1b', 0, 9.6, 0.4, 0.3); // cuello, cabeza alargada y nariz
+    ell(oscuro, -0.9, 6.6, 0.5, 0.9, -0.5); ell(oscuro, 0.9, 6.6, 0.5, 0.9, 0.5); // orejitas para atras
+    x.restore();
+  };
+  draw.cimarrones = () => {
+    cimarron(10, 13, 0.3, true, true); cimarron(21, 11, -0.2, false, false); cimarron(16, 23, 0.1, false, true);
+    ell('#7cb342', 6, 25, 2, 1.2); ell('#689f38', 26, 24, 1.6, 1); ell('#8bc34a', 24, 4, 1.4, 0.9); // matitas de pasto
+  };
+  draw.galgos = () => {
+    galgo(8, 15, 0.12, '#9e9e9e', '#5f5f5f', true); galgo(16, 18, 0.04, '#d8b07a', '#9c7240', false); galgo(24, 14, -0.08, '#2f2f2f', '#111', true);
+    x.strokeStyle = 'rgba(255,255,255,0.5)'; x.lineWidth = 0.4; for (const px of [5, 13, 21, 27]) { x.beginPath(); x.moveTo(px, 2); x.lineTo(px, 5); x.stroke(); } // rayitas de velocidad
+  };
   for (const k in draw) {
     const t = scene.textures.createCanvas('egg_' + k, 160, 160);
     x = t.getContext(); x.save(); x.scale(5, 5); draw[k](x); x.restore(); t.refresh();
@@ -6418,9 +6557,25 @@ class Main extends Phaser.Scene {
       Y.label = this.add.text(Y.icon.x, Y.icon.y - hh - 8, '🔧 ' + Y.name, { fontSize: '13px', fontStyle: 'bold', color: '#ffd54f', stroke: '#000', strokeThickness: 3, resolution: TXT_RES }).setOrigin(0.5).setDepth(19);
     }
     for (const e of EGGS) {
+      if (e.canal) {
+        // adentro del canal: los perritos en el piso y la soga hasta el agua (si no hay canal cerca, en la banqueta)
+        const c = lugarEnCanal(e.x, e.y);
+        if (c) {
+          const d0 = c.b + c.f * 0.05, d1 = c.b + c.f + 22, T = makeCachorros(this, d1 - d0), rot = Math.atan2(-c.ny, -c.nx) + Math.PI / 2;
+          // el centro de la imagen: entre los perritos (d0) y el agua (d1), con la parte de arriba hacia la orilla
+          const dm = d0 - T.top + T.H / 2;
+          e.x = c.x + c.nx * (d0 + 10); e.y = c.y + c.ny * (d0 + 10);
+          e.icon = this.add.image(c.x + c.nx * dm, c.y + c.ny * dm, 'egg_cachorros').setScale(1 / 5).setRotation(rot).setDepth(4.6);
+          // jalan y aflojan
+          this.tweens.add({ targets: e.icon, x: e.icon.x - c.nx * 1.2, y: e.icon.y - c.ny * 1.2, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+          e.persona = { x: c.x + c.nx * d1, y: c.y + c.ny * d1 };
+          continue;
+        }
+      }
       const [sx, sy, rot] = sidewalkSpot(e.x, e.y, (SIDEWALK + 0.5) * M);
       e.x = sx; e.y = sy;
-      e.icon = this.add.image(sx, sy, 'egg_' + e.k).setScale(0.4).setRotation(rot).setDepth(7).setVisible(!e.got);
+      e.icon = this.add.image(sx, sy, 'egg_' + e.k).setScale(0.4).setRotation(rot).setDepth(7).setVisible(!e.got || e.fija);
+      if (e.fija) { e.persona = { x: sx, y: sy }; this.tweens.add({ targets: e.icon, rotation: rot + 0.06, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' }); }
     }
     this.stamina = STAMINA; this.tired = false; this.burning = []; this.perros = []; this.gatos = []; this.gatoProx = 0; this.fuegos = []; this.manchas = []; this.blastLights = [];
     this.chatDeck = []; this.chatCool = 0;
@@ -8652,11 +8807,17 @@ class Main extends Phaser.Scene {
     }
     this.checkPerks();
     for (const e of EGGS) {
-      if (e.got || dist(e.x, e.y, f.x, f.y) > 45 || sp > 90) continue;
+      const now = this.time.now;
+      if (e.fija && e.persona && !this.bubble.ped && now > (e.dicT || 0) && dist(e.persona.x, e.persona.y, f.x, f.y) < 220) {
+        // los que se quedan: de vez en cuando dicen algo (el señor del canal, las mascotas de las escuelas)
+        e.dicT = now + rnd(14000, 22000);
+        this.globo(e.persona, e.k, pick(FRASES_FIJAS[e.k]), 3.5);
+      }
+      if (e.got || dist(e.x, e.y, f.x, f.y) > (e.r || 45) || sp > 90) continue;
       e.got = true; state.money += e.pay; save(); bigSound = true; updateStats();
       const n = EGGS.filter(q => q.got).length;
       toast('🥚 ' + e.name + ' (+$' + e.pay + ')', e.say + (n === EGGS.length ? '  ¡Encontraste todos los secretos de Tijuana!' : '  Secreto ' + n + ' de ' + EGGS.length + '.'), Math.max(6, e.say.length / 22));
-      this.tweens.add({ targets: e.icon, alpha: 0, scale: 1.2, duration: 900, delay: 1500, onComplete: () => e.icon.setVisible(false) });
+      if (!e.fija) this.tweens.add({ targets: e.icon, alpha: 0, scale: 1.2, duration: 900, delay: 1500, onComplete: () => e.icon.setVisible(false) });
     }
     for (const c of chinas) {
       c.cool -= dt;
