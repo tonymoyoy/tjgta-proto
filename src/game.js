@@ -225,6 +225,9 @@ const EGGS = [
   // en un terreno vacio de Natura (sin calles, casas ni agua cerca)
   { k: 'gnomos', name: 'Los Gnomos Conspiradores', at: [12382, 13312], pay: 300, fija: true, libre: true, rot: 0, quieto: true, r: 70,
     say: '(Cinco gnomos de jardín en bolita, alrededor de un tronquito con una vela y un plano marcado con una X, se quedan quietitos en cuanto te ven.) Uno te guiñó el ojo y te pasó un billete "para que no hayas visto nada".' },
+  // en el monte de La Presa (sin calles, casas ni agua cerca)
+  { k: 'chupacabras', name: 'El Chupacabras Jubilado', at: [13742, 9912], pay: 300, fija: true, libre: true, rot: 0, quieto: true, r: 70,
+    say: '(En pleno monte, el mismísimo chupacabras toma horchata en una silla de playa, junto a una cabra que duerme tranquilita.) "Ya nadie me tiene miedo; ahora me piden selfies." Te dio un billete medio mordido.' },
   // las mascotas de las escuelas, afuera de su campus
   { k: 'cimarrones', name: 'Los Cimarrones de la UABC', near: 'UABC Campus Tijuana', dx: 55, dy: -45, pay: 300, fija: true, r: 70,
     say: '(Unos borregos cimarrones con bufanda verde y dorada pastan afuera de la UABC.) El cimarrón vive en las sierras de Baja California y es la mascota de la universidad. Estos ya van en octavo semestre. Te dejaron una lana para las copias.' },
@@ -3142,6 +3145,12 @@ const FRASES_FIJAS = {
   '¡Nomás era mi chancla, no hacía falta tanto!', '¡Gracias, perritos! ¿Aceptan croquetas o transferencia?',
   '¡Que alguien les avise que ya me puedo parar, el agua me llega a la cintura!',
   '¡Yo nomás venía a ver si estaba la marea alta!',
+  ],
+  chupacabras: [
+    'Ya no se espanta nadie. En los noventa salía en todos los noticieros.', 'No, no chupo cabras. Soy vegetariano desde el 2003.',
+    'La cabra es mi amiga. Se llama Lupe. Déjala dormir.', 'Me dicen leyenda. Yo prefiero "clásico".',
+    'Los del ovni y yo tenemos un grupo de chat. Puros memes.', '¿Una foto? Va, pero que salga borrosa, si no nadie la cree.',
+    'Antes esto era puro rancho. Ahora hay fraccionamientos hasta aquí.', 'Horchata. Siempre horchata. El sabor de la leyenda.',
   ],
   gnomos: [
     'Shhh... alguien viene. Todos quietos, somos adornos.', 'Fase uno: los jardines. Fase dos: los camellones. Fase tres: la Zona Río.',
@@ -6426,7 +6435,32 @@ function makeEggs(scene) {
     const vx = c - 13, vy = c + 9; gnomo(vx, vy, Math.atan2(vy - c, vx - c) - Math.PI / 2, '#d32f2f', '#795548');
     const av = Math.atan2(vy - c, vx - c); line('#b8860b', 0.9, [[vx + Math.cos(av) * 2, vy + Math.sin(av) * 2], [vx + Math.cos(av) * 4.6, vy + Math.sin(av) * 4.6]]);
   };
-  const GRANDE = { monolito: 120, gnomos: 48 };
+  // el chupacabras en su silla de playa con su horchata, la hielera, el radio y la cabra dormida junto
+  draw.chupacabras = () => {
+    // la silla de playa (vista desde arriba, con las tiras de colores) y su sombra
+    shadow(20, 24, 9, 10);
+    x.fillStyle = '#9e9e9e'; x.fillRect(12.4, 15, 15.2, 18);
+    ['#e53935', '#fdd835', '#43a047', '#1e88e5'].forEach((c, i) => { x.fillStyle = c; for (let j = 0; j < 2; j++) x.fillRect(13 + (i + j * 4) * 1.75, 15.6, 1.5, 16.8); });
+    // el chupacabras sentado: cuerpo gris verdoso, picos morados en el lomo, brazos largos y ojos rojos
+    x.fillStyle = rad(20, 22, 8, '#8fa58a', '#4d6150'); x.beginPath(); x.ellipse(20, 22.5, 5.6, 7, 0, 0, 7); x.fill();
+    for (let i = 0; i < 5; i++) { const py = 17 + i * 2.6; x.fillStyle = '#7b3fa0'; x.beginPath(); x.moveTo(18.8, py); x.lineTo(21.2, py); x.lineTo(20, py - 2.4); x.closePath(); x.fill(); }
+    line('#4d6150', 1.4, [[15, 21], [11.6, 26], [12.6, 29]]); line('#4d6150', 1.4, [[25, 21], [28.6, 25], [28, 28]]); // brazos
+    line('#2b2b2b', 0.35, [[11.6, 29.6], [10.8, 30.8]]); line('#2b2b2b', 0.35, [[12.6, 29.8], [12.4, 31.2]]); // garritas
+    ell('#6e8470', 20, 30, 3.6, 3); // la cabeza (hacia abajo: nos ve)
+    ell('#ff1744', 18.5, 31.2, 1.1, 0.8, -0.3); ell('#ff1744', 21.5, 31.2, 1.1, 0.8, 0.3); ell('#fff', 18.2, 30.9, 0.3, 0.25); ell('#fff', 21.2, 30.9, 0.3, 0.25);
+    // la horchata en la mano, con su popote
+    ell('#f5ecd7', 28.6, 28.6, 1.6, 1.6); ell('#e6d6b0', 28.6, 28.6, 1.2, 1.2); line('#e53935', 0.4, [[28.6, 28.6], [29.8, 26.6]]);
+    // la hielera y el radio
+    shadow(35, 20, 4, 3); x.fillStyle = '#1565c0'; x.beginPath(); x.roundRect(31.5, 17, 7, 5.6, 1); x.fill(); x.fillStyle = '#fafafa'; x.fillRect(31.5, 17, 7, 1.6);
+    x.fillStyle = '#424242'; x.beginPath(); x.roundRect(5, 14, 5.4, 3.4, 0.6); x.fill(); ell('#9e9e9e', 6.4, 15.7, 0.9, 0.9); line('#bdbdbd', 0.25, [[9.4, 14], [11.4, 11]]);
+    line('rgba(255,255,255,0.7)', 0.3, [[11.6, 15.2], [12.6, 14.6]]); line('rgba(255,255,255,0.7)', 0.3, [[11.8, 16.6], [13, 16.4]]); // la musiquita
+    // la cabra dormida, echada y hecha bolita
+    shadow(36, 37, 6, 4); x.fillStyle = rad(36, 36, 6, '#ffffff', '#d7ccc8'); x.beginPath(); x.ellipse(36, 36.5, 5.6, 3.6, 0.2, 0, 7); x.fill();
+    ell('#bcaaa4', 31, 35, 2, 1.6, -0.3); ell('#8d6e63', 30.2, 33.8, 0.5, 1, -0.6); ell('#8d6e63', 31.6, 33.6, 0.5, 1, 0.4); // cabeza y cuernitos
+    line('#5d4037', 0.3, [[30.4, 35.2], [31.2, 35.4]]); // ojo cerrado
+    x.fillStyle = 'rgba(255,255,255,0.85)'; x.font = 'bold 2.2px sans-serif'; x.fillText('z', 33, 31.4); x.font = 'bold 1.6px sans-serif'; x.fillText('z', 34.6, 29.8);
+  };
+  const GRANDE = { monolito: 120, gnomos: 48, chupacabras: 44 };
   for (const k in draw) {
     const n = GRANDE[k] || 32, t = scene.textures.createCanvas('egg_' + k, n * 5, n * 5);
     x = t.getContext(); x.save(); x.scale(5, 5); draw[k](x); x.restore(); t.refresh();
