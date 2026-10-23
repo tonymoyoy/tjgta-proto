@@ -2436,7 +2436,8 @@ function* chunkSteps(cx, cy) {
   // los halos del pasto antes que todas las areas: solo se ven sobre la tierra pelona
   for (const a of ar) if (pasto(a)) haloPasto(ctx, a);
   for (const a of ar) if (a.k !== AREA_AGUA) { ctx.fillStyle = areaFill(ctx, a.k); trace(ctx, a.p, true); ctx.fill(); }
-  yield* pintarCerro(ctx, X0, Y0); // el relieve del Cerro Colorado
+  pintarRelieve(ctx, X0, Y0, X1, Y1); // los cerros y cañones (encima de las areas, debajo de lo demas)
+  yield* pintarCerro(ctx, X0, Y0); // la tierra colorada y los matorrales del Cerro Colorado
   // (pasos cortos: en el celular un paso de mas de unos 8 ms ya hace que se brinque un cuadro)
   if (ar.length) yield;
   let hay = false;
@@ -2531,10 +2532,28 @@ function* chunkSteps(cx, cy) {
   }
   return cv;
 }
+// ---------- el relieve de verdad ----------
+// Los cerros, cañones y mesas de Tijuana con sus alturas reales (ver tools/relieve.py): una capa de 16 m por pixel,
+// clara donde le pega la luz del noroeste y oscura en las laderas de la sombra, que se estira encima del piso de cada
+// trozo (y del minimapa), debajo de calles y casas. Se carga mientras estas en la portada.
+const RELIEVE = new Image(), RELIEVE_PASO = 16 * M;
+let relieveListo = false;
+RELIEVE.onload = () => { relieveListo = true; };
+RELIEVE.src = 'data/relieve.png';
+// el pedazo del rectangulo (x0, y0)-(x1, y1) del mundo, en las coordenadas del mundo del lienzo
+function pintarRelieve(ctx, x0, y0, x1, y1) {
+  if (!relieveListo) return;
+  const P = RELIEVE_PASO, sx = Math.max(0, Math.floor(x0 / P) - 1), sy = Math.max(0, Math.floor(y0 / P) - 1);
+  const ex = Math.min(RELIEVE.width, Math.ceil(x1 / P) + 1), ey = Math.min(RELIEVE.height, Math.ceil(y1 / P) + 1);
+  if (ex <= sx || ey <= sy) return;
+  ctx.save(); ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(RELIEVE, sx, sy, ex - sx, ey - sy, sx * P, sy * P, (ex - sx) * P, (ey - sy) * P);
+  ctx.restore();
+}
 // ---------- el Cerro Colorado ----------
-// El mapa es plano, asi que el cerro se pinta: una altura inventada (un domo con lomas y cañadas, en metros) y con
-// ella el sombreado del relieve con la luz del noroeste (como los edificios), la tierra mas rojiza conforme se sube,
-// matorrales en las laderas y piedras en las crestas. Va en el piso del trozo, debajo de calles y casas.
+// El sombreado ya lo pone el relieve de verdad (ver pintarRelieve); aqui va lo demas, con una altura inventada (un
+// domo con lomas y cañadas, en metros): la tierra mas rojiza conforme se sube, matorrales en las laderas y piedras en
+// las crestas. Va en el piso del trozo, debajo de calles y casas.
 const CERRO = (() => { const l = landmarks.find(q => q.name === 'Mirador del Cerro Colorado'); return l && { x: l.x, y: l.y, R: 2100 }; })();
 function ruidoV(x, y) { // ruido suave entre -1 y 1
   const xi = Math.floor(x), yi = Math.floor(y), fx = x - xi, fy = y - yi, u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy);
@@ -2569,7 +2588,7 @@ function alturaCerro(x, y) {
   return h * t * t * (3 - 2 * t);
 }
 const CERRO_PASO = 8; // px entre muestras del sombreado
-const cerroCv = document.createElement('canvas'), cerroCv2 = document.createElement('canvas');
+const cerroCv2 = document.createElement('canvas');
 // pinta el relieve en el trozo (x0, y0), en dos pasos (en el celular cada uno cuesta unos milisegundos)
 function* pintarCerro(ctx, x0, y0) {
   if (!CERRO || Math.hypot(x0 + CHUNK / 2 - CERRO.x, y0 + CHUNK / 2 - CERRO.y) > CERRO.R * M + CHUNK) return;
@@ -2578,23 +2597,16 @@ function* pintarCerro(ctx, x0, y0) {
   const H = new Float32Array((N + 2) * (N + 2));
   for (let j = 0; j < N + 2; j++) for (let i = 0; i < N + 2; i++) H[j * (N + 2) + i] = alturaCerro((gx0 + i - 1) * P, (gy0 + j - 1) * P);
   if (!H.some(v => v > 0.5)) return;
-  cerroCv.width = cerroCv.height = cerroCv2.width = cerroCv2.height = N;
-  const c1 = cerroCv.getContext('2d'), c2 = cerroCv2.getContext('2d'), sombra = c1.createImageData(N, N), tinte = c2.createImageData(N, N);
-  // luz del noroeste y un poco desde arriba
-  const L = [-0.55, -0.55, 0.63], ex = 1 / (P / M * 2), base = L[2];
+  cerroCv2.width = cerroCv2.height = N;
+  const c2 = cerroCv2.getContext('2d'), tinte = c2.createImageData(N, N);
   for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
-    const k = (j + 1) * (N + 2) + i + 1, h = H[k];
-    const hx = (H[k + 1] - H[k - 1]) * ex, hy = (H[k + N + 2] - H[k - N - 2]) * ex, n = Math.hypot(hx, hy, 1);
-    const s = (-hx * L[0] - hy * L[1] + L[2]) / n - base, o = (j * N + i) * 4;
-    if (s > 0) { sombra.data[o] = 255; sombra.data[o + 1] = 238; sombra.data[o + 2] = 205; sombra.data[o + 3] = Math.min(90, s * 190); }
-    else { sombra.data[o] = 45; sombra.data[o + 1] = 26; sombra.data[o + 2] = 14; sombra.data[o + 3] = Math.min(120, -s * 230); }
-    // la tierra colorada de arriba (por eso el nombre) y mas oscurita en las cañadas
+    const h = H[(j + 1) * (N + 2) + i + 1], o = (j * N + i) * 4;
+    // la tierra colorada de arriba (por eso el nombre)
     tinte.data[o] = 168; tinte.data[o + 1] = 82; tinte.data[o + 2] = 48; tinte.data[o + 3] = Math.min(80, Math.max(0, h) * 0.22);
   }
-  c1.putImageData(sombra, 0, 0); c2.putImageData(tinte, 0, 0);
+  c2.putImageData(tinte, 0, 0);
   ctx.save(); ctx.imageSmoothingEnabled = true;
   ctx.drawImage(cerroCv2, gx0 * P, gy0 * P, N * P, N * P);
-  ctx.drawImage(cerroCv, gx0 * P, gy0 * P, N * P, N * P);
   ctx.restore();
   yield;
   // la altura de un punto del trozo, de la rejilla (mas barato que alturaCerro)
@@ -2655,6 +2667,7 @@ function pintarCuadro(tx, ty, cv, capa) {
   }
   c.setTransform(MS, 0, 0, MS, -x0 * MS, -y0 * MS);
   for (const i of [...A].sort((a, b) => a - b)) { const a = areas[i]; c.fillStyle = AREA_COL[a.k]; trace(c, a.p, true); c.fill(); }
+  pintarRelieve(c, x0, y0, x1, y1);
   if (capa) { c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(capa, 0, 0); c.setTransform(MS, 0, 0, MS, -x0 * MS, -y0 * MS); }
   c.lineCap = 'round';
   // las calles se salen un poco de su caja (el grueso minimo): tambien las de junto
@@ -10320,6 +10333,7 @@ async function start() {
   const R = 1200, s = INICIO.side;
   acomodarLugares();
   await esperarRegiones(s.x - R, s.y - R, s.x + R, s.y + R);
+  if (!relieveListo) await Promise.race([new Promise(ok => RELIEVE.addEventListener('load', ok)), new Promise(ok => setTimeout(ok, 6000))]);
   if (INICIO.guardado && !inicioLibre(INICIO)) {
     INICIO = elegirInicio(); const t = INICIO.side;
     await esperarRegiones(t.x - R, t.y - R, t.x + R, t.y + R);
