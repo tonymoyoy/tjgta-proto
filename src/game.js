@@ -2345,6 +2345,7 @@ function* chunkSteps(cx, cy) {
   // los halos del pasto antes que todas las areas: solo se ven sobre la tierra pelona
   for (const a of ar) if (pasto(a)) haloPasto(ctx, a);
   for (const a of ar) if (a.k !== AREA_AGUA) { ctx.fillStyle = areaFill(ctx, a.k); trace(ctx, a.p, true); ctx.fill(); }
+  yield* pintarCerro(ctx, X0, Y0); // el relieve del Cerro Colorado
   // (pasos cortos: en el celular un paso de mas de unos 8 ms ya hace que se brinque un cuadro)
   if (ar.length) yield;
   let hay = false;
@@ -2438,6 +2439,98 @@ function* chunkSteps(cx, cy) {
     for (let x = Math.ceil(x0 / 900) * 900 + 300; x < x1; x += 900) ctx.fillText('EE. UU.', x, borderY(x) - 60);
   }
   return cv;
+}
+// ---------- el Cerro Colorado ----------
+// El mapa es plano, asi que el cerro se pinta: una altura inventada (un domo con lomas y cañadas, en metros) y con
+// ella el sombreado del relieve con la luz del noroeste (como los edificios), la tierra mas rojiza conforme se sube,
+// matorrales en las laderas y piedras en las crestas. Va en el piso del trozo, debajo de calles y casas.
+const CERRO = (() => { const l = landmarks.find(q => q.name === 'Mirador del Cerro Colorado'); return l && { x: l.x, y: l.y, R: 2100 }; })();
+function ruidoV(x, y) { // ruido suave entre -1 y 1
+  const xi = Math.floor(x), yi = Math.floor(y), fx = x - xi, fy = y - yi, u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy);
+  const h = (i, j) => (hash(Math.imul(i, 73856093) ^ Math.imul(j, 19349663)) & 0xffff) / 32767.5 - 1;
+  const a = h(xi, yi), b = h(xi + 1, yi), c = h(xi, yi + 1), d = h(xi + 1, yi + 1);
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+}
+// altura en metros de un punto del mapa (px)
+function alturaCerro(x, y) {
+  const dx = (x - CERRO.x) / M, dy = (y - CERRO.y) / M, d = Math.hypot(dx, dy);
+  if (d > CERRO.R) return 0;
+  // el cuerpo: un domo un poco alargado de norte a sur, con otro mas chico al suroeste
+  const e = Math.hypot(dx, dy / 1.3);
+  let h = 400 * Math.exp(-((e / 700) ** 2)) + 140 * Math.exp(-(((dx + 650) ** 2 + (dy - 500) ** 2) / 380 ** 2));
+  // lomas y cañadas que bajan del pico: crestas de ruido (1 - |ruido|) que cambian rapido alrededor (con el angulo,
+  // en un circulo para que no haya costura, un poco chueco) y despacio hacia abajo, revueltas con otras sueltas;
+  // mas marcadas a media ladera
+  const an = Math.atan2(dy, dx) + 0.22 * ruidoV(dx / 260, dy / 260), ca = Math.cos(an), sa = Math.sin(an);
+  let r = 0;
+  // (hacia abajo: entre dos rebanadas de ruido sin relacion, para que no se tuerzan en espiral)
+  const ds = d / 330, di = Math.floor(ds), df = ds - di, dt = df * df * (3 - 2 * df);
+  for (const [k, w, o] of [[2.6, 1, 0], [6.2, 0.5, 17]]) {
+    const a0 = ruidoV(ca * k + 37 * di + o, sa * k + 91 * di), a1 = ruidoV(ca * k + 37 * (di + 1) + o, sa * k + 91 * (di + 1));
+    const n = 1 - Math.abs(a0 + (a1 - a0) * dt); r += n * n * w;
+  }
+  const n2 = 1 - Math.abs(ruidoV(dx / 300 + 40, dy / 300 + ruidoV(dx / 700, dy / 700)));
+  r = r / 1.5 * 0.6 + n2 * n2 * 0.4;
+  h += 110 * (e / 750) * Math.exp(-((e / 950) ** 2)) * (r - 0.35);
+  h += 1.5 * ruidoV(dx / 40, dy / 40); // lo rugoso
+  // y se pierde en lo plano
+  const t = Math.min(1, Math.max(0, (CERRO.R - d) / 700));
+  return h * t * t * (3 - 2 * t);
+}
+const CERRO_PASO = 8; // px entre muestras del sombreado
+const cerroCv = document.createElement('canvas'), cerroCv2 = document.createElement('canvas');
+// pinta el relieve en el trozo (x0, y0), en dos pasos (en el celular cada uno cuesta unos milisegundos)
+function* pintarCerro(ctx, x0, y0) {
+  if (!CERRO || Math.hypot(x0 + CHUNK / 2 - CERRO.x, y0 + CHUNK / 2 - CERRO.y) > CERRO.R * M + CHUNK) return;
+  const P = CERRO_PASO, N = CHUNK / P + 3, gx0 = Math.floor(x0 / P) - 1, gy0 = Math.floor(y0 / P) - 1;
+  // alturas en la rejilla (con una orilla de mas para las pendientes)
+  const H = new Float32Array((N + 2) * (N + 2));
+  for (let j = 0; j < N + 2; j++) for (let i = 0; i < N + 2; i++) H[j * (N + 2) + i] = alturaCerro((gx0 + i - 1) * P, (gy0 + j - 1) * P);
+  if (!H.some(v => v > 0.5)) return;
+  cerroCv.width = cerroCv.height = cerroCv2.width = cerroCv2.height = N;
+  const c1 = cerroCv.getContext('2d'), c2 = cerroCv2.getContext('2d'), sombra = c1.createImageData(N, N), tinte = c2.createImageData(N, N);
+  // luz del noroeste y un poco desde arriba
+  const L = [-0.55, -0.55, 0.63], ex = 1 / (P / M * 2), base = L[2];
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    const k = (j + 1) * (N + 2) + i + 1, h = H[k];
+    const hx = (H[k + 1] - H[k - 1]) * ex, hy = (H[k + N + 2] - H[k - N - 2]) * ex, n = Math.hypot(hx, hy, 1);
+    const s = (-hx * L[0] - hy * L[1] + L[2]) / n - base, o = (j * N + i) * 4;
+    if (s > 0) { sombra.data[o] = 255; sombra.data[o + 1] = 238; sombra.data[o + 2] = 205; sombra.data[o + 3] = Math.min(90, s * 190); }
+    else { sombra.data[o] = 45; sombra.data[o + 1] = 26; sombra.data[o + 2] = 14; sombra.data[o + 3] = Math.min(120, -s * 230); }
+    // la tierra colorada de arriba (por eso el nombre) y mas oscurita en las cañadas
+    tinte.data[o] = 168; tinte.data[o + 1] = 82; tinte.data[o + 2] = 48; tinte.data[o + 3] = Math.min(80, Math.max(0, h) * 0.22);
+  }
+  c1.putImageData(sombra, 0, 0); c2.putImageData(tinte, 0, 0);
+  ctx.save(); ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(cerroCv2, gx0 * P, gy0 * P, N * P, N * P);
+  ctx.drawImage(cerroCv, gx0 * P, gy0 * P, N * P, N * P);
+  ctx.restore();
+  yield;
+  // la altura de un punto del trozo, de la rejilla (mas barato que alturaCerro)
+  const hAt = (x, y) => {
+    const fx = Math.max(0, Math.min(N, x / P - gx0 + 1)), fy = Math.max(0, Math.min(N, y / P - gy0 + 1)), i = Math.floor(fx), j = Math.floor(fy), u = fx - i, v = fy - j, k = j * (N + 2) + i;
+    return H[k] * (1 - u) * (1 - v) + H[k + 1] * u * (1 - v) + H[k + N + 2] * (1 - u) * v + H[k + N + 3] * u * v;
+  };
+  ctx.save();  // matorrales (chaparral) en las laderas, mas en las que dan al norte, y piedras en lo alto; cada 4 m uno o ninguno
+  const C = 4 * M;
+  for (let cy = Math.floor(y0 / C) - 1; cy <= Math.floor((y0 + CHUNK) / C); cy++) for (let cx = Math.floor(x0 / C) - 1; cx <= Math.floor((x0 + CHUNK) / C); cx++) {
+    const r = mulberry(Math.imul(cx, 92821) ^ Math.imul(cy, 68917) ^ 0x5eed), x = (cx + r()) * C, y = (cy + r()) * C, h = hAt(x, y);
+    if (h < 8) continue;
+    const gy = hAt(x, y + P) - hAt(x, y - P), gx = hAt(x + P, y) - hAt(x - P, y), pend = Math.hypot(gx, gy) / (2 * P / M);
+    const q = r();
+    if (q < 0.05 + (gy < 0 ? 0.07 : 0) - h / 5000) { // matorral: verde olivo seco, con su sombrita
+      const rr = (1.2 + r() * 1.6) * M;
+      ctx.fillStyle = 'rgba(30,22,10,0.25)'; ctx.beginPath(); ctx.ellipse(x + rr * 0.35, y + rr * 0.35, rr, rr * 0.8, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = ['#6f7444', '#5f6a3c', '#7c7a4a', '#8a7f52'][(r() * 4) | 0]; ctx.beginPath(); ctx.ellipse(x, y, rr, rr * 0.85, r() * 3, 0, 7); ctx.fill();
+      ctx.fillStyle = 'rgba(255,250,220,0.15)'; ctx.beginPath(); ctx.ellipse(x - rr * 0.3, y - rr * 0.3, rr * 0.5, rr * 0.4, 0, 0, 7); ctx.fill();
+    } else if (q > 0.985 - Math.min(0.03, pend * 0.03) && h > 150) { // piedras: grises claras, de lado
+      const rr = (0.6 + r() * 1.2) * M;
+      ctx.fillStyle = 'rgba(30,20,10,0.3)'; ctx.beginPath(); ctx.ellipse(x + rr * 0.4, y + rr * 0.4, rr, rr * 0.7, 0.5, 0, 7); ctx.fill();
+      ctx.fillStyle = ['#a39a8c', '#8f877b', '#b5ab9a'][(r() * 3) | 0]; ctx.beginPath(); ctx.ellipse(x, y, rr, rr * 0.7, r() * 3, 0, 7); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.beginPath(); ctx.ellipse(x - rr * 0.3, y - rr * 0.25, rr * 0.45, rr * 0.3, 0, 0, 7); ctx.fill();
+    }
+  }
+  ctx.restore();
 }
 // el trozo completo de una vez (al arrancar y para pruebas)
 function drawChunk(cx, cy) { const it = chunkSteps(cx, cy); let r; while (!(r = it.next()).done); return r.value; }
