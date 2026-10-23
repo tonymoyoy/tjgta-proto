@@ -559,6 +559,24 @@ const gridDel = (g, reg, b, cell) => {
   }
 };
 const alCargarRegion = []; // avisos: (region) => ...
+// plazas comerciales: los edificios de las zonas comerciales del mapa (landuse retail/commercial), las plazas que puso
+// rellenar.py y los de junto a los centros comerciales conocidos llevan fachadas de tiendas (ver fachadaTiendas)
+const PLAZAS_CONOCIDAS = landmarks.filter(l => /^(Plaza Río Tijuana|Plaza de la Tecnología|FrikiPlaza|Galerías Hipódromo|Macroplaza)$/.test(l.name));
+function zonaComercial(x, y) {
+  for (const i of chunkAreas.get(GK(Math.floor(x / CHUNK), Math.floor(y / CHUNK))) || []) {
+    const a = areas[i]; if (a.k === 4 && x >= a.bb[0] && x <= a.bb[2] && y >= a.bb[1] && y <= a.bb[3] && pip(x, y, a.p)) return true;
+  }
+  return false;
+}
+function esComercio(p, h, tipo, casa) {
+  if (tipo === 2) return true;
+  if (tipo === 1 || casa || h > 20) return false;
+  let ar = 0, cx = 0, cy = 0; const n = p.length / 2;
+  for (let i = 0; i < n; i++) { const j = (i + 1) % n; ar += p[i * 2] * p[j * 2 + 1] - p[j * 2] * p[i * 2 + 1]; cx += p[i * 2]; cy += p[i * 2 + 1]; }
+  ar = Math.abs(ar) / 2 / (M * M); cx /= n; cy /= n; // m2 y el centro
+  if (ar < 150) return false;
+  return zonaComercial(cx, cy) || (ar >= 300 && PLAZAS_CONOCIDAS.some(l => Math.hypot(l.x - cx, l.y - cy) < 350));
+}
 // cada archivo de region llama a esto con sus edificios en texto (JSON)
 window.TJ_REG = (k, txt) => {
   const r = regiones.get(k); if (!r || r.estado === 2) return;
@@ -582,6 +600,7 @@ window.TJ_REG = (k, txt) => {
     const techos = casa ? TECHOS_CASITA : tipo === 2 ? TECHOS_PLAZA : ROOFS;
     // id: el orden de dibujo dentro de un trozo no depende de que region cargo primero
     const b = { id: base + i, reg: k, h, p, sh, bb, sbb: bbox(p, Math.max(sh, EXTRA_UP) + 2), col: techos[hc % techos.length], casita: tipo === 1, casa };
+    if (esComercio(p, h, tipo, casa)) b.comercio = true;
     if (esDomo(b)) { const R = (bb[2] - bb[0] + bb[3] - bb[1]) / 4; b.esfera = R; b.casa = false; b.sh = R * 0.4; b.L = EXTRA_UP; b.sbb = bbox(p, R * 2.4 + 4); if (!DOMOS.some(o => o.id === b.id)) DOMOS.push(b); }
     r.b.push(b);
   });
@@ -2007,6 +2026,10 @@ function* drawBuildings(ctx, bl, rs, cx, cy) {
     ctx.save(); ctx.setTransform(RES, 0, 0, RES, 0, 0);
     const sy0 = Math.max(0, ry0 - L - 1), sw = Math.min(BW - rx0, rw + lx(L) + 1);
     blit(ctx, bStack, rx0, sy0, sw, ry1 - sy0, rx0 - LEAN_PAD, sy0, sw, ry1 - sy0);
+    ctx.restore();
+    // las tiendas de las plazas comerciales, en la planta baja (antes del techo: el techo va encima)
+    for (const b of group) if (b.comercio) fachadaTiendas(ctx, b);
+    ctx.save(); ctx.setTransform(RES, 0, 0, RES, 0, 0);
     blit(ctx, bRoof, rx0, ry0, rw, rh, rx0 + lx(L) - LEAN_PAD, ry0 - L, rw, rh);
     ctx.restore();
     yield;
@@ -2028,6 +2051,49 @@ function* drawBuildings(ctx, bl, rs, cx, cy) {
     yield;
   }
   for (const b of bl) if (b.esfera) pintarEsfera(ctx, b);
+}
+// Las fachadas de una plaza comercial: en cada pared que da al sur (las que se ven), la planta baja partida en locales
+// de 5 a 8 m, cada uno con su aparador de vidrio, su toldo de rayas y su letrero de color. La pared sube como las
+// capas del edificio: a la altura k, (x + k LEAN, y - k). Donde la pared quedo borrada por la banqueta, no van.
+const TIENDAS = ['#e53935', '#1e88e5', '#fdd835', '#43a047', '#8e24aa', '#fb8c00', '#00acc1', '#d81b60', '#6d4c41', '#3949ab'];
+function fachadaTiendas(ctx, b) {
+  const p = b.p, n = p.length / 2;
+  let ar = 0; for (let i = 0; i < n; i++) { const j = (i + 1) % n; ar += p[i * 2] * p[j * 2 + 1] - p[j * 2] * p[i * 2 + 1]; }
+  const sg = ar > 0 ? 1 : -1; // para que la normal salga hacia afuera
+  const P = (x, y, k) => [x + k * LEAN, y - k];
+  const quad = (a, b2, c, d) => { ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b2[0], b2[1]); ctx.lineTo(c[0], c[1]); ctx.lineTo(d[0], d[1]); ctx.closePath(); };
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n, x0 = p[i * 2], y0 = p[i * 2 + 1], x1 = p[j * 2], y1 = p[j * 2 + 1], dx = x1 - x0, dy = y1 - y0, len = Math.hypot(dx, dy);
+    if (len < 18) continue;
+    const nx = -dy / len * -sg, ny = dx / len * -sg; // normal hacia afuera
+    if (ny < 0.35) continue; // solo las que dan al sur
+    const ux = dx / len, uy = dy / len, cuantas = Math.max(1, Math.round(len / (6.5 * M))), w = len / cuantas;
+    for (let t = 0; t < cuantas; t++) {
+      const s0 = t * w + 1.2, s1 = (t + 1) * w - 1.2, ax = x0 + ux * s0, ay = y0 + uy * s0, bx = x0 + ux * s1, by = y0 + uy * s1;
+      // si ahi la pared quedo borrada por la banqueta, no hay tienda
+      if (onRoad((ax + bx) / 2 - nx * 1.5, (ay + by) / 2 - ny * 1.5)) continue;
+      const col = TIENDAS[hash(Math.round(ax) * 31 + Math.round(ay) * 7 + b.id) % TIENDAS.length];
+      // el aparador: vidrio oscuro con un reflejo, y la puerta en medio
+      quad(P(ax, ay, 1), P(bx, by, 1), P(bx, by, 9), P(ax, ay, 9)); ctx.fillStyle = 'rgba(38,62,82,0.92)'; ctx.fill();
+      const m = 0.35; quad(P(ax + (bx - ax) * m, ay + (by - ay) * m, 2), P(ax + (bx - ax) * (m + 0.1), ay + (by - ay) * (m + 0.1), 2), P(ax + (bx - ax) * (m + 0.25), ay + (by - ay) * (m + 0.25), 8), P(ax + (bx - ax) * (m + 0.15), ay + (by - ay) * (m + 0.15), 8));
+      ctx.fillStyle = 'rgba(220,240,255,0.28)'; ctx.fill();
+      const ma = 0.5, pw = Math.min(0.14, 3.5 / (s1 - s0)); quad(P(ax + (bx - ax) * (ma - pw), ay + (by - ay) * (ma - pw), 1), P(ax + (bx - ax) * (ma + pw), ay + (by - ay) * (ma + pw), 1), P(ax + (bx - ax) * (ma + pw), ay + (by - ay) * (ma + pw), 7.5), P(ax + (bx - ax) * (ma - pw), ay + (by - ay) * (ma - pw), 7.5));
+      ctx.fillStyle = 'rgba(255,236,170,0.55)'; ctx.fill(); // la puerta con luz
+      // el letrero arriba, del color de la tienda, con unas letras blancas
+      quad(P(ax, ay, 12), P(bx, by, 12), P(bx, by, 15.5), P(ax, ay, 15.5)); ctx.fillStyle = col; ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 1.1; ctx.beginPath();
+      const l0 = 0.25, l1 = 0.25 + 0.5 * (0.5 + (hash(b.id + t) % 5) / 10); const [qx0, qy0] = P(ax + (bx - ax) * l0, ay + (by - ay) * l0, 13.75), [qx1, qy1] = P(ax + (bx - ax) * l1, ay + (by - ay) * l1, 13.75);
+      ctx.moveTo(qx0, qy0); ctx.lineTo(qx1, qy1); ctx.stroke();
+      // el toldo de rayas, salido hacia la banqueta
+      const ox = nx * 2.6, oy = ny * 2.6, rayas = Math.max(2, Math.round((s1 - s0) / 3));
+      for (let r = 0; r < rayas; r++) {
+        const f0 = r / rayas, f1 = (r + 1) / rayas, cx0 = ax + (bx - ax) * f0, cy0 = ay + (by - ay) * f0, cx1 = ax + (bx - ax) * f1, cy1 = ay + (by - ay) * f1;
+        const a1 = P(cx0, cy0, 11.5), a2 = P(cx1, cy1, 11.5), a3 = P(cx1 + ox, cy1 + oy, 8.5), a4 = P(cx0 + ox, cy0 + oy, 8.5);
+        quad(a1, a2, a3, a4); ctx.fillStyle = r % 2 ? '#f5f5f0' : col; ctx.fill();
+      }
+      ctx.fillStyle = 'rgba(0,0,0,0.18)'; quad(P(ax + ox, ay + oy, 8.5), P(bx + ox, by + oy, 8.5), P(bx + ox, by + oy, 7.6), P(ax + ox, ay + oy, 7.6)); ctx.fill(); // la orilla del toldo
+    }
+  }
 }
 // ¿lo tapa un edificio? Las paredes y el techo se elevan hacia el norte (capa k: k px arriba y k*LEAN a la derecha),
 // asi que lo que esta en la banqueta o la calle detras (al norte) de un edificio queda debajo de su dibujo: un punto
