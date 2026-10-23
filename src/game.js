@@ -7331,7 +7331,7 @@ class Main extends Phaser.Scene {
     for (const c of this.cars) if (c.escolta && !c.wrecked && c.sprite.texture.key !== strobe) c.sprite.setTexture(strobe);
     const neon = 'antro' + ((this.time.now / 600 | 0) % 2);
     for (const c of chinas) if (c.icon.texture.key !== neon + c.up) c.icon.setTexture(neon + c.up);
-    const tmp = this.tmp;
+    const tmp = this.tmp, choques = ESCENAS.filter(E => E.on);
     for (const c of this.cars) {
       if (c.wrecked || c.quieto) continue; // los deshuesados (y los de las escenas) se quedan donde quedaron
       const hx = Math.cos(c.a), hy = Math.sin(c.a);
@@ -7344,6 +7344,7 @@ class Main extends Phaser.Scene {
       if (!stop && !c.loco) for (const o of this.cars) {
         if (o === c || axisDist(ax, ay, o) >= o.hw + gap) continue;
         // un deshuesado en el camino: se le da la vuelta por un lado
+        if (o.escena) continue; // los del choque: ver rodeaChoque
         if (o.wrecked || o.quieto) { if (!c.desvioT) { const lado = ((o.x - c.x) * -hy + (o.y - c.y) * hx) > 0 ? -1 : 1; c.desvio = lado * (o.hw + c.hw + 6); c.desvioT = 3; } continue; }
         stop = true; bloq = o; break;
       }
@@ -7354,24 +7355,30 @@ class Main extends Phaser.Scene {
         if (c.speed > 70 && Math.random() < 0.3) this.embestir(c, bloq);
         if (this.cambiarCarril(c)) stop = false; else this.claxon(c);
       }
+      // un choque adelante: se le da la vuelta si hay por donde, y si no se esperan (y se hace la fila)
+      const rodea = choques.length && !c.loco && !stop ? this.rodeaChoque(c, choques, dt) : 0; // (el que ya espera a otro, no busca)
+      if (rodea === 2) stop = true;
       // paradas: el camion a subir pasaje, la pipa a vender gas y el del pan a esperar a las señoras
       if (c.paradaT !== undefined) {
         if (c.paradaS > 0) { stop = true; if ((c.paradaS -= dt) <= 0) c.paradaT = c.gas || c.pan ? rnd(20, 45) : rnd(15, 35); }
         else if ((c.paradaT -= dt) <= 0 && !stop) c.paradaS = c.gas || c.pan ? rnd(4, 7) : rnd(2, 3.5);
       }
-      let want = stop ? 0 : c.max;
+      let want = stop ? 0 : rodea === 1 ? Math.min(c.max, 35) : c.max;
       if (!c.rutero) for (const i of topesNear(c.x, c.y)) if (dist(c.x, c.y, topes[i].x, topes[i].y) < 45) want = Math.min(want, 35);
       c.speed += Math.max((c.rutero ? -420 : -300) * dt, Math.min((c.rutero ? 150 : 90) * dt, want - c.speed));
       if (c.gas && c.fuga) this.fugaGas(c, dt);
       c.s += c.speed * dt;
       while (c.s > c.e.len) {
         // la escolta de atras toma las mismas vueltas que la de adelante
-        const j = c.jefe, nx = j && !j.wrecked && this.cars.includes(j) && j.ruta.length ? j.ruta.shift() : nextEdge(traffic, c.e, c.dir);
+        const j = c.jefe, nx = j && !j.wrecked && this.cars.includes(j) && j.ruta.length ? j.ruta.shift() : c.sig || nextEdge(traffic, c.e, c.dir);
+        c.sig = null;
         if (!nx) { c.s = c.e.len; c.speed = 0; break; }
         if (c.ruta) c.ruta.push(nx);
         c.s -= c.e.len; c.e = nx.e; c.dir = nx.dir; c.lat = laneLat(nx.e, c.lane);
       }
       let lat = c.lat;
+      // el volantazo para rodear el choque (poco a poco)
+      if (c.esq || c.esqS) { c.esqS = (c.esqS || 0) + ((c.esq || 0) - (c.esqS || 0)) * Math.min(1, dt * 2.5); if (!c.esq && Math.abs(c.esqS) < 0.1) c.esqS = 0; lat += c.esqS; }
       if (c.desvioT) { c.desvioT = Math.max(0, c.desvioT - dt); lat += c.desvio * Math.min(1, c.desvioT * 2); }
       if (c.loco) lat += Math.sin(this.time.now / 1000 * c.wf + c.ph) * c.e.w * 0.28 + c.derrape;
       if (c.rutero) { c.latS += (lat - c.latS) * Math.min(1, dt * 5); lat = c.latS; } // el volantazo al cambiarse de carril
@@ -8114,6 +8121,74 @@ class Main extends Phaser.Scene {
       if (L.length && !this.bubble.ped) { const o = pick(L); this.globo(o, 'vendedor', pick(VENDEDORES[o.k]), 3); }
     }
   }
+  // ¿lo que esta en (x, y) le pega a algo de un choque? (los carros, la moto, la patrulla y la gente parada)
+  enChoque(L, x, y, pad) {
+    for (const E of L) {
+      if (Math.abs(E.x - x) > 160 || Math.abs(E.y - y) > 160) continue;
+      for (const o of E.on.carros) if (axisDist(x, y, o) < o.hw + pad) return true;
+      for (const p of E.on.gente) if (dist(x, y, p.x, p.y) < pad - 2) return true; // (pasan rozandolos: la gente se hace a un lado)
+    }
+    return false;
+  }
+  // Un carro del trafico cerca de un choque: busca por donde pasar sin pegarle a nada (su carril si esta libre; si no,
+  // el carril de al lado o hasta el de los que vienen de frente, si no viene nadie) y se va recorriendo hacia alla.
+  // Si no hay por donde, o todavia no termina de hacerse a un lado, frena: los de atras se forman (la fila sale
+  // sola, cada quien frena por el de adelante). Devuelve 0 nada, 1 ir despacio, 2 detenerse.
+  rodeaChoque(c, L, dt) {
+    if (!L.some(E => Math.abs(E.x - c.x) < 320 && Math.abs(E.y - c.y) < 320)) { c.esq = 0; return 0; }
+    if ((c.esqT = (c.esqT || 0) - dt) > 0) return c.esqR;
+    c.esqT = 0.15;
+    // por donde va a ir: su calle y la siguiente (se decide desde ahorita; ver updateTraffic). Si puede, se sigue
+    // por una calle donde no este el choque (como cualquiera que ve el relajo desde la esquina)
+    const q = this.tmp2 || (this.tmp2 = {}), pad = c.hw + 3;
+    if (!c.sig && !c.jefe && c.e.len - c.s < 200) {
+      const pega = (nx) => { for (let d = 0; d <= 110; d += 8) { edgePos(nx.e, Math.min(d, nx.e.len), nx.dir, laneLat(nx.e, c.lane), q); if (this.enChoque(L, q.x, q.y, pad)) return true; } return false; };
+      for (let k = 0; k < 5; k++) { const nx = nextEdge(traffic, c.e, c.dir); if (!nx) break; if (!c.sig || !pega(nx)) c.sig = nx; if (!pega(c.sig)) break; }
+    }
+    const sig = c.sig;
+    // el desvio se mueve con el carro: sigue igual al pasar a la siguiente calle (ver updateTraffic)
+    const punto = (d, off) => {
+      const s2 = c.s + d;
+      if (s2 <= c.e.len || !sig) edgePos(c.e, Math.min(s2, c.e.len), c.dir, c.lat + off, q);
+      else edgePos(sig.e, s2 - c.e.len, sig.dir, laneLat(sig.e, c.lane) + off, q);
+      return q;
+    };
+    // hasta donde se puede avanzar con ese desvio (desde la defensa de atras: tambien al irse de lado)
+    const libre = (off, hasta) => {
+      for (let d = -c.hl; d <= c.hl + hasta; d += 7) { const o = punto(d, off); if (this.enChoque(L, o.x, o.y, pad)) return d - c.hl; }
+      return Infinity;
+    };
+    const hx = Math.cos(c.a), hy = Math.sin(c.a);
+    // que quepa en su calle y, si ya va a llegar a la otra, tambien en esa (hasta pisando la raya de la orilla)
+    const llega = sig && c.e.len - c.s < c.hl + 140, latS = llega ? laneLat(sig.e, c.lane) : 0;
+    const cabe = (e, lat) => Math.abs(lat) <= e.w / 2 - c.hw + 1;
+    // ¿viene alguien de frente? (solo cuenta el que va avanzando: los que esperan del otro lado no)
+    const vienen = () => this.cars.some(o => o !== c && !o.quieto && !o.wrecked && o.speed > 5 && Math.cos(o.a - c.a) < -0.5 &&
+      Math.abs(o.x - c.x) < 220 && Math.abs(o.y - c.y) < 220 && (o.x - c.x) * hx + (o.y - c.y) * hy > 0);
+    const sirve = (off) => {
+      if (!cabe(c.e, c.lat + off) || (llega && !cabe(sig.e, latS + off))) return false;
+      if (libre(off, 140) !== Infinity) return false;
+      // meterse al carril de enfrente solo si no viene nadie
+      return (c.e.one || c.lat + off - c.hw >= 0) && (!llega || sig.e.one || latS + off - c.hw >= 0) || !vienen();
+    };
+    // irse de lado sin pegarle a nada en el camino (todo el carro, no solo lo de enfrente)
+    const pasa = (off) => { const a = c.esqS || 0; for (const f of [0.34, 0.67, 1]) if (libre(a + (off - a) * f, 0) < 0) return false; return true; };
+    let meta = null;
+    if (sirve(0) && pasa(0)) meta = 0;
+    else if (c.esq && sirve(c.esq)) meta = c.esq;
+    else {
+      const ops = [];
+      const h = c.e.w / 2 - c.hw + 1;
+      for (let lat = -h; lat <= h; lat += 4) ops.push(lat - c.lat);
+      ops.sort((a, b) => Math.abs(a) - Math.abs(b));
+      for (const off of ops) if (off && sirve(off) && pasa(off)) { meta = off; break; }
+    }
+    if (meta !== null) c.esq = meta;
+    else if (!pasa(c.esq || 0)) c.esq = c.esqS || 0; // se queda donde va
+    // con el desvio que lleva ahorita: ¿cuanto puede avanzar?
+    const d = libre(c.esqS || 0, 70);
+    return c.esqR = d < 12 ? 2 : d < 70 ? 1 : 0;
+  }
   // ----- escenas de trafico (ver ESCENAS) -----
   // aparecen cuando te acercas sin que se vea el lugar (7 de cada 10 veces), y se quitan al alejarte
   updateEscenas(dt) {
@@ -8246,11 +8321,12 @@ class Main extends Phaser.Scene {
     if (tipo !== 'lado' && tipo !== 'moto') S.humo = S.carros[tipo === 'carambola' ? 2 : 1];
     // los vidrios donde se pegaron
     for (const [l, f] of vidrios) S.extra.push(this.add.image(...P(l, f), 'vidrios').setDepth(4.5).setScale(1 / SPR).setRotation(a + Math.random() * 0.6 - 0.3));
-    // los conductores al lado de A, frente a frente, y el de transito un poco mas atras
-    const iz = (tipo === 'moto' ? hwB : hwA) + 11, m = tipo === 'moto' ? 0 : hlA;
+    // los conductores al lado de A, frente a frente, y el de transito un poco mas atras (pegaditos a los carros:
+    // si no, tapaban toda la calle y nadie podia pasar)
+    const iz = (tipo === 'moto' ? hwB : hwA) + 6, m = tipo === 'moto' ? 0 : hlA;
     const lugares = [[iz, m * 0.15, 'A'], [iz + 3, -m * 0.75 - (tipo === 'moto' ? hlB : 0), 'B']];
     if (tipo === 'carambola') lugares.push([iz + 2, fin * 0.7, 'C']);
-    if (poli) lugares.push([iz + 13, tipo === 'carambola' ? fin * 0.35 : -m * 0.3 - (tipo === 'moto' ? hlB * 0.5 : 0), 'poli']);
+    if (poli) lugares.push([iz + 8, tipo === 'carambola' ? fin * 0.35 : -m * 0.3 - (tipo === 'moto' ? hlB * 0.5 : 0), 'poli']);
     for (const [l, f, quien] of lugares) {
       const [x, y] = P(lado * l, f);
       const sprite = this.add.sprite(x, y, quien === 'poli' ? 'pedT' : 'ped' + pedVariant(), 0).setDepth(6).setScale(1 / SPR);
