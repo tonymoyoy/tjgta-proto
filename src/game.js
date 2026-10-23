@@ -216,7 +216,7 @@ const EGGS = [
   { k: 'delfines', name: 'Los Delfines de Playas', near: 'El Muro en la Playa', dx: 0, dy: 70, pay: 300, fija: true, mar: true, r: 130,
     say: '(Tres delfines se asoman junto al muro que se mete al mar, te ven y se ríen con su risita de delfín.) "Ustedes hacen fila horas para cruzar; nosotros nomás nadamos para allá y para acá." Te aventaron una moneda que alguien tiró al mar.' },
   // libre: va justo ahi (a media ladera), no en la banqueta de la calle mas cercana
-  { k: 'senderistas', name: 'Los Senderistas Perdidos', near: 'Mirador del Cerro Colorado', dx: -45, dy: -60, pay: 300, fija: true, libre: true, r: 70,
+  { k: 'senderistas', name: 'Los Senderistas Perdidos', near: 'Mirador del Cerro Colorado', dx: -45, dy: -60, pay: 300, fija: true, libre: true, quieto: true, r: 70,
     say: '(Cuatro senderistas con mochila, bastones y un mapa al revés discuten en plena ladera.) Llevan tres horas perdidos a sesenta metros del mirador, con las antenas a la vista y toda la ciudad allá abajo. Te dieron una lana para que no le cuentes a nadie.' },
   // en un llano vacio del Cañón del Sainz (sin calles, casas ni agua cerca), en metros como el raton. Va derecho (rot)
   // y quieto, que el monolito no se mece
@@ -4078,6 +4078,12 @@ const SHIRTS = ['#d35400', '#2980b9', '#27ae60', '#8e44ad', '#c0392b', '#ecf0f1'
   '#e91e63', '#ff7043', '#9ccc65', '#4dd0e1', '#fdd835', '#795548', '#5c6bc0', '#212121'];
 // 36 personas distintas para la gente de la calle: se reparten genero, edad y complexion y lo demas sale de un
 // generador con semilla fija (siempre las mismas). speed: los viejitos caminan mas despacio, los ninos un poco mas rapido
+const SENDERISTAS = [
+  { female: false, age: 'adulto', build: 'normal', skin: '#c68e5f', shirt: '#ff7043', pants: '#5d4037', hair: 'corto', hairCol: '#111', hat: 'gorra', hatCol: '#2e7d32', mochila: '#1565c0', k: 1 },
+  { female: true, age: 'joven', build: 'delgado', skin: '#e0b08a', shirt: '#26a69a', pants: '#37474f', hair: 'cola', hairCol: '#3b2414', hat: 'gorra', hatCol: '#e53935', mochila: '#f9a825', k: 1 },
+  { female: false, age: 'joven', build: 'delgado', skin: '#8d5a36', shirt: '#fdd835', pants: '#263238', hair: 'corto', hairCol: '#111', hat: 'gorra', hatCol: '#1e88e5', mochila: '#6d4c41', k: 1 },
+  { female: true, age: 'adulto', build: 'normal', skin: '#a8714a', shirt: '#ab47bc', pants: '#3e2723', hair: 'chongo', hairCol: '#2a1a10', hat: 'paja', hatCol: '#e2c27a', mochila: '#43a047', k: 1 },
+];
 const PED_VARIANTS = (() => {
   const R = mulberry(2024), pick2 = (a) => a[(R() * a.length) | 0];
   const SKINS = ['#e0b08a', '#c68e5f', '#a8714a', '#8d5a36', '#6b4428'];
@@ -4358,6 +4364,16 @@ function makeTextures(scene) {
     scene.anims.create({ key: 'walk' + key, frames: Array.from({ length: 8 }, (_, f) => ({ key: 'ped' + key, frame: f })), frameRate: 9, repeat: -1 });
   };
   PED_VARIANTS.forEach((V, i) => sheet(i, V));
+  // los senderistas perdidos del Cerro Colorado (ver EGGS): gente normal con gorra, su mochila de color en la
+  // espalda (que mira hacia -x) y su baston
+  SENDERISTAS.forEach((V, i) => sheet('Send' + i, V, (x, sw) => {
+    drawPerson(x, V, sw);
+    x.save(); x.scale(V.k, V.k);
+    x.fillStyle = V.mochila; x.beginPath(); x.roundRect(-5.6, -3, 3.4, 6, 1.1); x.fill(); // la mochila
+    x.fillStyle = 'rgba(0,0,0,0.25)'; x.fillRect(-5.6, -0.4, 3.4, 0.7); x.fillStyle = 'rgba(255,255,255,0.25)'; x.fillRect(-5.2, -2.6, 0.8, 5.2);
+    x.strokeStyle = '#6b6f73'; x.lineWidth = 0.6; x.beginPath(); x.moveTo(1.5, 5.4); x.lineTo(6.5, 7.2); x.stroke(); // el baston
+    x.restore();
+  }));
   sheet(PLAYER_SHIRT, PLAYER_LOOK, drawPlayer);
   sheet('C', COYOTE_LOOK);
   sheet('R', RATERO_LOOK);
@@ -5896,6 +5912,7 @@ function makeCachorros(scene, L) {
   t.refresh();
   return { W, H, top, py };
 }
+const EGG_GRANDES = new Set(); // los secretos que son una escena grande (ver GRANDE en makeEggs)
 function makeEggs(scene) {
   let x;
   const ell = (c, cx, cy, rx, ry, a) => { x.fillStyle = c; x.beginPath(); x.ellipse(cx, cy, rx, ry, a || 0, 0, 7); x.fill(); };
@@ -6563,8 +6580,19 @@ function makeEggs(scene) {
     delfin(9, 18, 0.35, 0.95, false); delfin(23, 15, -0.3, 1, false); delfin(16, 9, 0.05, 0.85, true);
     for (const [px, py] of [[5, 25], [27, 23], [13, 3], [20, 4], [11, 27]]) ell('rgba(255,255,255,0.6)', px, py, 0.6, 0.35); // gotitas
   };
-  // los senderistas, en bolita alrededor del mapa: gorra, mochila de color y bastones
+  // los senderistas son gente de verdad (ver SENDERISTAS y ponerSenderistas); aqui solo su mapa abierto en el piso,
+  // al reves (la flecha del norte apunta para abajo). draw.senderistasViejo era el dibujo de antes
   draw.senderistas = () => {
+    shadow(16, 16, 7, 5);
+    x.save(); x.translate(16, 16); x.rotate(0.3);
+    x.fillStyle = '#f3e9cf'; x.fillRect(-6, -4.2, 12, 8.4); x.strokeStyle = '#b89c6a'; x.lineWidth = 0.35; x.strokeRect(-6, -4.2, 12, 8.4);
+    line('#b89c6a', 0.25, [[-2, -4.2], [-2, 4.2]]); line('#b89c6a', 0.25, [[2, -4.2], [2, 4.2]]); // los dobleces
+    line('#5d8f4e', 0.5, [[-5, 2], [-2, -1], [1.5, 1.2], [5, -2]]); line('#4a7fb5', 0.45, [[-5, -3], [-0.8, -2], [5, -3]]);
+    x.fillStyle = '#c62828'; x.beginPath(); x.moveTo(4, 3.4); x.lineTo(3.2, 1.4); x.lineTo(4.8, 1.4); x.closePath(); x.fill();
+    x.font = 'bold 1.6px sans-serif'; x.fillText('N', 3.4, 4.2); line('#c62828', 0.4, [[-4, -1], [-3, 0]]); line('#c62828', 0.4, [[-3, -1], [-4, 0]]); // la X
+    x.restore();
+  };
+  draw.senderistasViejo = () => {
     const uno = (cx, cy, a, gorra, mochila, playera) => {
       x.save(); x.translate(cx, cy); x.rotate(a);
       shadow(0, 0, 3.6, 3);
@@ -6792,6 +6820,7 @@ function makeEggs(scene) {
     x.save(); x.clip(); for (let i = -3; i < 3; i++) { x.fillStyle = '#212121'; x.fillRect(i * 1.1, -2, 0.55, 5); } x.restore();
     ball(0, -0.8, 1.3, '#d9a77c', '#a8714a'); x.restore();
   };
+  for (const k of ['monolito', 'gnomos', 'chupacabras', 'banda', 'programador', 'piloto', 'lucha']) EGG_GRANDES.add(k);
   const GRANDE = { monolito: 120, gnomos: 48, chupacabras: 44, banda: 48, programador: 44, piloto: 48, lucha: 48 };
   for (const k in draw) {
     const n = GRANDE[k] || 32, t = scene.textures.createCanvas('egg_' + k, n * 5, n * 5);
@@ -7165,7 +7194,7 @@ class Main extends Phaser.Scene {
         for (let x = e.x; x > e.x - 4000; x -= 10) if (inWater(x, e.y) && inWater(x - 60, e.y) && inWater(x - 150, e.y)) { ox = x; break; }
         if (ox !== null) {
           e.x = ox + 15;
-          e.icon = this.add.image(ox - 150, e.y, 'egg_delfines').setScale(0.55).setDepth(4.6);
+          e.icon = this.add.image(ox - 150, e.y, 'egg_delfines').setScale(0.4).setDepth(4.6);
           e.persona = { x: ox - 150, y: e.y - 10 };
           // nadan de un lado a otro, despacito
           this.tweens.add({ targets: e.icon, y: e.y + 26, duration: 3200, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
@@ -7175,8 +7204,10 @@ class Main extends Phaser.Scene {
       }
       const [sx, sy, rot] = e.libre && !blocked(e.x, e.y) && !onRoad(e.x, e.y) ? [e.x, e.y, e.rot ?? 0.4] : sidewalkSpot(e.x, e.y, (SIDEWALK + 0.5) * M);
       e.x = sx; e.y = sy;
-      e.icon = this.add.image(sx, sy, 'egg_' + e.k).setScale(0.4).setRotation(rot).setDepth(7).setVisible(!e.got || e.fija);
+      // a escala de la gente (antes iban al doble y parecian logotipos); las escenas grandes (GRANDE) a su tamaño
+      e.icon = this.add.image(sx, sy, 'egg_' + e.k).setScale(EGG_GRANDES.has(e.k) ? 0.4 : 0.26).setRotation(rot).setDepth(7).setVisible(!e.got || e.fija);
       if (e.fija) e.persona = { x: sx, y: sy - (e.k === 'monolito' ? 40 : 0) };
+      if (e.k === 'senderistas') { e.icon.setScale(0.22).setDepth(4.6); this.ponerSenderistas(sx, sy); }
       if (e.fija && !e.quieto) { this.tweens.add({ targets: e.icon, rotation: rot + 0.06, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' }); }
     }
     this.stamina = STAMINA; this.tired = false; this.burning = []; this.perros = []; this.gatos = []; this.gatoProx = 0; this.fuegos = []; this.manchas = []; this.blastLights = [];
@@ -7483,6 +7514,20 @@ class Main extends Phaser.Scene {
   }
   // bicis y patinetas: de vez en cuando una sin candado en la banqueta, viendo a lo largo de la calle (raras: una cada
   // minuto o dos, y nunca si ya hay otra suelta cerca). Al pasar junto a ella a pie, un aviso para que la veas
+  // los senderistas perdidos: cuatro personas del tamaño de la gente, paradas en bolita (no tan parejita) viendo
+  // el mapa del piso; de vez en cuando uno voltea para otro lado, como buscando por donde
+  ponerSenderistas(cx, cy) {
+    const L = [[-15, -6, 0.15], [9, -13, 2.2], [13, 8, 3.7], [-8, 14, 5.2]];
+    this.senderistas = L.map(([dx, dy], i) => {
+      const x = cx + dx, y = cy + dy, a = Math.atan2(cy - y, cx - x) + (i - 1.5) * 0.15;
+      const sp = this.add.sprite(x, y, 'pedSend' + i, 0).setDepth(6).setScale(1 / SPR).setRotation(a);
+      this.time.addEvent({ delay: 2600 + i * 900, loop: true, callback: () => {
+        const otra = Math.random() < 0.4 ? a + (Math.random() < 0.5 ? 1.4 : -1.4) : a;
+        this.tweens.add({ targets: sp, rotation: otra, duration: 500, ease: 'Sine.easeInOut' });
+      } });
+      return sp;
+    });
+  }
   // ----- las apps del telefono -----
   // TeleTJ: se cobra, se oscurece la pantalla, se cargan los edificios de alla y apareces en la banqueta (o en la
   // calle, si vas en carro)
@@ -9517,7 +9562,7 @@ class Main extends Phaser.Scene {
       e.got = true; state.money += e.pay; save(); bigSound = true; updateStats();
       const n = EGGS.filter(q => q.got).length;
       toast('🥚 ' + e.name + ' (+$' + e.pay + ')', e.say + (n === EGGS.length ? '  ¡Encontraste todos los secretos de Tijuana!' : '  Secreto ' + n + ' de ' + EGGS.length + '.'), Math.max(6, e.say.length / 22));
-      if (!e.fija) this.tweens.add({ targets: e.icon, alpha: 0, scale: 1.2, duration: 900, delay: 1500, onComplete: () => e.icon.setVisible(false) });
+      if (!e.fija) this.tweens.add({ targets: e.icon, alpha: 0, scale: e.icon.scale * 1.6, duration: 900, delay: 1500, onComplete: () => e.icon.setVisible(false) });
     }
     for (const c of chinas) {
       c.cool -= dt;
