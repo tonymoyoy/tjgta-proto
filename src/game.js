@@ -7453,11 +7453,20 @@ class Main extends Phaser.Scene {
   updatePedido(dt) {
     const pd = this.pedido; if (!pd) return;
     const f = this.focus();
+    // donde aparece: a unos 200 px de ti, donde se pueda estar parado (calle, banqueta, monte...). Antes era la
+    // banqueta mas cercana, y en el Cerro Colorado quedaba tan lejos que nunca llegaba
+    const cerca = () => {
+      for (let k = 0; k < 24; k++) {
+        const a = Math.random() * 6.28, R = 200 - k * 6, x = f.x + Math.cos(a) * R, y = f.y + Math.sin(a) * R;
+        if (!blocked(x, y)) return [x, y];
+      }
+      return [f.x + 30, f.y];
+    };
     if (!pd.rep) {
       if ((pd.t -= dt) > 0) return;
-      // aparece a la vuelta, en la banqueta, y camina derechito hasta ti
-      const a = Math.random() * 6.28, [x, y] = nearestSidewalk(f.x + Math.cos(a) * 220, f.y + Math.sin(a) * 220);
-      pd.rep = { x, y, a: 0, sprite: this.walker(x, y, 1.6), escena: true };
+      // aparece a la vuelta y camina derechito hasta ti
+      const [x, y] = cerca();
+      pd.rep = { x, y, a: 0, sprite: this.walker(x, y, 1.6), escena: true, t: 0 };
       return;
     }
     const r = pd.rep, d = dist(r.x, r.y, f.x, f.y);
@@ -7467,8 +7476,11 @@ class Main extends Phaser.Scene {
       else r.sprite.setAlpha(Math.min(1, pd.fin));
       return;
     }
-    if (d > 700) { const [x, y] = nearestSidewalk(f.x + 200, f.y); r.x = x; r.y = y; } // te fuiste lejos: te alcanza
-    if (d > 22) {
+    // te fuiste lejos (en carro no te alcanza a pie): vuelve a aparecer cerca. Y si de plano no llega en un minuto
+    // (algo le estorba), igual te entrega: "te encontro a la tercera"
+    if (d > 450) { [r.x, r.y] = cerca(); r.sprite.setPosition(r.x, r.y); }
+    r.t += dt;
+    if (d > 22 && r.t < 60) {
       r.a = Math.atan2(f.y - r.y, f.x - r.x); const v = Math.min(d - 20, 95 * dt);
       r.x += Math.cos(r.a) * v; r.y += Math.sin(r.a) * v; r.sprite.setPosition(r.x, r.y).setRotation(r.a);
       return;
