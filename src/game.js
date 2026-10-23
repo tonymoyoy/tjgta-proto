@@ -225,6 +225,9 @@ const EGGS = [
   // en un terreno vacio de Natura (sin calles, casas ni agua cerca)
   { k: 'gnomos', name: 'Los Gnomos Conspiradores', at: [12382, 13312], pay: 300, fija: true, libre: true, rot: 0, quieto: true, r: 70,
     say: '(Cinco gnomos de jardín en bolita, alrededor de un tronquito con una vela y un plano marcado con una X, se quedan quietitos en cuanto te ven.) Uno te guiñó el ojo y te pasó un billete "para que no hayas visto nada".' },
+  // en un terreno perdido de San Antonio del Mar (sin calles, casas ni agua cerca): habla solo
+  { k: 'programador', name: 'El Programador Solitario', at: [-3598, 12632], pay: 300, fija: true, libre: true, rot: 0, quieto: true, r: 70,
+    say: '(Un programador despeinado, con su laptop conectada a una extensión que se pierde en el monte, le habla a un patito de hule.) "¿Tú también encontraste este lugar? Entonces sí funciona." Te pasó una lana "por probar el juego".' },
   // en el monte de Terrazas del Valle (sin calles, casas ni agua cerca)
   { k: 'banda', name: 'La Banda del Monte', at: [18162, 9912], pay: 300, fija: true, libre: true, rot: 0, quieto: true, r: 80,
     say: '(En pleno monte, una banda completa, con tuba, tambora, trompetas, clarinetes y trombón, le toca con todo el corazón a un nopal.) "Nos dijeron que aquí era la boda." Te pasaron una lana para que les pidas una canción.' },
@@ -3214,6 +3217,19 @@ const FRASES_FIJAS = {
   '¡Nomás era mi chancla, no hacía falta tanto!', '¡Gracias, perritos! ¿Aceptan croquetas o transferencia?',
   '¡Que alguien les avise que ya me puedo parar, el agua me llega a la cintura!',
   '¡Yo nomás venía a ver si estaba la marea alta!',
+  ],
+  programador: [
+    'Nomás arreglo este bug y me voy a dormir. Eso dije hace tres días.', 'Patito, explícame otra vez por qué esto no sirve.',
+    '¿Por qué los carros atravesaban los choques? ...Ya, ya lo arreglé. Creo.', 'Funciona en mi máquina. Mi máquina está en el monte.',
+    'Otro pedido: "agrega unos gnomos conspirando". Va, ¿por qué no?', 'Compilando... compilando... ¿y si mejor voy por unos tacos?',
+    'El mapa tiene un millón de edificios y yo aquí, solito.', 'Nota mental: los perritos del canal no son referencia a nada. A nada.',
+    'Si alguien llega hasta aquí, le pongo un secreto. ...Ah, ya llegó uno.', 'Si funciona, no le muevas. Si no funciona, tampoco.',
+    'Me vine al monte para que ya no me pidan más secretos. No funcionó.',
+    // trabaja con una IA
+    'Yo nomás le digo a la IA "instálala y súbela" y ella hace lo demás. Soy un genio.', 'La IA dice que ya quedó. La IA siempre dice que ya quedó.',
+    'Le pedí a la IA unos gnomos conspirando y me los hizo. Ahora sospecho de ella.', 'Le expliqué Tijuana a la IA. Ahora quiere tacos de adobada y no tiene boca.',
+    'Mi compañero de trabajo es una IA. No pide aumento, pero tampoco trae tacos.', '¿Quién escribió este código? Pues... fue trabajo en equipo.',
+    'Le pedí a la IA que los carros no atravesaran los choques. Lo arregló a la tercera. Igual que yo.', 'La IA escribe el código y yo decido qué tan chistosos quedan los gnomos. Reparto justo.',
   ],
   banda: [
     '¡Y pura banda, compa!', 'Esta va dedicada al nopal, que no se ha ido en toda la noche.',
@@ -6611,7 +6627,36 @@ function makeEggs(scene) {
     x.fillStyle = 'rgba(255,255,255,0.85)'; x.font = 'bold 3px sans-serif';
     for (const [nx, ny, t] of [[10, 8, '♪'], [36, 9, '♫'], [24, 4, '♪'], [42, 22, '♫'], [6, 22, '♪']]) x.fillText(t, nx, ny);
   };
-  const GRANDE = { monolito: 120, gnomos: 48, chupacabras: 44, banda: 48 };
+  // el programador en su mesita plegable: laptop prendida, taza de cafe, patito de hule, papelitos y la extension
+  // naranja que se va lejos
+  draw.programador = () => {
+    ell('rgba(120,190,255,0.16)', 22, 19, 13, 9); // la luz de la pantalla en el piso
+    // la extension, enroscada y perdiendose hacia la orilla
+    x.strokeStyle = '#ff8f00'; x.lineWidth = 0.7; x.lineCap = 'round'; x.beginPath(); x.moveTo(27, 18);
+    x.bezierCurveTo(34, 20, 30, 30, 37, 31); x.bezierCurveTo(42, 32, 40, 40, 44, 43); x.stroke();
+    // la mesita plegable con su sombra
+    shadow(22, 18, 10, 6); x.fillStyle = '#d7c4a0'; x.fillRect(12, 12, 20, 11); x.strokeStyle = 'rgba(90,70,40,0.6)'; x.lineWidth = 0.3; x.strokeRect(12, 12, 20, 11);
+    // la laptop: teclado y pantalla (inclinada hacia arriba, prendida)
+    x.fillStyle = '#5f6368'; x.fillRect(17, 16, 9, 5.4); x.fillStyle = '#3c4043'; for (let i = 0; i < 3; i++) x.fillRect(17.8, 16.8 + i * 1.2, 7.4, 0.7);
+    x.fillStyle = '#202124'; x.fillRect(17, 12.6, 9, 3.2); x.fillStyle = '#8ad4ff'; x.fillRect(17.6, 13.1, 7.8, 2.3);
+    x.fillStyle = '#2e7d32'; for (let i = 0; i < 3; i++) x.fillRect(18, 13.5 + i * 0.6, 2 + (i * 3 % 5), 0.3); // codigo en la pantalla
+    // la taza, el patito y los papelitos
+    ell('#ffffff', 29, 15, 1.5, 1.5); ell('#4e342e', 29, 15, 1.1, 1.1); line('#ffffff', 0.4, [[30.4, 15], [31.2, 15.6]]);
+    ell('#fdd835', 14.6, 15, 1.4, 1.2); ell('#fdd835', 14.6, 13.6, 0.9, 0.8); ell('#ff8f00', 14.6, 12.9, 0.5, 0.3); ell('#1b1b1b', 14.3, 13.5, 0.15, 0.15); // el patito
+    [['#fff176', 13.4, 19.2], ['#80deea', 15.6, 20.2], ['#f48fb1', 28.4, 20]].forEach(([c, px, py]) => { x.fillStyle = c; x.fillRect(px, py, 2, 2); });
+    // tazas vacias regadas
+    ell('#eeeeee', 9, 24, 1.2, 1.2); ell('#bdbdbd', 9, 24, 0.8, 0.8); ell('#eeeeee', 34, 10, 1.1, 1.1); ell('#bdbdbd', 34, 10, 0.7, 0.7);
+    // la silla y el programador, de espaldas a nosotros (sudadera gris, audifonos en el cuello y el pelo parado)
+    shadow(22, 28, 6, 4); x.fillStyle = '#37474f'; x.fillRect(17.5, 25, 9, 5.5);
+    shoulders(22, 26.4, '#616161', '#303030', 5, 3.2);
+    line('#212121', 0.8, [[18.2, 24.8], [17.6, 22]]); line('#212121', 0.8, [[25.8, 24.8], [26.4, 22]]); // brazos al teclado
+    x.strokeStyle = '#212121'; x.lineWidth = 0.6; x.beginPath(); x.arc(22, 25.6, 2.6, Math.PI * 0.1, Math.PI * 0.9); x.stroke(); // audifonos al cuello
+    ball(22, 24.2, 2, '#e0b48c', '#b9855c');
+    x.fillStyle = '#3e2723'; x.beginPath(); for (let i = 0; i < 9; i++) { const a = Math.PI * (1 + i / 8); x.lineTo(22 + Math.cos(a) * (2.2 + (i % 2) * 0.8), 24.4 + Math.sin(a) * (2.2 + (i % 2) * 0.8)); } x.closePath(); x.fill(); // pelo parado
+    // un nopalito de compañia
+    ell('#4f8a3a', 7, 9, 1.6, 2.4); ell('#4f8a3a', 8.6, 7, 1.1, 1.6, 0.5);
+  };
+  const GRANDE = { monolito: 120, gnomos: 48, chupacabras: 44, banda: 48, programador: 44 };
   for (const k in draw) {
     const n = GRANDE[k] || 32, t = scene.textures.createCanvas('egg_' + k, n * 5, n * 5);
     x = t.getContext(); x.save(); x.scale(5, 5); draw[k](x); x.restore(); t.refresh();
