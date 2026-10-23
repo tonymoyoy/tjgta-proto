@@ -3798,6 +3798,14 @@ const MENU_ANTOJOS = [
 // lo que dice el repartidor al llegar (y si llega con algo que no era)
 const REPARTIDOR_DICE = ['¿Usted pidió esto? Ojalá que sí.', 'Me perdí tres veces, pero aquí estoy.', 'Cinco estrellitas, ¿eh? Tengo familia.',
   'La app decía que vivía en el mar. Casi me meto.', 'Vine a pie porque se me ponchó la moto. De nada.'];
+// lo que le contestas al repartidor (la calificacion, la propina...) y como se despide el
+const RESPUESTA_CLIENTE = ['Te voy a poner cinco estrellas. Y una carita feliz.', 'Ahí te van veinte de propina. No te los gastes en un solo lugar.',
+  'Cuatro estrellas: le faltó salsa a tu sonrisa.', 'Te dejo propina en la app... cuando me acuerde de la contraseña.',
+  'Gracias, compa. Cinco estrellas y mi bendición.', 'Te pongo cinco estrellas si me dices dónde compraste esa mochila.',
+  'Toma, de propina un chicle. Está casi nuevo.', 'Tres estrellas: llegaste rápido, pero me asustaste.',
+  'Si viene completo, te ganaste calificación de campeón.', 'Propina no traigo, pero te doy un consejo: no te metas a la Vía Rápida a las seis.'];
+const REPARTIDOR_ADIOS = ['¡Gracias, jefe! Provecho.', '¡Que lo disfrute! Y califíqueme bien, porfa.', 'Provechito. Me voy, que traigo otros doce pedidos.',
+  '¡Ándele pues! Nos vemos en el siguiente antojo.', 'Con eso me alcanza para la gasolina... de la mitad del camino.', '¡Gracias! Si se enfría, no fue mi culpa.'];
 const PEDIDO_EQUIVOCADO = ['Te trajeron un pozole. Dicen que es lo mismo.', 'Te trajeron el pedido de un tal "Beto". Él no va a comer hoy.', 'Llegó una pizza de queso. El repartidor juró que era lo que pediste.'];
 const VT_DEPORTIVA = { name: 'Moto deportiva', L: 22, W: 9, top: 370, acc: 240, steer: 3.3, hp: 50, fragil: true };
 const DEPORTIVA_COLS = [['#d10a0a', '#f4f4f4'], ['#7ed321', '#151515'], ['#1f5fbf', '#f4f4f4']]; // carenado y franja
@@ -7470,7 +7478,17 @@ class Main extends Phaser.Scene {
       return;
     }
     const r = pd.rep, d = dist(r.x, r.y, f.x, f.y);
-    if (pd.fin != null) { // ya entrego: se va y desaparece
+    // ya entrego: platican tantito (el dice algo, tu le contestas y se despide) y luego se va y desaparece
+    if (pd.fase === 'platica') {
+      if (d > 450) pd.paso = 9; // te fuiste: se queda hablando solo
+      r.a = Math.atan2(f.y - r.y, f.x - r.x); r.sprite.setRotation(r.a);
+      if ((pd.pt -= dt) > 0) return;
+      if (pd.paso === 1) { this.globo(f, 'jugador', pick(RESPUESTA_CLIENTE), 3.2); pd.paso = 2; pd.pt = 3.4; return; }
+      if (pd.paso === 2) { this.globo(r, 'repartidor', pick(REPARTIDOR_ADIOS), 2.6); pd.paso = 3; pd.pt = 1.2; return; }
+      pd.fase = 'vete'; pd.fin = 3; r.a += Math.PI; r.sprite.anims.resume();
+      return;
+    }
+    if (pd.fase === 'vete') {
       r.x += Math.cos(r.a) * 70 * dt; r.y += Math.sin(r.a) * 70 * dt; r.sprite.setPosition(r.x, r.y).setRotation(r.a);
       if ((pd.fin -= dt) <= 0) { r.sprite.destroy(); this.pedido = null; }
       else r.sprite.setAlpha(Math.min(1, pd.fin));
@@ -7485,12 +7503,13 @@ class Main extends Phaser.Scene {
       r.x += Math.cos(r.a) * v; r.y += Math.sin(r.a) * v; r.sprite.setPosition(r.x, r.y).setRotation(r.a);
       return;
     }
-    // llego: lo que dice y con que llego
+    // llego: se para frente a ti, dice algo y te entrega (con lo que llegue)
     const mal = Math.random() < 0.15;
-    this.globo(r, 'repartidor', pick(REPARTIDOR_DICE), 3.5);
+    r.sprite.anims.pause(); r.sprite.setFrame(0);
+    this.globo(r, 'repartidor', pick(REPARTIDOR_DICE), 3.2);
     toast('🛵 ¡Llegó tu pedido! ' + pd.c.ico, mal ? pick(PEDIDO_EQUIVOCADO) : pick(pd.c.llega), 5);
     if (window.SND) SND.play('chat');
-    pd.fin = 3; r.a += Math.PI;
+    pd.fase = 'platica'; pd.paso = 1; pd.pt = 3.4; pd.fin = 0;
   }
   poneBici(p, R, initial, inView) {
     const now = this.time.now;
