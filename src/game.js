@@ -212,6 +212,9 @@ const EGGS = [
   // canal: va adentro del canal del rio, en la orilla mas cercana al lugar (ver lugarEnCanal)
   { k: 'cachorros', name: 'Rescate en el Canal', near: 'Plaza Río Tijuana', dx: 0, dy: 0, pay: 300, fija: true, canal: true, r: 150,
     say: '(Seis perritos con chalequito y casco de colores jalan una soga para sacar a un señor del canal del río.) El señor nomás quería sacar su chancla. Te dejaron una propina por echar porras.' },
+  // mar: en el agua, mar adentro de la orilla que queda al poniente del lugar (cuenta desde la playa)
+  { k: 'delfines', name: 'Los Delfines de Playas', near: 'El Muro en la Playa', dx: 0, dy: 70, pay: 300, fija: true, mar: true, r: 130,
+    say: '(Tres delfines se asoman junto al muro que se mete al mar, te ven y se ríen con su risita de delfín.) "Ustedes hacen fila horas para cruzar; nosotros nomás nadamos para allá y para acá." Te aventaron una moneda que alguien tiró al mar.' },
   // libre: va justo ahi (a media ladera), no en la banqueta de la calle mas cercana
   { k: 'senderistas', name: 'Los Senderistas Perdidos', near: 'Mirador del Cerro Colorado', dx: -45, dy: -60, pay: 300, fija: true, libre: true, r: 70,
     say: '(Cuatro senderistas con mochila, bastones y un mapa al revés discuten en plena ladera.) Llevan tres horas perdidos a sesenta metros del mirador, con las antenas a la vista y toda la ciudad allá abajo. Te dieron una lana para que no le cuentes a nadie.' },
@@ -3132,6 +3135,13 @@ const FRASES_FIJAS = {
   '¡Nomás era mi chancla, no hacía falta tanto!', '¡Gracias, perritos! ¿Aceptan croquetas o transferencia?',
   '¡Que alguien les avise que ya me puedo parar, el agua me llega a la cintura!',
   '¡Yo nomás venía a ver si estaba la marea alta!',
+  ],
+  delfines: [
+    'Miren, otro humano tomándose una foto con el muro. Qué originales.', 'Ustedes necesitan pasaporte. Nosotros, aletas.',
+    '¿Y ese qué hace? Ah, está "surfeando". Ya se cayó otra vez.', 'Los humanos ponen muros en el mar. El mar nomás se ríe.',
+    'Dicen que somos muy inteligentes. Con esa competencia, no está difícil.', 'Ahí va uno metiéndose al agua en mayo. Bienvenido al mayo gris, campeón.',
+    'No, no te vamos a llevar en el lomo. Esto no es parque acuático.', 'Pagan por ver el atardecer desde un restaurante. Nosotros lo vemos gratis diario.',
+    'Ese lleva media hora buscando dónde estacionarse. Nosotros llegamos nadando.', 'Le echan limón a todo. Hasta a nosotros nos miran con antojo.',
   ],
   senderistas: [
     '¿Alguien sabe para dónde queda Tijuana? ...Ah, es todo eso de abajo.', 'Según el mapa estamos en Ensenada.',
@@ -6293,6 +6303,23 @@ function makeEggs(scene) {
     ell(oscuro, -0.9, 6.6, 0.5, 0.9, -0.5); ell(oscuro, 0.9, 6.6, 0.5, 0.9, 0.5); // orejitas para atras
     x.restore();
   };
+  // los delfines asomandose: lomo gris con su aleta, el pico, la espuma y uno a medio brinco (con su sombra en el agua)
+  draw.delfines = () => {
+    const delfin = (cx, cy, a, k, brinco) => {
+      x.save(); x.translate(cx, cy); x.rotate(a); x.scale(k, k);
+      if (brinco) ell('rgba(10,40,60,0.3)', 2.2, 2.4, 2.2, 6); // su sombra en el agua
+      else for (const [r, al] of [[5.4, 0.25], [4, 0.45]]) { x.strokeStyle = 'rgba(240,250,255,' + al + ')'; x.lineWidth = 0.45; x.beginPath(); x.ellipse(0, 0.5, r * 0.75, r * 1.5, 0, 0, 7); x.stroke(); }
+      x.fillStyle = rad(0, 0, 6, '#9fb2c0', '#4f6575'); x.beginPath(); x.ellipse(0, 0, 2, 5.4, 0, 0, 7); x.fill(); // el lomo
+      x.fillStyle = '#7d93a3'; x.beginPath(); x.ellipse(0, 6, 0.75, 1.4, 0, 0, 7); x.fill(); // el pico
+      x.fillStyle = '#3e5262'; x.beginPath(); x.moveTo(-0.3, -1.4); x.lineTo(0.3, -1.4); x.lineTo(0.1, -3.6); x.closePath(); x.fill(); // la aleta
+      x.fillStyle = '#5a7080'; x.beginPath(); x.moveTo(0, -5); x.lineTo(-2, -7); x.lineTo(0, -6.2); x.lineTo(2, -7); x.closePath(); x.fill(); // la cola
+      ell('#1b1b1b', -1.1, 3.8, 0.28, 0.32); ell('#1b1b1b', 1.1, 3.8, 0.28, 0.32); // ojitos
+      ell('rgba(255,255,255,0.35)', -0.6, -0.5, 0.5, 2.6); // el brillo mojado
+      x.restore();
+    };
+    delfin(9, 18, 0.35, 0.95, false); delfin(23, 15, -0.3, 1, false); delfin(16, 9, 0.05, 0.85, true);
+    for (const [px, py] of [[5, 25], [27, 23], [13, 3], [20, 4], [11, 27]]) ell('rgba(255,255,255,0.6)', px, py, 0.6, 0.35); // gotitas
+  };
   // los senderistas, en bolita alrededor del mapa: gorra, mochila de color y bastones
   draw.senderistas = () => {
     const uno = (cx, cy, a, gorra, mochila, playera) => {
@@ -6694,6 +6721,20 @@ class Main extends Phaser.Scene {
           // jalan y aflojan
           this.tweens.add({ targets: e.icon, x: e.icon.x - c.nx * 1.2, y: e.icon.y - c.ny * 1.2, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
           e.persona = { x: c.x + c.nx * d1, y: c.y + c.ny * d1 };
+          continue;
+        }
+      }
+      if (e.mar) {
+        // hacia el poniente hasta el agua; los delfines unos 30 m mar adentro y lo que cuenta es la orilla
+        let ox = null;
+        for (let x = e.x; x > e.x - 4000; x -= 10) if (inWater(x, e.y) && inWater(x - 60, e.y) && inWater(x - 150, e.y)) { ox = x; break; }
+        if (ox !== null) {
+          e.x = ox + 15;
+          e.icon = this.add.image(ox - 150, e.y, 'egg_delfines').setScale(0.55).setDepth(4.6);
+          e.persona = { x: ox - 150, y: e.y - 10 };
+          // nadan de un lado a otro, despacito
+          this.tweens.add({ targets: e.icon, y: e.y + 26, duration: 3200, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+          this.tweens.add({ targets: e.icon, rotation: 0.12, duration: 1700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
           continue;
         }
       }
