@@ -9573,6 +9573,9 @@ function drawMarkers(c, sx, sy, ox, oy, scene, f, big) {
   for (const k of cafes) if (!k.drunk) { const [x, y] = P(k.x, k.y); c.fillStyle = '#a0662f'; c.strokeStyle = '#f3e1c8'; c.lineWidth = 1; c.beginPath(); c.arc(x, y, big ? 4 : 2.5, 0, 7); c.fill(); c.stroke(); }
   for (const k of chinas) { const [x, y] = P(k.x, k.y); c.fillStyle = '#e53935'; c.fillRect(x - (big ? 4 : 2.5), y - (big ? 4 : 2.5), big ? 8 : 5, big ? 8 : 5); }
   for (const p of scene.paros || []) if (!p.hecho) { const [x, y] = P(p.x, p.y); c.fillStyle = '#b388ff'; c.strokeStyle = '#2e1065'; c.lineWidth = 1; c.beginPath(); c.arc(x, y, big ? 4.5 : 3, 0, 7); c.fill(); c.stroke(); }
+  // los secretos que te faltan: un signo de interrogacion tenue (sin decir que es)
+  c.font = 'bold ' + (big ? 13 : 10) + 'px sans-serif'; c.lineWidth = 2.5; c.strokeStyle = 'rgba(40,20,70,0.55)'; c.fillStyle = 'rgba(240,232,255,0.82)';
+  for (const e of EGGS) if (!e.got) { const [x, y] = P(e.x, e.y); c.strokeText('?', x, y); c.fillText('?', x, y); }
   { const [x, y] = P(YONKE.x, YONKE.y), r = big ? 5 : 3.5; c.fillStyle = '#fdd835'; c.strokeStyle = '#000'; c.lineWidth = 1.5; c.beginPath(); c.rect(x - r, y - r, r * 2, r * 2); c.fill(); c.stroke(); }
   for (const l of landmarks) {
     const [x, y] = P(l.x, l.y);
@@ -9701,6 +9704,9 @@ function renderBig(detail) {
   for (const k of chinas) { const X = bmX(k.x), Y = bmY(k.y); if (on(X, Y)) farol(X, Y, icons ? 1.1 : 0.6); }
   { const X = bmX(YONKE.x), Y = bmY(YONKE.y); if (on(X, Y)) { if (icons) { c.font = '17px sans-serif'; c.fillText('🔧', X, Y); c.font = 'bold 11px sans-serif'; c.lineWidth = 3; c.strokeStyle = '#000'; c.strokeText('Yonke', X, Y + 14); c.fillStyle = '#fdd835'; c.fillText('Yonke', X, Y + 14); }
     else { c.fillStyle = '#fdd835'; c.strokeStyle = '#000'; c.lineWidth = 1; c.fillRect(X - 3.5, Y - 3.5, 7, 7); c.strokeRect(X - 3.5, Y - 3.5, 7, 7); } } }
+  // los secretos que te faltan: un signo de interrogacion tenue
+  c.font = 'bold ' + (icons ? 15 : 10) + 'px sans-serif'; c.lineWidth = 3; c.strokeStyle = 'rgba(40,20,70,0.55)'; c.fillStyle = 'rgba(240,232,255,0.82)';
+  for (const e of EGGS) { if (e.got) continue; const X = bmX(e.x), Y = bmY(e.y); if (on(X, Y)) { c.strokeText('?', X, Y); c.fillText('?', X, Y); } }
   for (const p of bigScene.paros || []) { const X = bmX(p.x), Y = bmY(p.y); if (on(X, Y)) { if (icons) emoji('🤝', X, Y, p.hecho); else if (!p.hecho) { c.fillStyle = '#b388ff'; c.beginPath(); c.arc(X, Y, 3.5, 0, 7); c.fill(); } } }
   for (const t of tacos) { const X = bmX(t.x), Y = bmY(t.y); if (on(X, Y)) { if (icons) emoji('🌮', X, Y, t.eaten); else if (!t.eaten) { c.fillStyle = '#ff9f1c'; c.beginPath(); c.arc(X, Y, 3, 0, 7); c.fill(); } } }
   for (const k of cafes) { const X = bmX(k.x), Y = bmY(k.y); if (on(X, Y)) { if (icons) emoji('☕', X, Y, k.drunk); else if (!k.drunk) { c.fillStyle = '#a0662f'; c.beginPath(); c.arc(X, Y, 3, 0, 7); c.fill(); } } }
@@ -9722,7 +9728,7 @@ function renderBig(detail) {
   // leyenda con lo que llevas
   const n = (a, k) => a.filter(o => o[k]).length;
   const ley = `<span class="t">Mapa</span><span>★ <b>${n(landmarks, 'found')}</b>/${landmarks.length}</span><span>🌮 <b>${n(tacos, 'eaten')}</b>/${tacos.length}</span>` +
-    `<span>☕ <b>${n(cafes, 'drunk')}</b>/${cafes.length}</span><span class="clave">➤ tú · 🤝 paros · 🔧 yonke · 🏮 cuidado</span>`;
+    `<span>☕ <b>${n(cafes, 'drunk')}</b>/${cafes.length}</span><span class="clave">➤ tú · 🤝 paros · 🔧 yonke · 🏮 cuidado · ? secreto</span>`;
   if (BM.ley !== ley) $('mlegend').innerHTML = BM.ley = ley;
 }
 function bmZoomAt(factor, sx, sy) {
