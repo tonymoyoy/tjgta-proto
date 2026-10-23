@@ -248,6 +248,31 @@ const SFX = {
     tone(sfxBus, 'sine', 90, t, 0.25, 0.5 * v, { to: 35 });
     if (force > 0.6) noise(sfxBus, t + 0.03, 0.25, 0.15 * v, 'highpass', 5000);
   },
+  // ---- las apps del telefono: sonidos alegres (no el trombon triste de cuando pierdes dinero) ----
+  pedido() { // la notificacion de "pedido confirmado": ding-ding brillante subiendo
+    const t = ctx.currentTime;
+    [[84, 0], [88, 0.09], [91, 0.18]].forEach(([n, d]) => { tone(sfxBus, 'sine', midi(n), t + d, 0.22, 0.13); tone(sfxBus, 'triangle', midi(n + 12), t + d, 0.1, 0.03); });
+  },
+  tele() { // teletransporte: un barrido que sube con destellos y un acorde mayor al llegar
+    const t = ctx.currentTime;
+    tone(sfxBus, 'sine', 300, t, 0.45, 0.12, { to: 1800 }); noise(sfxBus, t, 0.45, 0.05, 'bandpass', 3000, 2);
+    [79, 84, 88, 91, 96].forEach((n, i) => tone(sfxBus, 'triangle', midi(n), t + 0.08 + i * 0.06, 0.12, 0.07));
+    [72, 76, 79, 84].forEach(n => tone(sfxBus, 'sine', midi(n), t + 0.5, 0.6, 0.06));
+  },
+  compra() { // caja registradora: "cha-ching"
+    const t = ctx.currentTime;
+    noise(sfxBus, t, 0.05, 0.12, 'highpass', 4000); tone(sfxBus, 'square', midi(88), t + 0.06, 0.08, 0.07, { lp: 5000 });
+    tone(sfxBus, 'triangle', midi(96), t + 0.12, 0.4, 0.12); tone(sfxBus, 'sine', midi(103), t + 0.12, 0.3, 0.05);
+  },
+  timbre() { // ding-dong de la puerta: llego el repartidor
+    const t = ctx.currentTime;
+    tone(sfxBus, 'sine', midi(81), t, 0.5, 0.16); tone(sfxBus, 'triangle', midi(93), t, 0.15, 0.03);
+    tone(sfxBus, 'sine', midi(77), t + 0.38, 0.7, 0.16); tone(sfxBus, 'triangle', midi(89), t + 0.38, 0.15, 0.03);
+  },
+  timbreBici() { // el timbre de la bici: "ring ring"
+    const t = ctx.currentTime;
+    for (const d of [0, 0.16]) for (let i = 0; i < 4; i++) tone(sfxBus, 'triangle', 2600 + (i % 2) * 200, t + d + i * 0.025, 0.05, 0.06);
+  },
   chat() { // "¡eh!" corto cuando alguien te habla
     const t = ctx.currentTime;
     tone(sfxBus, 'triangle', midi(76), t, 0.07, 0.08); tone(sfxBus, 'triangle', midi(81), t + 0.07, 0.1, 0.08);

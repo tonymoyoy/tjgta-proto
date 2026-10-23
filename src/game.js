@@ -3705,12 +3705,13 @@ function avisoDeshuesado(car) {
   else toast('¡Auto deshuesado!', 'Bájate con E y roba otro.');
 }
 function toast(title, body, secs) { layoutTop(); hud.toast.innerHTML = '<b></b><span></span>'; hud.toast.firstChild.textContent = title; hud.toast.lastChild.textContent = body || ''; hud.toast.classList.add('on'); toastT = secs || 3.5; }
-// sonido de dinero: se compara contra el ultimo saldo mostrado (bigSound = fanfarria en vez de monedas)
-let lastMoney = state.money, bigSound = false;
+// sonido de dinero: se compara contra el ultimo saldo mostrado (bigSound = fanfarria en vez de monedas; sonidoCompra:
+// lo que gastas a gusto en el telefono suena alegre y no con el trombon triste de cuando pierdes)
+let lastMoney = state.money, bigSound = false, sonidoCompra = null;
 function updateStats() {
   const dm = state.money - lastMoney; lastMoney = state.money;
-  if (window.SND) { if (dm > 0) SND.play(bigSound ? 'fanfare' : 'gain', dm); else if (dm < 0) SND.play('loss'); }
-  bigSound = false;
+  if (window.SND) { if (dm > 0) SND.play(bigSound ? 'fanfare' : 'gain', dm); else if (dm < 0) SND.play(sonidoCompra || 'loss'); }
+  bigSound = false; sonidoCompra = null;
   hud.money.textContent = '$' + state.money.toLocaleString('es-MX');
   // cada contador en su propio span (no se parte); si no cabe en una linea, se brinca entre contadores (ver #counts)
   const cs = [`★ ${landmarks.filter(l => l.found).length}/${landmarks.length}`, `🌮 ${tacos.filter(t => t.eaten).length}/${tacos.length}`,
@@ -7420,9 +7421,8 @@ class Main extends Phaser.Scene {
   async teletransportar(d) {
     const l = landmarks.find(q => q.name === d.lugar); if (!l || state.money < TELE_PRECIO || this.teleporting) return;
     this.teleporting = true;
-    state.money -= TELE_PRECIO; save(); updateStats();
+    state.money -= TELE_PRECIO; save(); sonidoCompra = 'tele'; updateStats();
     const cam = this.cameras.main; cam.fadeOut(300, 255, 255, 255);
-    if (window.SND) SND.play('chat');
     await new Promise(ok => this.time.delayedCall(320, ok));
     await esperarRegiones(l.x - 1200, l.y - 1200, l.x + 1200, l.y + 1200);
     const car = this.inCar;
@@ -7445,7 +7445,8 @@ class Main extends Phaser.Scene {
     const f = this.focus(), a = Math.random() * 6.28;
     let x = f.x, y = f.y;
     for (let k = 0; k < 12; k++) { const tx = f.x + Math.cos(a + k) * 16, ty = f.y + Math.sin(a + k) * 16; if (!blocked(tx, ty)) { x = tx; y = ty; break; } }
-    state.money -= b.precio; save(); updateStats();
+    state.money -= b.precio; save(); sonidoCompra = 'compra'; updateStats();
+    if (window.SND) this.time.delayedCall(450, () => SND.play('timbreBici'));
     const bici = this.makeCar(x, y, Math.random() * 6.28, this.carSpec({ bici: b.k }));
     bici.comprada = true; this.parked.push(bici);
     this.tweens.add({ targets: bici.sprite, scale: { from: bici.sprite.scale * 1.6, to: bici.sprite.scale }, duration: 400, ease: 'Back.easeOut' });
@@ -7454,7 +7455,7 @@ class Main extends Phaser.Scene {
   // Antojos: se cobra y en un rato llega el repartidor caminando hasta donde estes
   pedirComida(c) {
     if (state.money < c.precio || this.pedido) return;
-    state.money -= c.precio; save(); updateStats();
+    state.money -= c.precio; save(); sonidoCompra = 'pedido'; updateStats();
     this.pedido = { c, t: rnd(18, 35), rep: null };
     toast('🍔 Pediste: ' + c.nombre + ' (-$' + c.precio + ')', 'Llega en unos ' + Math.round(this.pedido.t) + ' segundos, según la app. Ajá.', 3.5);
   }
@@ -7508,7 +7509,7 @@ class Main extends Phaser.Scene {
     r.sprite.anims.pause(); r.sprite.setFrame(0);
     this.globo(r, 'repartidor', pick(REPARTIDOR_DICE), 3.2);
     toast('🛵 ¡Llegó tu pedido! ' + pd.c.ico, mal ? pick(PEDIDO_EQUIVOCADO) : pick(pd.c.llega), 5);
-    if (window.SND) SND.play('chat');
+    if (window.SND) SND.play('timbre');
     pd.fase = 'platica'; pd.paso = 1; pd.pt = 3.4; pd.fin = 0;
   }
   poneBici(p, R, initial, inView) {
