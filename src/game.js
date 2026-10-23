@@ -222,6 +222,9 @@ const EGGS = [
   // y quieto, que el monolito no se mece
   { k: 'monolito', name: 'El Monolito del Llano', at: [6602, 12632], pay: 300, fija: true, libre: true, rot: 0, quieto: true, r: 110,
     say: '(Nueve vacas formadas en un círculo perfecto miran, sin parpadear, una losa negra que apareció en medio del llano.) Nadie sabe quién la puso ni desde cuándo. Una vaca te pasó una moneda con la pezuña y volvió a su lugar.' },
+  // en un terreno vacio de Natura (sin calles, casas ni agua cerca)
+  { k: 'gnomos', name: 'Los Gnomos Conspiradores', at: [12382, 13312], pay: 300, fija: true, libre: true, rot: 0, quieto: true, r: 70,
+    say: '(Cinco gnomos de jardín en bolita, alrededor de un tronquito con una vela y un plano marcado con una X, se quedan quietitos en cuanto te ven.) Uno te guiñó el ojo y te pasó un billete "para que no hayas visto nada".' },
   // las mascotas de las escuelas, afuera de su campus
   { k: 'cimarrones', name: 'Los Cimarrones de la UABC', near: 'UABC Campus Tijuana', dx: 55, dy: -45, pay: 300, fija: true, r: 70,
     say: '(Unos borregos cimarrones con bufanda verde y dorada pastan afuera de la UABC.) El cimarrón vive en las sierras de Baja California y es la mascota de la universidad. Estos ya van en octavo semestre. Te dejaron una lana para las copias.' },
@@ -3139,6 +3142,13 @@ const FRASES_FIJAS = {
   '¡Nomás era mi chancla, no hacía falta tanto!', '¡Gracias, perritos! ¿Aceptan croquetas o transferencia?',
   '¡Que alguien les avise que ya me puedo parar, el agua me llega a la cintura!',
   '¡Yo nomás venía a ver si estaba la marea alta!',
+  ],
+  gnomos: [
+    'Shhh... alguien viene. Todos quietos, somos adornos.', 'Fase uno: los jardines. Fase dos: los camellones. Fase tres: la Zona Río.',
+    'Nadie sospecha de un señor de cerámica con gorrito.', 'El de la casa catorce nos dejó afuera en la lluvia. Pagará.',
+    '¿Trajeron las semillas? ¿Y las tijeras de podar? Bien.', 'Votemos: ¿plan A o plan B? ...Gana el plan G, de gnomo.',
+    'Los flamingos de plástico están con nosotros.', 'Nos sacaron del jardín por "pasados de moda". Error.',
+    'Si alguien pregunta, estamos jugando lotería.',
   ],
   monolito: [
     '...Muuu.', '(Las vacas miran el monolito. El monolito no dice nada. Nadie dice nada.)',
@@ -6389,7 +6399,34 @@ function makeEggs(scene) {
     x.fillStyle = '#1c1c1e'; x.beginPath(); x.moveTo(l + Hm * L, b - Hm); x.lineTo(l + w + Hm * L, b - Hm); x.lineTo(l + w + Hm * L + 0.6, b - Hm - 2.4); x.lineTo(l + Hm * L + 0.6, b - Hm - 2.4); x.closePath(); x.fill(); // arriba, delgadita
     line('rgba(150,160,180,0.45)', 0.35, [[l + w, b], [l + w + Hm * L, b - Hm]]); // el filo con el reflejo
   };
-  const GRANDE = { monolito: 120 };
+  // los gnomos en bolita alrededor de un tronquito con una vela y el plano; uno de vigia con su catalejo
+  draw.gnomos = () => {
+    const c = 24;
+    ell('rgba(255,210,120,0.18)', c, c, 13, 13); ell('rgba(255,210,120,0.22)', c, c, 8, 8); // la luz de la vela
+    // el tronquito con el plano encima y la vela
+    shadow(c, c, 5, 4.4); ell('#7a5230', c, c, 4.6, 4); ell('#9b6b3f', c, c, 3.8, 3.2); x.strokeStyle = 'rgba(60,35,15,0.6)'; x.lineWidth = 0.25; x.beginPath(); x.arc(c, c, 2.4, 0, 7); x.arc(c, c, 1.2, 0, 7); x.stroke();
+    x.save(); x.translate(c - 0.6, c + 0.4); x.rotate(-0.2); x.fillStyle = '#f1e4c3'; x.fillRect(-3, -2, 5.2, 3.6);
+    line('#8d6e63', 0.2, [[-2.5, 1], [-1, -0.6], [0.6, 0.6], [1.8, -1.2]]); line('#c62828', 0.35, [[0.9, -1.4], [1.9, -0.4]]); line('#c62828', 0.35, [[1.9, -1.4], [0.9, -0.4]]); x.restore();
+    ell('#f5f0e1', c + 2.6, c - 1.6, 0.6, 0.6); ell('#ffd54f', c + 2.6, c - 2.4, 0.35, 0.6); // la vela
+    const gnomo = (gx, gy, a, gorro, ropa) => {
+      x.save(); x.translate(gx, gy); x.rotate(a); // +y hacia donde ve
+      shadow(0, 0, 3, 3);
+      ell(ropa, 0, -0.4, 2.8, 2.6); // el cuerpito asomando
+      ell('#f4f1ea', 0, 1.8, 1.8, 1.6); // las barbas, hacia el frente
+      ell('#f2c09a', 0, 1, 0.6, 0.5); // la nariz
+      x.restore();
+      // el gorro picudo: parado, con la punta hacia arriba y un poco a la derecha (como los edificios), sin girar
+      x.fillStyle = rad(gx, gy - 1, 3, gorro, '#7f1d1d'); x.beginPath(); x.ellipse(gx, gy - 0.4, 2.3, 1.5, 0, 0, Math.PI); x.lineTo(gx + 1.3, gy - 5.2); x.closePath(); x.fill();
+      line('rgba(255,255,255,0.35)', 0.35, [[gx - 1.2, gy - 0.8], [gx + 0.9, gy - 4.4]]); ell('#7f1d1d', gx + 1.3, gy - 5.2, 0.35, 0.35);
+    };
+    // cuatro alrededor del tronco, viendo hacia el (el angulo: hacia donde ven)
+    const G = [[0, '#d32f2f', '#1565c0'], [1.3, '#c62828', '#2e7d32'], [2.6, '#e53935', '#6a1b9a'], [4.2, '#b71c1c', '#ef6c00']];
+    for (const [a, g, r] of G) { const gx = c + Math.cos(a) * 7.5, gy = c + Math.sin(a) * 7.5; gnomo(gx, gy, Math.atan2(c - gy, c - gx) - Math.PI / 2, g, r); }
+    // el vigia, viendo hacia afuera con su catalejo
+    const vx = c - 13, vy = c + 9; gnomo(vx, vy, Math.atan2(vy - c, vx - c) - Math.PI / 2, '#d32f2f', '#795548');
+    const av = Math.atan2(vy - c, vx - c); line('#b8860b', 0.9, [[vx + Math.cos(av) * 2, vy + Math.sin(av) * 2], [vx + Math.cos(av) * 4.6, vy + Math.sin(av) * 4.6]]);
+  };
+  const GRANDE = { monolito: 120, gnomos: 48 };
   for (const k in draw) {
     const n = GRANDE[k] || 32, t = scene.textures.createCanvas('egg_' + k, n * 5, n * 5);
     x = t.getContext(); x.save(); x.scale(5, 5); draw[k](x); x.restore(); t.refresh();
