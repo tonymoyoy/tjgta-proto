@@ -81,6 +81,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); c
     repeating-linear-gradient(90deg, rgba(255,255,255,.09) 0 1px, transparent 1px 10px), #1f4f86; }
 /* los gatos de las azoteas: morado de noche con ojos amarillos, y muy creidos */
 .bubble.cachorros { --bg: #e8f4ff; --bd: #1e5bd8; --fg: #0d2a5c; font-weight: 700; }
+.bubble.repartidor { --bg: #fff3e0; --bd: #d84315; --fg: #3e1a00; font-weight: 700; }
 .bubble.chupacabras { --bg: #2a1f35; --bd: #ff1744; --fg: #e9f5e8; font-weight: 700; }
 .bubble.gnomos { --bg: #1f3a1f; --bd: #d32f2f; --fg: #f4f1ea; font-size: 12px; font-style: italic; }
 .bubble.monolito { --bg: #0a0a0c; --bd: #c9ccd3; --fg: #f1f2f5; font-family: Georgia, 'Times New Roman', serif; letter-spacing: .02em; }
@@ -120,21 +121,62 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); c
   border: 1px solid rgba(255,255,255,.22); box-shadow: 0 3px 10px rgba(0,0,0,.45);
   font-size: 20px; line-height: 38px; text-align: center; cursor: pointer; pointer-events: auto; user-select: none; }
 .touch #optbtn { top: 140px; }
-/* menu de opciones: mismo estilo que la portada (titulo amarillo con sombra roja, tonos del atardecer, botones de vidrio oscuro) */
+/* el telefono: un smartphone con su pantalla de inicio y apps (ver celPagina en game.js). Mide lo que quepa: alto de
+   la ventana con proporcion de celular, y en la pantalla horizontal se hace mas ancho para que no quede enano */
 #opts { display: none; position: fixed; inset: 0; z-index: 11; background: rgba(8,6,12,.72); align-items: center; justify-content: center; padding: 10px;
   -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px); }
-#opts .card { position: relative; width: min(880px, 100%); max-height: 100%; overflow-y: auto; padding: 12px 18px 16px; color: var(--text);
-  background: linear-gradient(160deg, rgba(58,26,52,.55), rgba(0,0,0,0) 45%), linear-gradient(180deg, rgba(24,18,30,.97), rgba(10,8,14,.97));
-  border: 1px solid rgba(255,255,255,.12); border-radius: 14px; box-shadow: 0 18px 50px rgba(0,0,0,.6), inset 0 3px 0 -1px #ff7a3c; }
 #opts button { font-family: inherit; }
-#opts .head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
-#opts h3 { margin: 2px 0; font-size: 30px; color: var(--accent); font-style: italic; letter-spacing: 3px; text-transform: uppercase;
-  text-shadow: 2px 2px 0 #b3261e, 4px 4px 0 #000; }
+#cel { position: relative; height: min(760px, calc(100vh - 24px)); aspect-ratio: 9 / 18.5; max-width: calc(100vw - 70px); display: flex; flex-direction: column;
+  border-radius: 38px; padding: 10px; background: linear-gradient(145deg, #3a3a40, #121216 60%); box-shadow: 0 0 0 2px #55555d, 0 24px 60px rgba(0,0,0,.7), inset 0 0 0 2px #000; }
+@media (orientation: landscape) { #cel { aspect-ratio: 11 / 12; height: calc(100vh - 20px); border-radius: 30px; } }
+#cel > * { position: relative; }
+.cel-status { display: flex; justify-content: space-between; align-items: center; padding: 6px 18px 4px; font-size: 11px; color: #fff; z-index: 2;
+  border-radius: 28px 28px 0 0; background: #0b0b12; }
+.cel-status span { opacity: .85; letter-spacing: .5px; }
+.cel-isla { width: 70px; height: 18px; border-radius: 10px; background: #000; display: inline-block; }
+.cel-pantalla { flex: 1; overflow: hidden; color: var(--text); border-radius: 0 0 28px 28px;
+  background: radial-gradient(120% 70% at 50% 0%, rgba(255,122,60,.55), rgba(0,0,0,0) 60%), linear-gradient(180deg, #3a1a40 0%, #1a1030 50%, #0b0a14 100%); }
+.cel-pag { display: none; height: 100%; flex-direction: column; }
+.cel-pag.on { display: flex; }
+.cel-reloj { text-align: center; margin: 18px 0 10px; color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,.5); }
+.cel-reloj b { display: block; font-size: 46px; font-weight: 300; letter-spacing: 2px; }
+.cel-reloj small { font-size: 12px; opacity: .85; text-transform: capitalize; }
+@media (orientation: landscape) { .cel-reloj { margin: 6px 0 4px; } .cel-reloj b { font-size: 30px; } }
+.cel-apps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px 6px; padding: 10px 14px; }
+.app { display: flex; flex-direction: column; align-items: center; gap: 4px; background: none; border: 0; color: #fff; cursor: pointer; padding: 0; }
+.app i { font-style: normal; width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 27px;
+  background: linear-gradient(160deg, var(--a), var(--b)); box-shadow: 0 4px 10px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.35); transition: transform .1s; }
+.app:active i { transform: scale(.92); }
+.app span { font-size: 11px; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+@media (orientation: landscape) { .app i { width: 42px; height: 42px; font-size: 22px; border-radius: 11px; } .cel-apps { gap: 8px 4px; padding: 6px 10px; } }
+.cel-saldo { margin: auto 14px 12px; padding: 8px 12px; border-radius: 12px; background: rgba(0,0,0,.35); font-size: 13px; text-align: center; }
+.cel-saldo b { color: var(--good); font-size: 16px; }
+.cel-bar { display: flex; align-items: center; gap: 6px; padding: 8px 10px; background: rgba(0,0,0,.35); border-bottom: 1px solid rgba(255,255,255,.08); }
+.cel-bar b { font-size: 16px; }
+.cel-atras { background: none; border: 0; color: var(--accent); font-size: 28px; line-height: 20px; padding: 0 8px 4px 2px; cursor: pointer; }
+.cel-cont { flex: 1; overflow-y: auto; padding: 10px 12px 14px; font-size: 13px; }
+.cel-cont .optrow { font-size: 13px; padding: 9px 11px; }
+.cel-intro { margin: 0 0 10px; color: var(--muted); font-size: 12px; }
+.cel-lista { display: flex; flex-direction: column; gap: 7px; }
+.cel-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 9px 11px; border-radius: 11px; cursor: pointer;
+  border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.06); color: var(--text); font-size: 13px; }
+.cel-item:hover, .cel-item:active { border-color: rgba(255,210,63,.7); background: rgba(255,210,63,.08); }
+.cel-item:disabled { opacity: .45; cursor: default; }
+.cel-item .ico { font-size: 22px; width: 28px; text-align: center; }
+.cel-item .txt { flex: 1; }
+.cel-item .txt small { display: block; color: var(--muted); font-size: 11px; margin-top: 1px; }
+.cel-item .precio { color: var(--good); font-weight: bold; white-space: nowrap; }
+#comidaestado:not(:empty) { margin-bottom: 10px; padding: 10px 12px; border-radius: 11px; background: rgba(255,138,80,.15); border: 1px solid rgba(255,138,80,.5); }
+.cel-creditos { text-align: center; padding: 30px 10px; }
+.cel-creditos b { display: block; font-size: 30px; color: var(--accent); font-style: italic; letter-spacing: 3px; text-shadow: 2px 2px 0 #b3261e, 4px 4px 0 #000; }
+.cel-creditos span { display: block; letter-spacing: 4px; font-size: 11px; color: var(--muted); }
+.cel-creditos p { margin: 24px 0; }
+.cel-creditos small { color: var(--muted); font-size: 10px; }
+.cel-home { height: 18px; display: flex; justify-content: center; align-items: center; cursor: pointer; }
+.cel-home::before { content: ""; width: 110px; height: 5px; border-radius: 3px; background: rgba(255,255,255,.75); }
 #opts h4 { display: flex; align-items: center; gap: 8px; margin: 14px 0 7px; font-size: 12px; letter-spacing: 3px; text-transform: uppercase; color: #ff9d4a; }
 #opts h4::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, rgba(255,157,74,.5), rgba(255,157,74,0)); }
-#opts section > h4:first-child { margin-top: 6px; }
-#opts .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
-@media (max-width: 640px) { #opts .cols { grid-template-columns: 1fr; } }
+#optclose { position: absolute; top: max(12px, env(safe-area-inset-top)); right: 12px; }
 #optclose { width: 38px; height: 38px; border-radius: 50%; border: 1px solid rgba(255,255,255,.22); background: rgba(10,10,14,.6); color: var(--text);
   font-size: 17px; cursor: pointer; }
 #optclose:hover { border-color: var(--bad); color: var(--bad); }
@@ -163,7 +205,7 @@ button.optrow:disabled:hover { border-color: rgba(255,255,255,.14); background: 
 #keyspc { display: none; }
 body:not(.touch) #keyspc { display: table; }
 body:not(.touch) #keystouch { display: none; }
-#opts .tip { font-size: 12px; color: var(--muted); margin: 10px 0 0; padding: 8px 10px; border-radius: 8px; background: rgba(255,157,74,.08);
+#opts .tip { font-size: 11.5px; color: var(--muted); margin: 10px 0 0; padding: 8px 10px; border-radius: 8px; background: rgba(255,157,74,.08);
   border-left: 3px solid #ff9d4a; }
 #credit { bottom: 4px; right: 8px; font-size: 10px; color: var(--muted); opacity: .8; }
 

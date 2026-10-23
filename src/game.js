@@ -3706,6 +3706,51 @@ const BICI_AVISO = {
   montana: ['🚵 ¡Bici de montaña!', 'Llantas gordas, aguanta baches y banquetas. No se rompe y la poli ni te pela.'],
   patineta: ['🛹 ¡Patineta!', 'Más lenta que correr, pero no te cansas. No se rompe y la poli ni te pela.'],
 };
+// ---------- las apps del telefono que gastan tu dinero ----------
+// TeleTJ: te aparece (con todo y carro) junto a un lugar de cada zona. Caro a proposito
+const TELE_PRECIO = 1500;
+const TELE_DESTINOS = [
+  { zona: 'Zona Centro', lugar: 'Arco Monumental', ico: '🌉' }, { zona: 'Zona Río', lugar: 'Plaza Río Tijuana', ico: '🛍️' },
+  { zona: 'Playas de Tijuana', lugar: 'Faro de Playas', ico: '🏖️' }, { zona: 'Hipódromo', lugar: 'Estadio Caliente', ico: '⚽' },
+  { zona: 'La Mesa', lugar: 'Macroplaza', ico: '🏬' }, { zona: 'Otay', lugar: 'Aeropuerto de Tijuana', ico: '✈️' },
+  { zona: 'Cerro Colorado', lugar: 'Mirador del Cerro Colorado', ico: '⛰️' }, { zona: 'La Presa', lugar: 'Presa Rodríguez', ico: '💧' },
+  { zona: 'Santa Fe', lugar: 'Santa Fe', ico: '🏘️' }, { zona: 'Natura', lugar: 'Natura', ico: '🌲' },
+];
+const TELE_LLEGADA = ['Te mareaste un poquito, pero ya estás aquí.', 'Llegaste con el pelo parado y oliendo a ozono.', 'Un señor te vio aparecer y se persignó.',
+  'Se te quedó un calcetín en el camino. Ni modo.', 'Más rápido que la Vía Rápida a las seis de la tarde. Bueno, eso no es difícil.'];
+// BiciTJ: la bici o patineta te la dejan junto a ti
+const BICI_TIENDA = [
+  { k: 'patineta', ico: '🛹', precio: 400, det: 'Más lenta que correr, pero no te cansas.' },
+  { k: 'ruta', ico: '🚲', precio: 700, det: 'Delgadita y rápida.' },
+  { k: 'montana', ico: '🚵', precio: 900, det: 'Llantas gordas: aguanta baches y banquetas.' },
+];
+// Antojos: pides, esperas al repartidor y llega... con lo que llegue. No da nada: es por el gusto
+const MENU_ANTOJOS = [
+  { ico: '🌮', nombre: 'Tacos de adobada con todo', det: 'Con todo es con todo.', precio: 90,
+    llega: ['Llegaron con todo: hasta con una servilleta autografiada por el taquero.', 'Llegaron calientitos. El repartidor se comió uno "para probar que no estuvieran envenenados".'] },
+  { ico: '🍲', nombre: 'Caldo de res', det: 'Ideal para los 40 grados de agosto.', precio: 120,
+    llega: ['Llegó hirviendo. Afuera hacen 38 grados. Lo disfrutas igual.', 'Llegó sin cuchara. El repartidor te ofreció la suya. Dijiste que no.'] },
+  { ico: '🍣', nombre: 'Sushi con queso crema y chiles toreados', det: 'Estilo Tijuana: empanizado por fuera, feliz por dentro.', precio: 150,
+    llega: ['Llegó empanizado, con queso crema y bañado en salsa de anguila. Japón no lo reconoce. Tijuana sí.', 'Te mandaron tres salsas, cinco limones y cero palillos.'] },
+  { ico: '🌭', nombre: 'Hot dog con tocino del carrito', det: 'Del carrito de la esquina, el de siempre.', precio: 60,
+    llega: ['Llegó envuelto en aluminio, con su chile güero y una cebolla asada de regalo.', 'Llegó con más tocino que hot dog. Así debe ser.'] },
+  { ico: '🌽', nombre: 'Elote en vaso con todo', det: 'Mayonesa, queso, chile y fe.', precio: 50,
+    llega: ['Llegó el elote. El vaso venía tan lleno que el repartidor traía queso hasta en las cejas.'] },
+  { ico: '🫓', nombre: 'Una sola tortilla, bien calientita', det: 'Para el antojo exacto.', precio: 5,
+    llega: ['Llegó una tortilla. Una. En una caja de pizza. Con propina incluida en la cuenta.', 'El repartidor cruzó media ciudad por una tortilla. Te miró con respeto.'] },
+  { ico: '🥤', nombre: 'Agua de horchata tamaño cubeta', det: 'Para compartir (o no).', precio: 45,
+    llega: ['Llegó la cubeta de horchata. El repartidor la traía en la cabeza.'] },
+  { ico: '🍕', nombre: 'Pizza con piña y chiles en vinagre', det: 'La polémica en una caja.', precio: 130,
+    llega: ['Llegó la pizza. Un vecino que pasaba la vio y se fue indignado.', 'Llegó tibia, pero los chiles en vinagre la revivieron.'] },
+  { ico: '🥗', nombre: 'Ensalada', det: 'Para la foto.', precio: 110,
+    llega: ['Llegó la ensalada. El repartidor te preguntó si estabas bien.', 'Llegó la ensalada... con una orden de papas que nadie pidió. El universo sabe.'] },
+  { ico: '🎁', nombre: 'Combo misterioso del día', det: 'Ni el restaurante sabe qué trae.', precio: 77,
+    llega: ['Abriste el combo misterioso: una gordita, un pan de elote y un llavero del Xolos.', 'El combo misterioso era un caldo de pollo y una carta de amor que no es para ti.', 'Era un tamal. Adentro, otro tamal más chiquito.'] },
+];
+// lo que dice el repartidor al llegar (y si llega con algo que no era)
+const REPARTIDOR_DICE = ['¿Usted pidió esto? Ojalá que sí.', 'Me perdí tres veces, pero aquí estoy.', 'Cinco estrellitas, ¿eh? Tengo familia.',
+  'La app decía que vivía en el mar. Casi me meto.', 'Vine a pie porque se me ponchó la moto. De nada.'];
+const PEDIDO_EQUIVOCADO = ['Te trajeron un pozole. Dicen que es lo mismo.', 'Te trajeron el pedido de un tal "Beto". Él no va a comer hoy.', 'Llegó una pizza de queso. El repartidor juró que era lo que pediste.'];
 const VT_DEPORTIVA = { name: 'Moto deportiva', L: 22, W: 9, top: 370, acc: 240, steer: 3.3, hp: 50, fragil: true };
 const DEPORTIVA_COLS = [['#d10a0a', '#f4f4f4'], ['#7ed321', '#151515'], ['#1f5fbf', '#f4f4f4']]; // carenado y franja
 // premios: la troca de tacos (los 32 tacos) y el burro cebra dorado (todo completo, no se rompe)
@@ -7217,7 +7262,7 @@ class Main extends Phaser.Scene {
     }
     this.poneBici(p, R, initial, inView);
     const far = R + 520;
-    this.parked = this.parked.filter(c => { if (!c.bici || c === this.ultimoCarro || dist(c.x, c.y, p.x, p.y) < far * 2) return true; c.sprite.destroy(); return false; });
+    this.parked = this.parked.filter(c => { if (!c.bici || c === this.ultimoCarro || dist(c.x, c.y, p.x, p.y) < far * (c.comprada ? 6 : 2)) return true; c.sprite.destroy(); return false; });
     this.gatos = this.gatos.filter(c => { if (dist(c.x, c.y, p.x, p.y) > far) { c.sprite.destroy(); if (this.bubble.ped === c) this.bubble.t = 0; this.gatoProx = Math.max(this.gatoProx, now + rnd(10000, 25000)); return false; } return true; });
     this.perros = this.perros.filter(c => { if (dist(c.x, c.y, p.x, p.y) > far) { c.sprite.destroy(); return false; } return true; });
     this.cars = this.cars.filter(c => { if (!c.escena && dist(c.x, c.y, p.x, p.y) > far) { c.sprite.destroy(); return false; } return true; });
@@ -7225,6 +7270,80 @@ class Main extends Phaser.Scene {
   }
   // bicis y patinetas: de vez en cuando una sin candado en la banqueta, viendo a lo largo de la calle (raras: una cada
   // minuto o dos, y nunca si ya hay otra suelta cerca). Al pasar junto a ella a pie, un aviso para que la veas
+  // ----- las apps del telefono -----
+  // TeleTJ: se cobra, se oscurece la pantalla, se cargan los edificios de alla y apareces en la banqueta (o en la
+  // calle, si vas en carro)
+  async teletransportar(d) {
+    const l = landmarks.find(q => q.name === d.lugar); if (!l || state.money < TELE_PRECIO || this.teleporting) return;
+    this.teleporting = true;
+    state.money -= TELE_PRECIO; save(); updateStats();
+    const cam = this.cameras.main; cam.fadeOut(300, 255, 255, 255);
+    if (window.SND) SND.play('chat');
+    await new Promise(ok => this.time.delayedCall(320, ok));
+    await esperarRegiones(l.x - 1200, l.y - 1200, l.x + 1200, l.y + 1200);
+    const car = this.inCar;
+    if (car && !car.bici) {
+      const n = nearEdge(traffic, l.x, l.y), q = edgePos(n.e, n.s, 1, n.e.one ? 0 : n.e.w / 4, {});
+      car.x = q.x; car.y = q.y; car.a = q.a; car.vx = car.vy = 0; car.sprite.setPosition(car.x, car.y).setRotation(car.a);
+    } else {
+      const [x, y] = nearestSidewalk(l.x, l.y), o = car || this.player;
+      o.x = x; o.y = y; if (car) { car.vx = car.vy = 0; } o.sprite.setPosition(x, y);
+    }
+    const f = this.focus(); cam.centerOn(f.x, f.y);
+    this.updateChunks(true); // lo de alrededor de una vez (detras de la pantalla blanca)
+    cam.fadeIn(500, 255, 255, 255);
+    this.teleporting = false;
+    toast('🌀 TeleTJ: ' + d.zona + ' (-$' + TELE_PRECIO.toLocaleString('es-MX') + ')', pick(TELE_LLEGADA), 4);
+  }
+  // BiciTJ: la bici te la dejan a un lado, lista para subirte
+  comprarBici(b) {
+    if (state.money < b.precio) return;
+    const f = this.focus(), a = Math.random() * 6.28;
+    let x = f.x, y = f.y;
+    for (let k = 0; k < 12; k++) { const tx = f.x + Math.cos(a + k) * 16, ty = f.y + Math.sin(a + k) * 16; if (!blocked(tx, ty)) { x = tx; y = ty; break; } }
+    state.money -= b.precio; save(); updateStats();
+    const bici = this.makeCar(x, y, Math.random() * 6.28, this.carSpec({ bici: b.k }));
+    bici.comprada = true; this.parked.push(bici);
+    this.tweens.add({ targets: bici.sprite, scale: { from: bici.sprite.scale * 1.6, to: bici.sprite.scale }, duration: 400, ease: 'Back.easeOut' });
+    toast(b.ico + ' ¡Llegó tu ' + VT_BICI[b.k].name.toLowerCase() + '! (-$' + b.precio + ')', 'Te la dejaron aquí junto. Súbete con ' + (document.body.classList.contains('touch') ? 'SUBIR' : 'E') + '.', 4);
+  }
+  // Antojos: se cobra y en un rato llega el repartidor caminando hasta donde estes
+  pedirComida(c) {
+    if (state.money < c.precio || this.pedido) return;
+    state.money -= c.precio; save(); updateStats();
+    this.pedido = { c, t: rnd(18, 35), rep: null };
+    toast('🍔 Pediste: ' + c.nombre + ' (-$' + c.precio + ')', 'Llega en unos ' + Math.round(this.pedido.t) + ' segundos, según la app. Ajá.', 3.5);
+  }
+  updatePedido(dt) {
+    const pd = this.pedido; if (!pd) return;
+    const f = this.focus();
+    if (!pd.rep) {
+      if ((pd.t -= dt) > 0) return;
+      // aparece a la vuelta, en la banqueta, y camina derechito hasta ti
+      const a = Math.random() * 6.28, [x, y] = nearestSidewalk(f.x + Math.cos(a) * 220, f.y + Math.sin(a) * 220);
+      pd.rep = { x, y, a: 0, sprite: this.walker(x, y, 1.6), escena: true };
+      return;
+    }
+    const r = pd.rep, d = dist(r.x, r.y, f.x, f.y);
+    if (pd.fin != null) { // ya entrego: se va y desaparece
+      r.x += Math.cos(r.a) * 70 * dt; r.y += Math.sin(r.a) * 70 * dt; r.sprite.setPosition(r.x, r.y).setRotation(r.a);
+      if ((pd.fin -= dt) <= 0) { r.sprite.destroy(); this.pedido = null; }
+      else r.sprite.setAlpha(Math.min(1, pd.fin));
+      return;
+    }
+    if (d > 700) { const [x, y] = nearestSidewalk(f.x + 200, f.y); r.x = x; r.y = y; } // te fuiste lejos: te alcanza
+    if (d > 22) {
+      r.a = Math.atan2(f.y - r.y, f.x - r.x); const v = Math.min(d - 20, 95 * dt);
+      r.x += Math.cos(r.a) * v; r.y += Math.sin(r.a) * v; r.sprite.setPosition(r.x, r.y).setRotation(r.a);
+      return;
+    }
+    // llego: lo que dice y con que llego
+    const mal = Math.random() < 0.15;
+    this.globo(r, 'repartidor', pick(REPARTIDOR_DICE), 3.5);
+    toast('🛵 ¡Llegó tu pedido! ' + pd.c.ico, mal ? pick(PEDIDO_EQUIVOCADO) : pick(pd.c.llega), 5);
+    if (window.SND) SND.play('chat');
+    pd.fin = 3; r.a += Math.PI;
+  }
   poneBici(p, R, initial, inView) {
     const now = this.time.now;
     if (!this.inCar) for (const c of this.parked) if (c.suelta && !c.vista && dist(c.x, c.y, p.x, p.y) < 110) {
@@ -7267,6 +7386,7 @@ class Main extends Phaser.Scene {
     if ((this.guardaT -= dt) <= 0) { this.guardaT = 15; save(); } // por si cierran la app sin que avise
     this.updateTraffic(dt);
     this.updatePeds(dt);
+    this.updatePedido(dt);
     this.updatePerros(dt);
     this.updateGatos(dt);
     this.updateRatero(dt);
@@ -9827,7 +9947,7 @@ function toggleOptions() {
   const sc = window.TJGTA && TJGTA.scene.scenes[0];
   optsOpen = !optsOpen;
   $('opts').style.display = optsOpen ? 'flex' : 'none';
-  if (optsOpen) { renderOptions(); if (window.SND && sc) SND.update(false, 0, 0); }
+  if (optsOpen) { celPagina('home'); renderOptions(); if (window.SND && sc) SND.update(false, 0, 0); }
   // el juego se detiene mientras ves el menu
   if (sc) { if (optsOpen) sc.scene.pause(); else sc.scene.resume(); }
   dormir();
@@ -9867,6 +9987,50 @@ setInterval(() => {
   const g = window.TJGTA; if (!verFps || !g || optsOpen || bigOpen) return;
   $('fps').style.display = 'block'; $('fps').textContent = Math.round(g.loop.actualFps) + ' fps';
 }, 500);
+// ---------- el telefono: la pantalla de inicio con sus apps ----------
+let celPag = 'home';
+function celPagina(k) {
+  celPag = k;
+  for (const el of document.querySelectorAll('.cel-pag')) el.classList.toggle('on', el.id === 'pag-' + k);
+  const d = new Date(), h = d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+  $('celhora').textContent = h; $('celreloj').textContent = h;
+  $('celfecha').textContent = d.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
+  $('celsaldo').textContent = '$' + state.money.toLocaleString('es-MX');
+  if (k === 'tele' || k === 'bici' || k === 'comida') renderTienda(k);
+}
+// atras dentro del telefono: a la pantalla de inicio; ya en el inicio, se cierra
+function celAtras() { if (celPag !== 'home') celPagina('home'); else toggleOptions(); }
+for (const b of document.querySelectorAll('.app')) b.addEventListener('click', () => {
+  if (b.dataset.app === 'mapa') { toggleOptions(); if (window.TJGTA && !bigOpen) toggleBigMap(); return; }
+  celPagina(b.dataset.app);
+});
+for (const b of document.querySelectorAll('.cel-atras')) b.addEventListener('click', () => celPagina('home'));
+$('celhome').addEventListener('click', () => celPagina('home'));
+// cerrar tocando afuera del telefono
+$('opts').addEventListener('click', (ev) => { if (ev.target === $('opts')) toggleOptions(); });
+// las apps que gastan tu dinero (TeleTJ, BiciTJ, Antojos): solo jugando
+function renderTienda(k) {
+  const sc = window.TJGTA && TJGTA.scene.scenes[0], lista = $(k === 'tele' ? 'telelista' : k === 'bici' ? 'bicilista' : 'comidalista');
+  lista.innerHTML = '';
+  if (k === 'comida') {
+    const pd = sc && sc.pedido;
+    $('comidaestado').innerHTML = pd ? '🛵 <b>Tu pedido va en camino</b><br>' + pd.c.nombre + '<br><small>' +
+      (pd.rep ? 'El repartidor ya anda cerca. Asómate.' : 'Llega en unos ' + Math.max(1, Math.ceil(pd.t)) + ' segundos (según la app).') + '</small>' : '';
+  }
+  const items = k === 'tele' ? TELE_DESTINOS.map(d => ({ ico: d.ico, nombre: d.zona, det: d.lugar, precio: TELE_PRECIO, ir: () => sc.teletransportar(d) }))
+    : k === 'bici' ? BICI_TIENDA.map(b => ({ ico: b.ico, nombre: VT_BICI[b.k].name, det: b.det, precio: b.precio, ir: () => sc.comprarBici(b) }))
+    : MENU_ANTOJOS.map(c => ({ ico: c.ico, nombre: c.nombre, det: c.det, precio: c.precio, ir: () => sc.pedirComida(c) }));
+  for (const it of items) {
+    const b = document.createElement('button'); b.className = 'cel-item';
+    b.innerHTML = '<span class="ico"></span><span class="txt"><span></span><small></small></span><span class="precio"></span>';
+    b.querySelector('.ico').textContent = it.ico; b.querySelector('.txt span').textContent = it.nombre; b.querySelector('small').textContent = it.det;
+    b.querySelector('.precio').textContent = '$' + it.precio.toLocaleString('es-MX');
+    b.disabled = !sc || state.money < it.precio || (k === 'comida' && !!sc.pedido);
+    b.addEventListener('click', () => { if (b.disabled) return; toggleOptions(); it.ir(); });
+    lista.appendChild(b);
+  }
+  if (!sc) { const m = document.createElement('p'); m.className = 'cel-intro'; m.textContent = 'Entra al juego para usar esta app.'; lista.prepend(m); }
+}
 $('optbtn').addEventListener('click', toggleOptions);
 $('optclose').addEventListener('click', toggleOptions);
 $('optsnd').addEventListener('click', toggleSound);
@@ -9956,7 +10120,8 @@ $('optimpfile').addEventListener('change', (ev) => { const f = ev.target.files[0
 // O o Esc abren y cierran el menu (con el juego en pausa Phaser no lee el teclado, por eso va aqui)
 window.addEventListener('keydown', (ev) => {
   if (($('intro').style.display !== 'none' && !optsOpen) || $('actabox').style.display === 'flex' || ev.target.tagName === 'INPUT') return;
-  if (ev.key === 'o' || ev.key === 'O' || (ev.key === 'Escape' && optsOpen)) toggleOptions();
+  if (ev.key === 'Escape' && optsOpen) celAtras();
+  else if (ev.key === 'o' || ev.key === 'O') toggleOptions();
 });
 // el jugador aparece donde se quedo (ver posicion) o, la primera vez, en una calle al azar, en la banqueta y con
 // un auto estacionado al lado
@@ -10082,7 +10247,7 @@ function aviso(t) {
 // Atras cierra lo que este abierto (acta, mapa, opciones); jugando abre la pausa; en la portada, dos veces para salir
 function onBack() {
   if ($('actabox').style.display === 'flex') { $('actabox').style.display = 'none'; return; }
-  if (optsOpen) { toggleOptions(); return; }
+  if (optsOpen) { celAtras(); return; }
   if (bigOpen) { toggleBigMap(); return; }
   if (window.TJGTA) { toggleOptions(); return; }
   if (Date.now() - lastBack < 2000) { save(); APP.exitApp(); return; }

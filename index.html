@@ -30,34 +30,48 @@
 </svg></div><span class="dist"></span></div>
 <div id="credit" class="hud"></div>
 <div id="fps" class="hud"></div>
-<div id="optbtn" class="hud" title="Opciones (O)">⚙️</div>
+<div id="optbtn" class="hud" title="Teléfono (O)">📱</div>
 
-<!-- menu de opciones: avance, ajustes y controles (el juego se pausa mientras esta abierto) -->
-<div id="opts"><div class="card">
-  <div class="head"><h3>Opciones</h3><button id="optclose" title="Cerrar (O / Esc)">✕</button></div>
-  <div class="cols">
-    <section>
-      <h4>Ajustes</h4>
+<!-- el telefono: pantalla de inicio con apps (ajustes, avance, controles, creditos y las que gastan tu dinero).
+     El juego se pausa mientras esta abierto -->
+<div id="opts"><div id="cel">
+  <div class="cel-status"><b id="celhora">12:00</b><i class="cel-isla"></i><span>TJ Cel ▂▄▆ 5G 🔋</span></div>
+  <div class="cel-pantalla">
+    <div class="cel-pag on" id="pag-home">
+      <div class="cel-reloj"><b id="celreloj">12:00</b><small id="celfecha"></small></div>
+      <div class="cel-apps">
+        <button class="app" data-app="ajustes"><i style="--a:#8e9aa6;--b:#4b5560">⚙️</i><span>Ajustes</span></button>
+        <button class="app" data-app="progreso"><i style="--a:#ffd23f;--b:#e07b00">📊</i><span>Mi avance</span></button>
+        <button class="app" data-app="controles"><i style="--a:#7c4dff;--b:#3b1fa3">🎮</i><span>Controles</span></button>
+        <button class="app" data-app="creditos"><i style="--a:#ff7eb3;--b:#c2185b">⭐</i><span>Créditos</span></button>
+        <button class="app" data-app="tele"><i style="--a:#40e0ff;--b:#1565c0">🌀</i><span>TeleTJ</span></button>
+        <button class="app" data-app="bici"><i style="--a:#7ee08a;--b:#1b7a33">🚲</i><span>BiciTJ</span></button>
+        <button class="app" data-app="comida"><i style="--a:#ff8a50;--b:#d32f2f">🍔</i><span>Antojos</span></button>
+        <button class="app" data-app="mapa"><i style="--a:#a5d6a7;--b:#2e7d32">🗺️</i><span>Mapa</span></button>
+      </div>
+      <div class="cel-saldo">Tu cartera: <b id="celsaldo">$0</b></div>
+    </div>
+    <div class="cel-pag" id="pag-ajustes"><div class="cel-bar"><button class="cel-atras">‹</button><b>Ajustes</b></div><div class="cel-cont">
       <button class="optrow" id="optsnd"></button>
-      <div class="optrow seg" id="optcal"><span>🎨 Calidad gráfica</span>
+      <div class="optrow seg" id="optcal"><span>🎨 Gráficos</span>
         <button data-q="alta">Alta</button><button data-q="media">Media</button><button data-q="baja">Baja</button></div>
       <div class="optrow seg" id="optori"><span>📱 Pantalla</span>
-        <button data-o="auto">Gira</button><button data-o="horizontal">Horizontal</button><button data-o="vertical">Vertical</button></div>
+        <button data-o="auto">Gira</button><button data-o="horizontal">Horiz.</button><button data-o="vertical">Vert.</button></div>
       <button class="optrow" id="optfps"></button>
       <button class="optrow" id="optnight"></button>
-      <button class="optrow" id="optacta"></button>
       <button class="optrow" id="optexit" style="display:none">🚪 Guardar y salir</button>
-      <h4>Tu avance</h4>
-      <div id="optprog"></div>
       <h4>Tu partida</h4>
       <button class="optrow" id="optexport">💾 Exportar partida (respaldo)</button>
       <button class="optrow" id="optimport">📂 Importar partida</button>
       <input type="file" id="optimpfile" accept="application/json,.json" style="display:none">
       <div id="optmsg"></div>
       <div id="optver"></div>
-    </section>
-    <section>
-      <h4>Controles</h4>
+    </div></div>
+    <div class="cel-pag" id="pag-progreso"><div class="cel-bar"><button class="cel-atras">‹</button><b>Mi avance</b></div><div class="cel-cont">
+      <div id="optprog"></div>
+      <button class="optrow" id="optacta"></button>
+    </div></div>
+    <div class="cel-pag" id="pag-controles"><div class="cel-bar"><button class="cel-atras">‹</button><b>Controles</b></div><div class="cel-cont">
       <table class="keys" id="keystouch">
         <tr><td>Joystick</td><td>Caminar o manejar</td></tr>
         <tr><td>SUBIR / BAJAR</td><td>Robar un auto y subirte / bajarte</td></tr>
@@ -65,7 +79,7 @@
         <tr><td>REVERSA</td><td>Echarte para atrás</td></tr>
         <tr><td>TAXI</td><td>Trabajar de taxista (en auto)</td></tr>
         <tr><td>Minimapa</td><td>Tócalo para abrir el mapa grande: arrastra, pellizca y toca para marcar destino</td></tr>
-        <tr><td>⚙️</td><td>Este menú</td></tr>
+        <tr><td>📱</td><td>Este teléfono</td></tr>
       </table>
       <table class="keys" id="keyspc">
         <tr><td>Flechas / WASD</td><td>Caminar o manejar</td></tr>
@@ -76,12 +90,29 @@
         <tr><td>T</td><td>Trabajar de taxista (en auto)</td></tr>
         <tr><td>M / clic al minimapa</td><td>Mapa grande (rueda para acercar, clic para destino)</td></tr>
         <tr><td>N · L</td><td>Sonido · noche</td></tr>
-        <tr><td>O / Esc</td><td>Este menú</td></tr>
+        <tr><td>O / Esc</td><td>Este teléfono</td></tr>
       </table>
       <p class="tip">Te habla la gente si caminas pegado a ella. Roba la moto de un repartidor 🛵 para hacer entregas. Los carros robados se venden en el yonke 🔧 de la Zona Norte. En la comida china 🏮 se te va el dinero.</p>
-    </section>
+    </div></div>
+    <div class="cel-pag" id="pag-creditos"><div class="cel-bar"><button class="cel-atras">‹</button><b>Créditos</b></div><div class="cel-cont">
+      <div class="cel-creditos"><b>TJ RUSH</b><span>Tijuana · B.C.</span><p>Los créditos completos vienen pronto.</p>
+      <small>Datos del mapa: Overture Maps Foundation y © colaboradores de OpenStreetMap (ODbL).</small></div>
+    </div></div>
+    <div class="cel-pag" id="pag-tele"><div class="cel-bar"><button class="cel-atras">‹</button><b>🌀 TeleTJ</b></div><div class="cel-cont">
+      <p class="cel-intro">Te aparecemos donde quieras de Tijuana, con todo y carro. Puede marear.</p>
+      <div id="telelista" class="cel-lista"></div>
+    </div></div>
+    <div class="cel-pag" id="pag-bici"><div class="cel-bar"><button class="cel-atras">‹</button><b>🚲 BiciTJ</b></div><div class="cel-cont">
+      <p class="cel-intro">Te la dejamos junto a ti en un ratito. No se rompen y la poli ni las pela.</p>
+      <div id="bicilista" class="cel-lista"></div>
+    </div></div>
+    <div class="cel-pag" id="pag-comida"><div class="cel-bar"><button class="cel-atras">‹</button><b>🍔 Antojos</b></div><div class="cel-cont">
+      <div id="comidaestado"></div>
+      <div id="comidalista" class="cel-lista"></div>
+    </div></div>
   </div>
-</div></div>
+  <div class="cel-home" id="celhome" title="Inicio"></div>
+</div><button id="optclose" title="Cerrar (O / Esc)">✕</button></div>
 
 <div id="actabox"><div class="card">
   <canvas id="actac" width="1600" height="1100"></canvas>
@@ -112,7 +143,7 @@
   <div class="menu">
     <button class="go" id="go">▶ JUGAR</button>
     <button class="sec" id="reset">Partida nueva</button>
-    <button class="sec" id="introopts">⚙️ Opciones</button>
+    <button class="sec" id="introopts">📱 Teléfono</button>
     <div id="introaviso"></div>
     <table>
       <tr><td>Flechas / WASD</td><td>Caminar o manejar</td></tr>
