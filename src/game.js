@@ -2928,7 +2928,7 @@ const PEDIDOS = [
 const CLIENTES = [
   '"¿Y la salsa?" Así nomás te recibió.', 'Te pagó con monedas de 50 centavos, una por una.',
   'Te abrió en pijama de dinosaurio y te dijo "gracias, mi rey".', 'Te calificó con 5 estrellas y un emoji de calavera.',
-  '"Pedí esto hace tres semanas", pero igual se lo comió.', 'Te pidió que le cambiaras un foco ya que ibas a estar ahí.',
+  '"Tenía todo para cocinar, pero me ganó la flojera", te dijo con la estufa limpiecita atrás.', 'Te pidió que le cambiaras un foco ya que ibas a estar ahí.',
   '"Déjalo en la puerta", dijo el señor desde la puerta.',
   'Te ofreció la mitad de su pedido. Era tuyo de todas formas.', 'Te dio de propina un boleto de la rifa de la parroquia.',
   'Te recibió un niño de seis años con los billetes contados: "quédese con el cambio, señor".',
